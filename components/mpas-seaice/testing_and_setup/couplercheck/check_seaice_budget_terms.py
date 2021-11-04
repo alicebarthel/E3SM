@@ -13,6 +13,7 @@ verbose = False
 savedata = False
 
 def main():
+    global verbose, savedata
     parser = argparse.ArgumentParser(description='Run a check on CPL vs AM sea ice budget(s).')
     parser.add_argument('-d','--dir', type=str, required=True, help='Path to simulations directory (where simulation subdir resides)')
     parser.add_argument('-r','--run', type=str, required=True, help='Simulation name (e.g. date.version.mesh.machine)')
@@ -31,7 +32,7 @@ def main():
         print("saving data mode on")
         savedata = True
         
-    print(args)
+    _verboseprint(args)
     compare_budgets_seaice(args.dir, args.run, args.budget, args.period[0], args.period[1], args.reltolerance, args.abstolerance, args.hemisphere)
 
 
