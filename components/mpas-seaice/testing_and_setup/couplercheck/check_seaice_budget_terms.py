@@ -10,176 +10,46 @@ import gzip, io, os, glob
 import argparse, sys
 
 verbose = False
+savedata = False
 
 def main():
-    parser = argparse.ArgumentParser(description='Process some integers.')
-    # Add an argument
-    parser.add_argument('-d','--dir', type=str, required=True, help='T')
-    parser.add_argument('-r','--run', type=str, required=True, help='T')
-    parser.add_argument('-p','--period', type=int, nargs=2, required=True, help='T')
-    parser.add_argument('-hem','--hemisphere', type=int, nargs='+', default=0,  help='Hemisphere to run the check over: 0= GLOBAL; 1=NH; 2= SH')
-    parser.add_argument('-b','--budget', type=str, nargs='+', help='Type of budget check to run. Options: h=heat, fw=freshwater, s=salt, a=area')
-    parser.add_argument('-rt','--reltolerance', type=float, help='T')
-    parser.add_argument('-at','--abstolerance', type=float, help='T')
-    parser.add_argument("-v", "--verbose", action="store_true", default=False, help='T')
-    #parser.add_argument("--savedata", action="store_true", default=False, help='Save the data structures we produce for the check')
-    #parser.add_argument("--saveplot", action="store_true", default=False, help='Save the flux plot we produce during the check')
+    parser = argparse.ArgumentParser(description='Run a check on CPL vs AM sea ice budget(s).')
+    parser.add_argument('-d','--dir', type=str, required=True, help='Path to simulations directory (where simulation subdir resides)')
+    parser.add_argument('-r','--run', type=str, required=True, help='Simulation name (e.g. date.version.mesh.machine)')
+    parser.add_argument('-p','--period', type=int, nargs=2, required=True, help='Period to analyse. Two arguments expected: yearstart yearend')
+    parser.add_argument('-hem','--hemisphere', type=int, nargs='+', default=0,  help='Hemisphere(s) to run the check over: 0=GLOBAL; 1=NH; 2=SH')
+    parser.add_argument('-b','--budget', type=str, nargs='+', help='Type(s) of budget check to run. Options: h=heat, fw=freshwater, s=salt, a=area')
+    parser.add_argument('-rt','--reltolerance', type=float, default=1e-4, help='Relative tolerance for the error check')
+    parser.add_argument('-at','--abstolerance', type=float, default=1e-10, help='Absolute tolerance for the error check')
+    parser.add_argument("-v", "--verbose", action="store_true", default=False, help='Verbose option to write details of the process')
+    parser.add_argument('-csv', "--savedata", action="store_true", default=False, help='Save the data structures we produce for the check to local csv files')
     args = parser.parse_args()
     if args.verbose:
         print("verbose mode turned on")
         verbose = True
+    if args.savedata:
+        print("saving data mode on")
+        savedata = True
         
     print(args)
     compare_budgets_seaice(args.dir, args.run, args.budget, args.period[0], args.period[1], args.reltolerance, args.abstolerance, args.hemisphere)
 
 
 
-# NECESSARY Functions
-
-def _open_cpl_file(filename):
-    root, extension = os.path.splitext(filename)
-    #print(extension) #do I need a tar.gz case?
-    if (extension == '.gz'):
-        in_file = io.TextIOWrapper(gzip.open(filename, 'rb'), encoding='utf-8')
-    else:
-        in_file = open(filename, 'r')
-    return in_file
-
-def _verboseprint(string):
-    if verbose:
-        print(string)
-
-
-def _extract_fromcpl_budgetterms(filename, dictbudget, ystart, hemis): 
-### Extract all sea-ice related heat terms into hemisphereic dataframe (global, nh, sh)  -- format agnostic
-    file_content = _open_cpl_file(filename).read()
-    blocks = re.findall(
-    dictbudget['regex_header'],
-    file_content,
-    re.DOTALL
-    )
-    
-    mylist = []
-    for block in blocks:
-        time = re.findall("date\s\=\s\s*(-?\d+)", block)
-        time = date2num(datetime.strptime('{:08d}'.format(eval(time[0])), '%Y%m%d'), units = 'months since 0001-01-01', calendar = '360_day')
-        _verboseprint('t = %s'%time)
-        for var, varc in zip(dictbudget['var_header_cpl'], dictbudget['budget_terms']):
-            if (varc == 'SUM'):
-                for row in re.findall(dictbudget['regex_SUM']%varc, block):
-                    mylist.append([time] + [var] + [_extract_value_forhemis(row, hemis)])
-
-            else:
-                for row in re.findall(dictbudget['regex_var']%varc, block):
-                    mylist.append([time] + [var] + [_extract_value_forhemis(row, hemis)])
-
-
-    cpl_hterms_ice = pd.DataFrame(mylist, columns = ['time', 'var', 'ice %s'%_return_str_forhemis(hemis)])
-    cpl_hterms_ice = cpl_hterms_ice.pivot(index="time", columns="var", values="ice %s"%_return_str_forhemis(hemis))
-
-    return cpl_hterms_ice
-
-def _return_dict_for_budget(budgetname):
-    # Creating a Dictionary for each budget type
-    if budgetname == 'h':
-        Dict = {'Name': budgetname, 'Fullname': 'heat',
-    'var_header_am': ['NetHeat','Frazil','Sensible','OceanHeat', 'LongwaveUp','LongwaveDown','NetSW','Latent','SnowHeat'],
-    'var_consCheck' : ['netEnergyFlux', 'energyConsFreezingPotential', 'energyConsSensibleHeatFlux', 'energyConsOceanHeatFlux', 'energyConsLongwaveUp', 'energyConsLongwaveDown', 'netShortwaveFlux', 'energyConsLatentHeat', 'energyConsSnowfallHeat'],
-    'var_header_cpl' : ['Frazil','OceanHeat','NetSW','LongwaveDown', 'LongwaveUp','Latent','SnowHeat','hiroff','Sensible','hh2otemp','NetHeat'],
-    'budget_terms' : ['hfreeze', 'hmelt', 'hnetsw', 'hlwdn', 'hlwup', 'hlatvap', 'hlatfus', 'hiroff', 'hsen', 'hh2otemp', 'SUM'],
-    'regex_header': r'NET\sHEAT\sBUDGET\s\(W\/m2\):\speriod\s=\s\smonthly(.*?)\n\s\s\n',
-    'regex_SUM' : r"\s\*%s\*\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)",
-    'regex_var' : r"\s%s\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)"
-               }
-    elif budgetname == 'fw':
-        raise ValueError('Freshwater budget not implemented yet, this is a placeholder')
-    elif budgetname == 's':
-        raise ValueError('Salt budget not implemented yet, this is a placeholder')
-    elif budgetname == 'a':
-        raise ValueError('Area budget not implemented yet, this is a placeholder')        
-    else: 
-        raise ValueError('Budget name unkown; Working option is h, (future options are fw, s, a)')
-    _verboseprint("\ncreated dictionary for the budget requested. ")
-    
-    return Dict
-
-
-def _extract_fromConsAM(modeldir,runname, ystart, yend, var, hemis):
-### Extract the requested variable from the SEA-ICE conservation Analysis Member
-# Assumes: monthly data; hard coded SI conservation check file names; skips time stamp zero (first year is 11 expected length)
-# (Looping is necessary due to 0-11 structure of Time in AM.nc -- cannot automatically concatenate)
-    fluxvar = np.zeros((yend-ystart+1)*12) # assuming monthly data and full years
-    for year in np.arange(ystart, yend+1):
-        modelfile = '{}/{}/run/{}.mpassi.hist.am.conservationCheck.{:04d}.nc'.format(modeldir, runname, runname,year)
-        time = 12*(year-ystart)
-        f = Dataset(modelfile, mode='r')
-        _verboseprint('Extracting var: %s'%var +' hemis: %s'%hemis)
-        _verboseprint('time: %s, %s'%(time, time+11))
-        ttime=max(time,1)
-        if var == 'netShortwaveFlux':
-                fluxvar[ttime: time+12] = f.variables['energyConsAbsorbedShortwaveFlux'][:, hemis] + f.variables['energyConsOceanShortwaveFlux'][:, hemis] # 1 is for NH, add others
-        else: 
-                fluxvar[ttime: time+12] = f.variables[var][:,  hemis]
-        
-    return fluxvar
-
-
-def _plot_fluxtimeseries(CPLdfGL, AMdfGL, dictbudget,runname, ystart, yend, hemis, saveflag = 1):
-    var_header = dictbudget['var_header_am']
-    fig, ax = plt.subplots(len(var_header),1, figsize=(16,16))
-    for ii in np.arange(len(var_header)):
-        ax[ii].plot(CPLdfGL[var_header[ii]], 'k--')
-        ax[ii].plot(AMdfGL[var_header[ii]], 'r:')
-        ax[ii].set_title(var_header[ii], y=1.0, pad=-14)
-    ax[-1].set_xlabel('Months since 0001-01-01')
-    fig.suptitle('%s : %s budget %s  year %s to %s'%(runname, dictbudget['Fullname'], _return_str_forhemis(hemis), ystart, yend))
-    fig.tight_layout()
-    if saveflag:
-        fig.savefig('seaice-ocean_fluxcomparison_cpl_am.%s_%sbudget_%s_%s-%s.png'%(runname, dictbudget['Name'], _return_str_forhemis(hemis), ystart, yend), dpi= 150, format='png')
-    return 0
-
-
-def _check_timeperiod(ystart, yend):
-    for year in [ystart, yend]:
-        if (type(year) != int):
-            print('Warning: Year input is not an int, converted to int')
-        val = int(year)
-        if (val < 1): 
-            raise ValueError("Year inputs must be a positive integer ( > 1)")
-            
-        if (val > 2100): 
-            raise ValueError("Year inputs must be an integer below 2100")
-
-    if int(yend) < int(ystart):
-        raise ValueError('yend must be greater than or equal to ystart')
-
-
-def _check_AMfiles_exist(modeldir, runname,ystart, yend):
-    missingfiles=[]
-    for year in np.arange(ystart, yend):
-        modelfile = '{}/{}/run/{}.mpassi.hist.am.conservationCheck.{:04d}.nc'.format(modeldir, runname, runname,year)
-            
-        try:
-            f = open(modelfile, "r")
-            f.close()
-        except IOError:
-            missingfiles.append(year)
-    if len(missingfiles) > 0:
-        print("%s files missing in directory: "%len(missingfiles))
-        print('{}/{}/run/{}.mpassi.hist.am.conservationCheck.YEAR.nc'.format(modeldir, runname, runname))
-        print('for YEAR in: ')
-        print(missingfiles)
-        raise IOError("Files cannot be opened (or do not exist).")
-
 
 def compare_budgets_seaice(modeldir, runname, budgetlist, ystart, yend, rtol, atol, hemislist):
-### doc string
+    '''Compares sea ice flux terms from a) the coupler log, b) the conservation check Analysis Member (assuming monthly values).'''
+    
     checksfailed = 0
-# Various checks on input and paths
+# Checks on input and paths
     _check_timeperiod(ystart, yend)
     directory = '{}/{}/run/'.format(modeldir, runname)
     assert(os.path.isdir(directory)), "Directory not found: %s"%directory
     _check_AMfiles_exist(modeldir, runname, ystart, yend)
+    assert(all([hem in [0,1,2] for hem in hemislist])), "Expected options for hemisphere are 0 = global, 1 = Nh, 2 = SH"
+    assert(all([b in ['h', 's', 'fw', 'a'] for b in budgetlist])), "Expected options for budget are h, s, fw, a"
+    assert(rtol <= 1 and rtol >= 0), "Relative tolerance is expected to be between 0 and 1"
+    assert(atol >= 0), "Absolute tolerance is expected to be positive"
     
 # extracting data
     for b in budgetlist:
@@ -192,6 +62,9 @@ def compare_budgets_seaice(modeldir, runname, budgetlist, ystart, yend, rtol, at
             AMdf = _build_df_AM_SI(modeldir,runname,dictbudget, ystart, yend, hemis)
 
             CPLdf, AMdf = _check_adjust_shape(CPLdf, AMdf, dictbudget)
+            if (savedata):
+                CPLdf.to_csv('CPLdf.csv', header=True, index=True)
+                AMdf.to_csv('AMdf.csv', header=True, index=True)
 
             ### Actual check ###
             check = np.allclose(CPLdf, AMdf, rtol, atol, equal_nan=False)
@@ -212,25 +85,10 @@ def compare_budgets_seaice(modeldir, runname, budgetlist, ystart, yend, rtol, at
     
     assert(checksfailed == 0), "Sea-ice budget conservation checks failed: %s"%checksfailed
 
-
-def _build_df_AM_SI(modeldir,runname,dictbudget, ystart, yend, hemis):
-### Extract Hemispheric SEA-ICE variables from the SEA-ICE conservation Analysis Member, into 1 hemispheric dataframe
-    reftime = date2num(datetime.strptime('{:04d}'.format(ystart), '%Y'), units = 'months since 0001-01-01', calendar = '360_day')
-    # Build the data_array that will make it into a dataframe
-    var_header = dictbudget['var_header_am']
-    var_consCheck = dictbudget['var_consCheck']
-    lentime = (yend-ystart+1)*12 # assuming monthly data and full years
-    time = np.arange(0, lentime) + reftime
-    dataarray = np.zeros([lentime, len(var_consCheck)])
-    for ii  in np.arange(len(var_consCheck)): 
-        dataarray[:, ii] = _extract_fromConsAM(modeldir,runname, ystart, yend, var_consCheck[ii], hemis)
-
-    # Make a dataframe with matching AM data
-    AMdf = pd.DataFrame(data = dataarray, index=time, columns=var_header)
     
-    return AMdf
+# Helper Functions
 
-def _extract_cpldata_fromdir(dir_name, dictbudget, ystart, yend, hemis): # verbose option?
+def _extract_cpldata_fromdir(dir_name, dictbudget, ystart, yend, hemis):
     list_of_files = sorted( filter( os.path.isfile,
                             glob.glob(dir_name + 'cpl.log*') ) )
     if (len(list_of_files) == 0):
@@ -259,6 +117,173 @@ def _extract_cpldata_fromdir(dir_name, dictbudget, ystart, yend, hemis): # verbo
     
     return df
 
+
+def _extract_fromcpl_budgetterms(filename, dictbudget, ystart, hemis): 
+### Extract all sea-ice budget terms into hemisphereic dataframe (global, nh, sh)  -- format agnostic
+    file_content = _open_cpl_file(filename).read()
+    blocks = re.findall(
+    dictbudget['regex_header'],
+    file_content,
+    re.DOTALL
+    )
+    
+    mylist = []
+    for block in blocks:
+        time = re.findall("date\s\=\s\s*(-?\d+)", block)
+        time = date2num(datetime.strptime('{:08d}'.format(eval(time[0])), '%Y%m%d'), units = 'months since 0001-01-01', calendar = '360_day')
+        _verboseprint('t = %s'%time)
+        for var, varc in zip(dictbudget['var_header_cpl'], dictbudget['budget_terms']):
+            if (varc == 'SUM'):
+                for row in re.findall(dictbudget['regex_SUM']%varc, block):
+                    mylist.append([time] + [var] + [_extract_value_forhemis(row, hemis)])
+
+            else:
+                for row in re.findall(dictbudget['regex_var']%varc, block):
+                    mylist.append([time] + [var] + [_extract_value_forhemis(row, hemis)])
+
+
+    cpl_hterms_ice = pd.DataFrame(mylist, columns = ['time', 'var', 'ice %s'%_return_str_forhemis(hemis)])
+    cpl_hterms_ice = cpl_hterms_ice.pivot(index="time", columns="var", values="ice %s"%_return_str_forhemis(hemis))
+
+    return cpl_hterms_ice
+
+    
+def _build_df_AM_SI(modeldir,runname,dictbudget, ystart, yend, hemis):
+# Extract Hemispheric SEA-ICE variables from the SEA-ICE conservation Analysis Member, into 1 hemispheric dataframe
+    reftime = date2num(datetime.strptime('{:04d}'.format(ystart), '%Y'), units = 'months since 0001-01-01', calendar = '360_day')
+    # Build the data_array that will make it into a dataframe
+    var_header = dictbudget['var_header_am']
+    var_consCheck = dictbudget['var_consCheck']
+    lentime = (yend-ystart+1)*12 # assuming monthly data and full years
+    time = np.arange(0, lentime) + reftime
+    dataarray = np.zeros([lentime, len(var_consCheck)])
+    for ii  in np.arange(len(var_consCheck)): 
+        dataarray[:, ii] = _extract_fromConsAM(modeldir,runname, ystart, yend, var_consCheck[ii], hemis)
+
+    # Make a dataframe with matching AM data
+    AMdf = pd.DataFrame(data = dataarray, index=time, columns=var_header)
+    
+    return AMdf
+
+
+def _extract_fromConsAM(modeldir,runname, ystart, yend, var, hemis):
+### Extract the requested variable from the SEA-ICE conservation Analysis Member
+# Assumes: monthly data; hard coded SI conservation check file names; skips time stamp zero (first year is 11 expected length)
+# (Looping is necessary due to 0-11 structure of Time in AM.nc -- cannot automatically concatenate)
+    fluxvar = np.zeros((yend-ystart+1)*12) # assuming monthly data and full years
+    for year in np.arange(ystart, yend+1):
+        modelfile = '{}/{}/run/{}.mpassi.hist.am.conservationCheck.{:04d}.nc'.format(modeldir, runname, runname,year)
+        time = 12*(year-ystart)
+        f = Dataset(modelfile, mode='r')
+        _verboseprint('Extracting var: %s'%var +' hemis: %s'%hemis)
+        _verboseprint('time: %s, %s'%(time, time+11))
+        ttime=max(time,1)
+        if var == 'netShortwaveFlux':
+                fluxvar[ttime: time+12] = f.variables['energyConsAbsorbedShortwaveFlux'][:, hemis] + f.variables['energyConsOceanShortwaveFlux'][:, hemis] # 1 is for NH, add others
+        else: 
+                fluxvar[ttime: time+12] = f.variables[var][:,  hemis]
+        
+    return fluxvar
+
+
+def _check_adjust_shape(CPLdf, AMdf, dictbudget):
+    if (np.shape(CPLdf)==np.shape(AMdf)):
+        _verboseprint('Coupler and Analysis Member data structures have the same shape')
+    if (np.shape(CPLdf)[1] > np.shape(AMdf)[1]):
+        CPLdf=CPLdf[dictbudget['var_header_am']] #subselecting variables (e.g. dropping runoff and h2otemp)
+
+    if (np.shape(AMdf)[0] == np.shape(CPLdf)[0]+1 ):
+        AMdf=AMdf[dictbudget['var_header_am']].drop(min(AMdf.index)) #dropping first index in AM to match CPL (which does not produce 1st time)
+    else: 
+        _verboseprint('Shape of data structures: ',np.shape(CPLdf),np.shape(AMdf))
+
+    assert(np.shape(CPLdf) == np.shape(AMdf)), "Coupler and Analysis Member data structures have incompatible shapes"
+    return CPLdf, AMdf
+
+
+def _open_cpl_file(filename):
+    root, extension = os.path.splitext(filename)
+    #do I need a tar.gz case?
+    if (extension == '.gz'):
+        in_file = io.TextIOWrapper(gzip.open(filename, 'rb'), encoding='utf-8')
+    else:
+        in_file = open(filename, 'r')
+    return in_file
+
+def _verboseprint(string):
+    if verbose:
+        print(string)
+
+
+def _return_dict_for_budget(budgetname):
+    # Creating a Dictionary for each budget type
+    if budgetname == 'h':
+        Dict = {'Name': budgetname, 'Fullname': 'heat',
+    'var_header_am': ['NetHeat','Frazil','Sensible','OceanHeat', 'LongwaveUp','LongwaveDown','NetSW','Latent','SnowHeat'],
+    'var_consCheck' : ['netEnergyFlux', 'energyConsFreezingPotential', 'energyConsSensibleHeatFlux', 'energyConsOceanHeatFlux', 'energyConsLongwaveUp', 'energyConsLongwaveDown', 'netShortwaveFlux', 'energyConsLatentHeat', 'energyConsSnowfallHeat'],
+    'var_header_cpl' : ['Frazil','OceanHeat','NetSW','LongwaveDown', 'LongwaveUp','Latent','SnowHeat','hiroff','Sensible','hh2otemp','NetHeat'],
+    'budget_terms' : ['hfreeze', 'hmelt', 'hnetsw', 'hlwdn', 'hlwup', 'hlatvap', 'hlatfus', 'hiroff', 'hsen', 'hh2otemp', 'SUM'],
+    'regex_header': r'NET\sHEAT\sBUDGET\s\(W\/m2\):\speriod\s=\s\smonthly(.*?)\n\s\s\n',
+    'regex_SUM' : r"\s\*%s\*\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)",
+    'regex_var' : r"\s%s\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)\s*(-?\d+.?\d*)"
+               }
+    elif budgetname == 'fw':
+        raise ValueError('Freshwater budget not implemented yet, this is a placeholder')
+    elif budgetname == 's':
+        raise ValueError('Salt budget not implemented yet, this is a placeholder')
+    elif budgetname == 'a':
+        raise ValueError('Area budget not implemented yet, this is a placeholder')        
+    else: 
+        raise ValueError('Budget name unkown; Working option is h, (future options are fw, s, a)')
+    _verboseprint("\ncreated dictionary for the budget requested. ")
+    
+    return Dict
+
+def _check_timeperiod(ystart, yend):
+    for year in [ystart, yend]:
+        if (type(year) != int):
+            print('Warning: Year input is not an int, converted to int')
+        val = int(year)
+        if (val < 1): 
+            raise ValueError("Year inputs must be a positive integer ( > 1)")
+            
+        if (val > 2100): 
+            raise ValueError("Year inputs must be an integer below 2100")
+
+    if int(yend) < int(ystart):
+        raise ValueError('yend must be greater than or equal to ystart')
+
+
+def _check_AMfiles_exist(modeldir, runname,ystart, yend):
+    missingfiles=[]
+    for year in np.arange(ystart, yend):
+        modelfile = '{}/{}/run/{}.mpassi.hist.am.conservationCheck.{:04d}.nc'.format(modeldir, runname, runname,year)
+        try:
+            f = open(modelfile, "r")
+            f.close()
+        except IOError:
+            missingfiles.append(year)
+    if len(missingfiles) > 0:
+        print("%s files missing in directory: "%len(missingfiles))
+        print('{}/{}/run/{}.mpassi.hist.am.conservationCheck.YEAR.nc'.format(modeldir, runname, runname))
+        print('for YEAR in: ')
+        print(missingfiles)
+        raise IOError("Files cannot be opened (or do not exist).")
+
+def _plot_fluxtimeseries(CPLdf, AMdf, dictbudget,runname, ystart, yend, hemis):
+    var_header = dictbudget['var_header_am']
+    fig, ax = plt.subplots(len(var_header),1, figsize=(16,16))
+    for ii in np.arange(len(var_header)):
+        ax[ii].plot(CPLdf[var_header[ii]], 'k--')
+        ax[ii].plot(AMdf[var_header[ii]], 'r:')
+        ax[ii].set_title(var_header[ii], y=1.0, pad=-14)
+    ax[-1].set_xlabel('Months since 0001-01-01')
+    fig.suptitle('%s : %s budget %s  year %s to %s'%(runname, dictbudget['Fullname'], _return_str_forhemis(hemis), ystart, yend))
+    fig.tight_layout()
+    fig.savefig('seaice-ocean_fluxcomparison_cpl_am.%s_%sbudget_%s_%s-%s.png'%(runname, dictbudget['Name'], _return_str_forhemis(hemis), ystart, yend), dpi= 150, format='png')
+    return 0
+
+
 def _extract_value_forhemis(row, hemis):
     if hemis == 0:
         return (eval(row[4]) + eval(row[5]))
@@ -280,20 +305,6 @@ def _return_str_forhemis(hemis):
         raise ValueError("Hemis should be within 0,1,2 - this error should be caught earlier!")
 
 
-def _check_adjust_shape(CPLdfGL, AMdfGL, dictbudget):
-    #print(np.shape(CPLdfGL),np.shape(AMdfGL))
-    if (np.shape(CPLdfGL)==np.shape(AMdfGL)):
-        _verboseprint('Coupler and Analysis Member data structures have the same shape')
-    if (np.shape(CPLdfGL)[1] > np.shape(AMdfGL)[1]):
-        CPLdfGL=CPLdfGL[dictbudget['var_header_am']] #subselecting variables (e.g. dropping runoff and h2otemp)
-
-    if (np.shape(AMdfGL)[0] == np.shape(CPLdfGL)[0]+1 ):
-        AMdfGL=AMdfGL[dictbudget['var_header_am']].drop(min(AMdfGL.index)) #dropping first index in AM to match CPL (which does not produce 1st time)
-    else: 
-        _verboseprint('Shape of data structures: ',np.shape(CPLdfGL),np.shape(AMdfGL))
-
-    assert(np.shape(CPLdfGL) == np.shape(AMdfGL)), "Coupler and Analysis Member data structures have incompatible shapes"
-    return CPLdfGL, AMdfGL
 
 if __name__ == "__main__":
     main()
