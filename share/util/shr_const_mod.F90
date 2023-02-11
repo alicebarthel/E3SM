@@ -68,7 +68,7 @@ MODULE shr_const_mod
    real(R8),parameter :: SHR_CONST_DTF_DPDS = -1.74e-10_R8   ! The coefficient for the term proportional to salinity times
    ! pressure in the freezing temperature in sub-ice-shelf ocean cavities ~ C PSU^{-1} Pa^{-1}
    real(R8),parameter :: SHR_CONST_OCN_REF_SAL = 34.7_R8     ! ocn ref salinity (psu)
-   real(R8),parameter :: SHR_CONST_ICE_REF_SAL =  4.0_R8     ! ice ref salinity (psu)
+   real(R8),parameter :: SHR_CONST_ICE_REF_SAL =  10.0_R8     ! ice ref salinity (psu)
 
    real(R8),parameter :: SHR_CONST_SPVAL        = 1.0e30_R8                 ! special missing value
    real(R8),parameter :: SHR_CONST_SPVAL_TOLMIN = 0.99_R8 * SHR_CONST_SPVAL ! min spval tolerance
