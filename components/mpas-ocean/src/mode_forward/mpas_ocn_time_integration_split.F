@@ -189,6 +189,7 @@ module ocn_time_integration_split
          temp_h,           &! temporary for phi
          temp_mask,        &! temporary mask (edgeMask)
          lat,              &! cell latitude
+         lon,              &! cell longitude
          sshCell1,         &! sea sfc height in neighboring cells
          sshCell2,         &
          sshGrad            ! temp for holding ssh gradient
@@ -2149,45 +2150,45 @@ module ocn_time_integration_split
                         !$omp do schedule(runtime) private(k, lat)
                         do iCell = 1, nCellsAll
 
-                           ! Reset tracer1 to 2 in top n layers
+                           ! Reset tracer2 to 1 in top n layers
                            do k = minLevelCell(iCell), minLevelCell(iCell)+config_reset_debugTracers_top_nLayers-1
-                                tracersGroupNew(1,k,iCell) = 2.0_RKIND
+                                tracersGroupNew(2,k,iCell) = 1.0_RKIND
                            end do
 
-                           ! Reset tracer2 to 2 in top n layers
-                           ! in zonal bands, and 1 outside
+                           ! Reset tracer3 to 1 in top n layers
+                           ! in North Atlantic box, and 0 outside
                            lat = latCell(iCell)*180./3.1415
-                           if (     lat>-60.0.and.lat<-55.0 &
-                                .or.lat>-40.0.and.lat<-35.0 &
-                                .or.lat>- 2.5.and.lat<  2.5 &
-                                .or.lat> 35.0.and.lat< 40.0 &
-                                .or.lat> 55.0.and.lat< 60.0 ) then
+                           lon = lonCell(iCell)*180./3.1415
+                           if (      lat> 50.0.and.lat< 80.0 &
+                                .and.lon>300.0.and.lon<360.0 &
+                                .or. lat> 50.0.and.lat< 80.0 &
+                                .and.lon>  0.0.and.lon< 10.0 ) then
                               do k = minLevelCell(iCell), minLevelCell(iCell)+config_reset_debugTracers_top_nLayers-1
-                                 tracersGroupNew(2,k,iCell) = 2.0_RKIND
+                                 tracersGroupNew(3,k,iCell) = 1.0_RKIND
                               end do
-                           else
-                              do k = minLevelCell(iCell), minLevelCell(iCell)+config_reset_debugTracers_top_nLayers-1
-                                 tracersGroupNew(2,k,iCell) = 1.0_RKIND
-                              end do
+!                           else
+!                              do k = minLevelCell(iCell), minLevelCell(iCell)+config_reset_debugTracers_top_nLayers-1
+!                                 tracersGroupNew(2,k,iCell) = 1.0_RKIND
+!                              end do
                            end if
 
                            ! Reset tracer3 to 2 in top n layers
                            ! in zonal bands, and 1 outside
-                           lat = latCell(iCell)*180./3.1415
-                           if (     lat>-55.0.and.lat<-50.0 &
-                                .or.lat>-35.0.and.lat<-30.0 &
-                                .or.lat>-15.0.and.lat<-10.0 &
-                                .or.lat> 10.0.and.lat< 15.0 &
-                                .or.lat> 30.0.and.lat< 35.0 &
-                                .or.lat> 50.0.and.lat< 55.0 ) then
-                              do k = minLevelCell(iCell), minLevelCell(iCell)+config_reset_debugTracers_top_nLayers-1
-                                 tracersGroupNew(3,k,iCell) = 2.0_RKIND
-                              end do
-                           else
-                              do k = minLevelCell(iCell), minLevelCell(iCell)+config_reset_debugTracers_top_nLayers-1
-                                 tracersGroupNew(3,k,iCell) = 1.0_RKIND
-                              end do
-                           end if
+!                           lat = latCell(iCell)*180./3.1415
+!                           if (     lat>-55.0.and.lat<-50.0 &
+!                                .or.lat>-35.0.and.lat<-30.0 &
+!                                .or.lat>-15.0.and.lat<-10.0 &
+!                                .or.lat> 10.0.and.lat< 15.0 &
+!                                .or.lat> 30.0.and.lat< 35.0 &
+!                                .or.lat> 50.0.and.lat< 55.0 ) then
+!                              do k = minLevelCell(iCell), minLevelCell(iCell)+config_reset_debugTracers_top_nLayers-1
+!                                 tracersGroupNew(3,k,iCell) = 2.0_RKIND
+!                              end do
+!                           else
+!                              do k = minLevelCell(iCell), minLevelCell(iCell)+config_reset_debugTracers_top_nLayers-1
+!                                 tracersGroupNew(3,k,iCell) = 1.0_RKIND
+!                              end do
+!                           end if
                         end do ! cells
 #ifndef MPAS_OPENACC
                         !$omp end do
