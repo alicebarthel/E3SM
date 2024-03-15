@@ -3835,9 +3835,10 @@ contains
 
       logical :: fatalErrorDetected
 
-      logical :: thickNanFound, velNanFound, tracersNanFound
+      logical :: thickNanFound, velNanFound, tracersNanFound, tracersOutOfBounds
 
       real (kind=RKIND) :: minValue, maxValue
+      real (kind=RKIND), dimension(:), allocatable :: minValueTracers, maxValueTracers
 
       integer :: debugUnit
       character (len=StrKIND) :: debugFilename, fieldName
@@ -3857,6 +3858,7 @@ contains
          thickNanFound = .false.
          velNanFound = .false.
          tracersNanFound = .false.
+         tracersOutOfBounds = .false.
 
          debugFilename = ocn_build_log_filename('mpas_ocean_block_stats_', block % blockID)
 
@@ -3885,6 +3887,9 @@ contains
                do iTracer = 1, size(activeTracers, dim=1)
                   tracersNanFound = tracersNanFound .or. &
                                   ( .not. activeTracers(iTracer, k, iCell) == activeTracers(iTracer, k, iCell) )
+                  tracersOutOfBounds = tracersOutOfBounds .or. &
+                                  ( activeTracers(iTracer, k, iCell) > 100.0_RKIND .or. &
+                                    activeTracers(iTracer, k, iCell) < -20.0_RKIND )
                end do
             end do
          end do
@@ -3896,7 +3901,7 @@ contains
          end do
 
          ! If an error was found, we need to open the file to write data out.
-         if ( thickNanFound .or. tracersNanFound .or. velNanFound ) then!{{{
+         if ( thickNanFound .or. tracersNanFound .or. velNanFound .or. tracersOutOfBounds) then!{{{
             open(unit=debugUnit, file=debugFilename, form='formatted', status='unknown')
 
             write(debugUnit, *) 'ERROR: NaN Detected in state see below for which field contained a NaN.'
@@ -4377,8 +4382,39 @@ contains
             end if
          end if!}}}
 
+         ! If there was a tracers NaN found, write out information about fields that affect tracers
+         if ( tracersOutOfBounds ) then!{{{
+            write(debugUnit, *) ''
+            write(debugUnit, *) ''
+            write(debugUnit, *) 'ERROR: Out-of-bound Detected in activeTracers.'
+            write(debugUnit, *) '  -- Statistics information for activeTracers fields'
+
+            ! Check for errors in the state fields
+            if ( associated(activeTracers) ) then
+               do iTracer = 1, size(activeTracers, dim=1)
+                  minValueTracers(iTracer) = HUGE(minValue)
+                  maxValueTracers(iTracer) = -HUGE(maxValue) 
+               end do
+               do iCell = 1, nCellsSolve
+                  do k = minLevelCell(iCell), maxLevelCell(iCell)
+                     do iTracer = 1, size(activeTracers, dim=1)
+                        minValueTracers(iTracer) = min( minValueTracers(iTracer), activeTracers(iTracer, k, iCell) )
+                        maxValueTracers(iTracer) = max( maxValueTracers(iTracer), activeTracers(iTracer, k, iCell) )
+                     end do
+                  end do
+               end do
+               do iTracer = 1, size(activeTracers, dim=1)
+                  ! Field name below needs to be edited
+                  fieldName = 'activeTracerX'
+                  call ocn_write_field_statistics(debugUnit, fieldName, minValueTracers(iTracer), maxValueTracers(iTracer))
+               end do
+            end if
+
+         end if!}}}
+
          ! If an error was found, we need to close the file now.
-         if ( thickNanFound .or. tracersNanFound .or. velNanFound ) then!{{{
+         if ( thickNanFound .or. tracersNanFound .or. velNanFound .or. tracersOutOfBounds) then!{{{
+            write(debugUnit, *) '  -- about to flush debugUnit and fatalErrorDetected == .true.'
             flush(debugUnit)
             close(debugUnit)
             fatalErrorDetected = .true.
