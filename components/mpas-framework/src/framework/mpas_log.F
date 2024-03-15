@@ -625,7 +625,8 @@ module mpas_log
             ! If this is a critical error, we need to kill the model
             if (messageTypeHere == MPAS_LOG_CRIT) then
                ! Now abort
-               call log_abort()
+               ! call log_abort()
+               call mpas_dmpar_global_abort('ERROR: from MPAS_LOG_CRIT')
             endif
 !$OMP END CRITICAL (mpas_log_critical_write)
 

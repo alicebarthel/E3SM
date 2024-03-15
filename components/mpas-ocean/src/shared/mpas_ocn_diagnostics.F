@@ -28,6 +28,7 @@ module ocn_diagnostics
    use mpas_vector_reconstruction
    use mpas_stream_manager
    use mpas_io_units
+   use shr_sys_mod
 
    use ocn_constants
    use ocn_config
@@ -3884,7 +3885,8 @@ contains
                thickNanFound = thickNanFound .or. ( .not. layerThickness(k, iCell) == layerThickness(k, iCell) )
                do iTracer = 1, size(activeTracers, dim=1)
                   tracersNanFound = tracersNanFound .or. &
-                                  ( .not. activeTracers(iTracer, k, iCell) == activeTracers(iTracer, k, iCell) )
+                                    ( activeTracers(iTracer, k, iCell) > 100.0_RKIND .or. &
+                                      activeTracers(iTracer, k, iCell) < -20.0_RKIND )
                end do
             end do
          end do
@@ -4393,6 +4395,7 @@ contains
          call mpas_log_write( &
             'ERROR: State validation failed. See block stats files for more information.', &
             MPAS_LOG_CRIT)
+         call shr_sys_abort ('shr sys abort ERROR: Ocean state validation failed. See block stats files for more information.')
       end if
 
    end subroutine ocn_validate_state!}}}
