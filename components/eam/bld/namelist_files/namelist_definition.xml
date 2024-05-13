@@ -4726,9 +4726,7 @@ Default: FALSE
 
 <entry id="precip_off" type="logical" category="scm"
        group="cam_inparm" valid_values="">
-Turn off microphysics computation for MG2.  For P3 this disables the generation of
-liquid precipitation via autoconversion only, to be used for idealized simulations of
-warm phase boundary layer clouds.
+Turn off microphysics computation.
 Default: FALSE
 </entry>                                                                        |
                                                                                 |

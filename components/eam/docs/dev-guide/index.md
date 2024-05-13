@@ -1,3 +1,1 @@
-# EAM Developer Guide
-
-coming soon.
+start of the EAM Developer's Guide

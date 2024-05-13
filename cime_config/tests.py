@@ -55,6 +55,7 @@ _TESTS = {
         "time"  : "0:45:00",
         "tests" : (
             "ERS_Ld20.f45_f45.IELMFATES.elm-fates",
+            "ERS.hcru_hcru.I20TRGSWCNPRDCTCBC.elm-erosion",
             "ERS.f09_g16.IELMBC.elm-simple_decomp",
             "ERS.hcru_hcru.IELM.elm-multi_inst",
             )
@@ -91,7 +92,7 @@ _TESTS = {
             "SMS_Ly2_P1x1.1x1_smallvilleIA.IELMCNCROP.elm-fan",
             "SMS.r05_r05.IELM.elm-topounit",
             "ERS.ELM_USRDAT.I1850ELM.elm-usrdat",
-            "ERS.r05_r05.IELM.elm-lnd_rof_2way",
+            "ERS.f09_f09.IELM.elm-lnd_rof_2way",
             "ERS.r05_r05.IELM.elm-V2_ELM_MOSART_features",
             "ERS.ELM_USRDAT.IELM.elm-surface_water_dynamics"
             )
@@ -117,25 +118,6 @@ _TESTS = {
             "ERS_Ld5.T62_oQU240.DTESTM",
             "PEM_Ln5.T62_oQU240wLI.DTESTM",
             "PET_Ln5.T62_oQU240.DTESTM",
-            )
-        },
-
-    "e3sm_cryo_developer" : {
-        "tests"   : (
-            "SMS_D_Ld1.TL319_IcoswISC30E3r5.GMPAS-JRA1p5-DIB-PISMF.mpaso-jra_1958",
-            "ERS_Ld5.T62_oQU240wLI.GMPAS-DIB-IAF-PISMF",
-            "PEM_Ln5.T62_oQU240wLI.GMPAS-DIB-IAF-PISMF",
-            "PET_Ln5.T62_oQU240wLI.GMPAS-DIB-IAF-PISMF",
-            "ERS_Ld5.T62_oQU240wLI.GMPAS-DIB-IAF-DISMF",
-            "PEM_Ln5.T62_oQU240wLI.GMPAS-DIB-IAF-DISMF",
-            "PET_Ln5.T62_oQU240wLI.GMPAS-DIB-IAF-DISMF",
-            )
-        },
-
-    "e3sm_landice_developer" : {
-        "tests"   : (
-            "SMS.ne30pg2_r05_EC30to60E2r2_gis20.IGELM_MLI.elm-gis20kmSMS",
-            "ERS.ne30pg2_r05_EC30to60E2r2_gis20.IGELM_MLI.elm-gis20kmERS",
             )
         },
 
@@ -286,7 +268,7 @@ _TESTS = {
         },
 
     "e3sm_developer" : {
-        "inherit" : ("e3sm_land_developer", "e3sm_atm_developer", "e3sm_ice_developer", "e3sm_cryo_developer"),
+        "inherit" : ("e3sm_land_developer", "e3sm_atm_developer", "e3sm_ice_developer"),
         "time"    : "0:45:00",
         "tests"   : (
             "ERS.f19_g16_rx1.A",
@@ -296,8 +278,10 @@ _TESTS = {
             "NCK.f19_g16_rx1.A",
             "SMS.ne30_f19_g16_rx1.A",
             "ERS_Ld5.T62_oQU120.CMPASO-NYF",
+            "SMS_Ld1.T62_oQU240wLI.GMPAS-IAF-DISMF",
             "ERS.f09_g16_g.MALISIA",
             "SMS.T62_oQU120_ais20.MPAS_LISIO_TEST",
+            "SMS.f09_g16_a.IGELM_MLI",
             "SMS_P12x2.ne4pg2_oQU480.WCYCL1850NS.allactive-mach_mods",
             "ERS_Ln9.ne4pg2_ne4pg2.F2010-MMF1.eam-mmf_crmout",
             )
@@ -331,7 +315,6 @@ _TESTS = {
             "SMS_Ln5.ne30pg2_ne30pg2.F2010-SCREAM-LR-DYAMOND2",
             "ERS_Ld3.ne30pg2_r05_IcoswISC30E3r5.WCYCL1850.allactive-nlmaps",
             "SMS_D_Ld1.ne30pg2_r05_IcoswISC30E3r5.CRYO1850-DISMF",
-            "ERS.hcru_hcru.I20TRGSWCNPRDCTCBC.elm-erosion",
             )
         },
 
@@ -449,7 +432,6 @@ _TESTS = {
             "ERS_Ld60.f45_g37.IELMFATES.elm-fates_cold_nofire",
             "ERS_Ld60.f45_g37.IELMFATES.elm-fates_cold_st3",
             "ERS_Ld60.f45_g37.IELMFATES.elm-fates_cold_pphys",
-            "SMS_D_Ld15.f45_g37.IELMFATES.elm-fates_cold_twostream",
             )
         },
 

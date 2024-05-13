@@ -149,8 +149,7 @@ module ELMFatesInterfaceMod
    use EDInitMod             , only : init_patches
    use EDInitMod             , only : set_site_properties
    use EDPftVarcon           , only : EDpftvarcon_inst
-   use FatesRadiationDriveMod, only : FatesSunShadeFracs
-   use FatesRadiationDriveMod, only : FatesNormalizedCanopyRadiation
+   use EDSurfaceRadiationMod , only : ED_SunShadeFracs, ED_Norman_Radiation
    use EDBtranMod            , only : btran_ed, &
                                       get_active_suction_layers
    use EDCanopyStructureMod  , only : canopy_summarization, update_hlm_dynamics
@@ -520,7 +519,7 @@ contains
         call set_fates_ctrlparms('num_lu_harvest_cats',ival=pass_num_lu_harvest_types)
         call set_fates_ctrlparms('use_logging',ival=pass_logging)
 
-        if (use_fates_luh) then
+        if(use_fates_luh) then
            pass_use_luh = 1
            pass_num_luh_states = num_landuse_state_vars
            pass_num_luh_transitions = num_landuse_transition_vars
@@ -2056,7 +2055,7 @@ contains
         ! as well as total patch sun/shade fraction output boundary condition
         ! -------------------------------------------------------------------------------
 
-        call FatesSunShadeFracs(this%fates(nc)%nsites, &
+        call ED_SunShadeFracs(this%fates(nc)%nsites, &
              this%fates(nc)%sites,  &
              this%fates(nc)%bc_in,  &
              this%fates(nc)%bc_out)
@@ -2564,7 +2563,7 @@ contains
        end do
     end do
 
-    call FatesNormalizedCanopyRadiation(this%fates(nc)%nsites,  &
+    call ED_Norman_Radiation(this%fates(nc)%nsites,  &
          this%fates(nc)%sites, &
          this%fates(nc)%bc_in,  &
          this%fates(nc)%bc_out)

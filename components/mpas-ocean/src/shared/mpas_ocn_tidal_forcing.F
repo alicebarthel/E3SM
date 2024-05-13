@@ -29,7 +29,6 @@ module ocn_tidal_forcing
    use ocn_config
    use ocn_mesh
    use ocn_diagnostics_variables
-   use ocn_subgrid
 
    implicit none
    private
@@ -261,11 +260,7 @@ contains
         if (config_use_wetting_drying .and. tidalInputMask(iCell) == 1.0_RKIND) then
           ! ensure that tidal height can't force below total minimum thickness
           ! condition wrong to ensure that there isn't any drying according to criteria
-          if ( config_use_subgrid_wetting_drying ) then
-            tidalHeight = max(tidalHeight, subgridSShCellTableRange(3,iCell) ) ;      
-          else
-           tidalHeight = max(-bottomDepth(iCell) + (float(maxLevelCell(iCell))+1.0_RKIND)*config_drying_min_cell_height, tidalHeight)
-          end if
+          tidalHeight = max(-bottomDepth(iCell) + (float(maxLevelCell(iCell))+1.0_RKIND)*config_drying_min_cell_height, tidalHeight)
         end if
 
         ! compute total depth for relative thickness contribution

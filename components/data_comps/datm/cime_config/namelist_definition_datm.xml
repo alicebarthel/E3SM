@@ -486,7 +486,7 @@
       <value stream="CORE2_IAF.CORE2.ArcFactor">$DIN_LOC_ROOT/atm/datm7/CORE2</value>
       <value stream="CORE2_IAF">$DIN_LOC_ROOT/ocn/iaf</value>
       <value stream="CORE_IAF_JRA.*">$DIN_LOC_ROOT/ocn/jra55/v1.3_noleap</value>
-      <value stream="IAF_JRA_1p5.*">$DIN_LOC_ROOT/ocn/jra55/v1.5_noleap</value>
+      <value stream="IAF_JRA_1p5.*">/pscratch/sd/a/abarthel/data/modified-jra-forcing</value>
       <value stream="CORE_RYF*">$DIN_LOC_ROOT/ocn/jra55/v1.3_ryf</value>
       <value stream="co2tseries">$DIN_LOC_ROOT/atm/datm7/CO2</value>
       <value stream="BC.QIAN.Precip">$DIN_LOC_ROOT/atm/datm7/bias_correction/precip/gpcp/qian</value>
