@@ -273,7 +273,8 @@ contains
          do iCell = 1, nCells
             do k = 1, nVertLevelsP1
                vertViscTopOfCell(k, iCell) = vertViscTopOfCell(k, iCell) + config_cvmix_background_viscosity
-               vertDiffTopOfCell(k, iCell) = vertDiffTopOfCell(k, iCell) + config_cvmix_background_diffusion
+               vertDiffTopOfCell(k, iCell) = vertDiffTopOfCell(k, iCell) + config_cvmix_background_diffusion * (1.0_RKIND -
+               iceFraction(iCell)
             end do
          end do
          !$omp end do
