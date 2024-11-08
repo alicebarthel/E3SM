@@ -396,3 +396,14 @@ add_omega_test(
     ocn/TracersTest.cpp
     "-n;8"
 )
+
+##################
+# Teos test
+##################
+
+add_omega_test(
+    TEOS_TEST
+    testTeos.exe
+    ocn/TeosTest.cpp
+    "-n;8"
+)
