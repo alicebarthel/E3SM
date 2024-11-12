@@ -24,6 +24,14 @@ if (NOT TARGET Kokkos::kokkos)
 	)
 endif()
 
+# # Add the GSW-C library
+# if (NOT TARGET gsw-c::gsw-c)
+# 	add_subdirectory(
+# 		${E3SM_EXTERNALS_ROOT}/GSW-C
+# 		${CMAKE_CURRENT_BINARY_DIR}/GSW-C
+# 	)
+# endif()
+
 # Add the Scorpio library
 if (NOT TARGET pioc)
 
