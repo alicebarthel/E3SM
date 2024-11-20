@@ -44,6 +44,7 @@ target_link_libraries(
     yaml-cpp
     parmetis
     metis
+    gsw_c
 )
 
 if(GKlib_FOUND)
