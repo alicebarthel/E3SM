@@ -153,7 +153,6 @@
 <li class="toctree-l1"><a class="reference internal" href="../design/Timers.html">Timers</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../design/TimeStepping.html">Time Stepping</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../design/Tracers.html">Tracer Infrastructure</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../design/TridiagonalSolver.html">Tridiagonal Solver</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../design/Template.html">Template</a></li>
 </ul>
 
@@ -311,11 +310,9 @@ to be copied or linked to specifically named files under the <code class="docuti
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>wget<span class="w"> </span>-O<span class="w"> </span>ocean_test_mesh.nc<span class="w"> </span>https://web.lcrc.anl.gov/public/e3sm/inputdata/ocn/mpas-o/oQU240/ocean.QU.240km.151209.nc
 wget<span class="w"> </span>-O<span class="w"> </span>global_test_mesh.nc<span class="w"> </span>https://web.lcrc.anl.gov/public/e3sm/polaris/ocean/polaris_cache/global_convergence/icos/cosine_bell/Icos480/init/initial_state.230220.nc
 wget<span class="w"> </span>-O<span class="w"> </span>planar_test_mesh.nc<span class="w"> </span>https://gist.github.com/mwarusz/f8caf260398dbe140d2102ec46a41268/raw/e3c29afbadc835797604369114321d93fd69886d/PlanarPeriodic48x48.nc
-<span class="nb">cd</span><span class="w"> </span><span class="nb">test</span>
-ln<span class="w"> </span>-sf<span class="w">  </span>../ocean_test_mesh.nc<span class="w"> </span>OmegaMesh.nc
-ln<span class="w"> </span>-sf<span class="w">  </span>../global_test_mesh.nc<span class="w"> </span>OmegaSphereMesh.nc
-ln<span class="w"> </span>-sf<span class="w">  </span>../planar_test_mesh.nc<span class="w"> </span>OmegaPlanarMesh.nc
-<span class="nb">cd</span><span class="w"> </span>..
+ln<span class="w"> </span>-sf<span class="w">  </span>ocean_test_mesh.nc<span class="w"> </span>test/OmegaMesh.nc
+ln<span class="w"> </span>-sf<span class="w">  </span>global_test_mesh.nc<span class="w"> </span>test/OmegaSphereMesh.nc
+ln<span class="w"> </span>-sf<span class="w">  </span>planar_test_mesh.nc<span class="w"> </span>test/OmegaPlanarMesh.nc
 </pre></div>
 </div>
 </section>
@@ -363,8 +360,8 @@ ctest log file located at <code class="docutils literal notranslate"><span class
 <section id="metis-and-parmetis-libraries">
 <span id="omega-dev-parmetis-libs"></span><h3>Metis and Parmetis libraries<a class="headerlink" href="#metis-and-parmetis-libraries" title="Permalink to this heading"></a></h3>
 <p>The following table shows locations for Metis and Parmetis libraries on
-supported E3SM machines. The pattern is:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">polaris_base</span><span class="o">&gt;/&lt;</span><span class="n">machine</span><span class="o">&gt;/</span><span class="n">spack</span><span class="o">/</span><span class="n">dev_polaris_0_6_0_</span><span class="o">&lt;</span><span class="n">compiler</span><span class="o">&gt;</span><span class="n">_</span><span class="o">&lt;</span><span class="n">mpi</span><span class="o">&gt;/</span><span class="n">var</span><span class="o">/</span><span class="n">spack</span><span class="o">/</span><span class="n">environments</span><span class="o">/</span><span class="n">dev_polaris_0_6_0_</span><span class="o">&lt;</span><span class="n">compiler</span><span class="o">&gt;</span><span class="n">_</span><span class="o">&lt;</span><span class="n">mpi</span><span class="o">&gt;/.</span><span class="n">spack</span><span class="o">-</span><span class="n">env</span><span class="o">/</span><span class="n">view</span>
+supported E3SM machines.  The pattern is:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">polaris_base</span><span class="o">&gt;/&lt;</span><span class="n">machine</span><span class="o">&gt;/</span><span class="n">spack</span><span class="o">/</span><span class="n">dev_polaris_0_4_0_</span><span class="o">&lt;</span><span class="n">compiler</span><span class="o">&gt;</span><span class="n">_</span><span class="o">&lt;</span><span class="n">mpi</span><span class="o">&gt;/</span><span class="n">var</span><span class="o">/</span><span class="n">spack</span><span class="o">/</span><span class="n">environments</span><span class="o">/</span><span class="n">dev_polaris_0_4_0_</span><span class="o">&lt;</span><span class="n">compiler</span><span class="o">&gt;</span><span class="n">_</span><span class="o">&lt;</span><span class="n">mpi</span><span class="o">&gt;/.</span><span class="n">spack</span><span class="o">-</span><span class="n">env</span><span class="o">/</span><span class="n">view</span>
 </pre></div>
 </div>
 <table class="docutils align-default">
@@ -377,44 +374,44 @@ supported E3SM machines. The pattern is:</p>
 <tbody>
 <tr class="row-even"><td><p>chicoma-cpu</p></td>
 <td><p>gnu</p></td>
-<td><p>/usr/projects/e3sm/polaris/chicoma-cpu/spack/dev_polaris_0_6_0_gnu_mpich/var/spack/environments/dev_polaris_0_6_0_gnu_mpich/.spack-env/view</p></td>
+<td><p>/usr/projects/e3sm/polaris/chicoma-cpu/spack/dev_polaris_0_4_0_gnu_mpich/var/spack/environments/dev_polaris_0_4_0_gnu_mpich/.spack-env/view</p></td>
 </tr>
 <tr class="row-odd"><td rowspan="2"><p>chrysalis</p></td>
 <td><p>intel</p></td>
-<td><p>/lcrc/soft/climate/polaris/chrysalis/spack/dev_polaris_0_6_0_intel_openmpi/var/spack/environments/dev_polaris_0_6_0_intel_openmpi/.spack-env/view</p></td>
+<td><p>/lcrc/soft/climate/polaris/chrysalis/spack/dev_polaris_0_4_0_intel_openmpi/var/spack/environments/dev_polaris_0_4_0_intel_openmpi/.spack-env/view</p></td>
 </tr>
 <tr class="row-even"><td><p>gnu</p></td>
-<td><p>/lcrc/soft/climate/polaris/chrysalis/spack/dev_polaris_0_6_0_gnu_openmpi/var/spack/environments/dev_polaris_0_6_0_gnu_openmpi/.spack-env/view</p></td>
+<td><p>/lcrc/soft/climate/polaris/chrysalis/spack/dev_polaris_0_4_0_gnu_openmpi/var/spack/environments/dev_polaris_0_4_0_gnu_openmpi/.spack-env/view</p></td>
 </tr>
-<tr class="row-odd"><td rowspan="6"><p>frontier</p></td>
-<td><p>craygnu</p></td>
-<td><p>/ccs/proj/cli115/software/polaris/frontier/spack/dev_polaris_0_6_0_craygnu_mpich/var/spack/environments/dev_polaris_0_6_0_craygnu_mpich/.spack-env/view</p></td>
-</tr>
-<tr class="row-even"><td><p>craygnu-mphipcc</p></td>
-<td><p>/ccs/proj/cli115/software/polaris/frontier/spack/dev_polaris_0_6_0_craygnu-mphipcc_mpich/var/spack/environments/dev_polaris_0_6_0_craygnu-mphipcc_mpich/.spack-env/view</p></td>
-</tr>
-<tr class="row-odd"><td><p>craycray</p></td>
-<td><p>/ccs/proj/cli115/software/polaris/frontier/spack/dev_polaris_0_6_0_craycray_mpich/var/spack/environments/dev_polaris_0_6_0_craycray_mpich/.spack-env/view</p></td>
-</tr>
-<tr class="row-even"><td><p>craycray-mphipcc</p></td>
-<td><p>/ccs/proj/cli115/software/polaris/frontier/spack/dev_polaris_0_6_0_craycray-mphipcc_mpich/var/spack/environments/dev_polaris_0_6_0_craycray-mphipcc_mpich/.spack-env/view</p></td>
-</tr>
-<tr class="row-odd"><td><p>crayamd</p></td>
-<td><p>/ccs/proj/cli115/software/polaris/frontier/spack/dev_polaris_0_6_0_crayamd_mpich/var/spack/environments/dev_polaris_0_6_0_crayamd_mpich/.spack-env/view</p></td>
-</tr>
-<tr class="row-even"><td><p>crayamd-mphipcc</p></td>
-<td><p>/ccs/proj/cli115/software/polaris/frontier/spack/dev_polaris_0_6_0_crayamd-mphipcc_mpich/var/spack/environments/dev_polaris_0_6_0_crayamd-mphipcc_mpich/.spack-env/view</p></td>
-</tr>
-<tr class="row-odd"><td rowspan="2"><p>pm-cpu</p></td>
+<tr class="row-odd"><td rowspan="4"><p>frontier</p></td>
 <td><p>gnu</p></td>
-<td><p>/global/cfs/cdirs/e3sm/software/polaris/pm-cpu/spack/dev_polaris_0_6_0_gnu_mpich/var/spack/environments/dev_polaris_0_6_0_gnu_mpich/.spack-env/view</p></td>
+<td><p>/ccs/proj/cli115/software/polaris/frontier/spack/dev_polaris_0_4_0_gnu_mpich/var/spack/environments/dev_polaris_0_4_0_gnu_mpich/.spack-env/view</p></td>
+</tr>
+<tr class="row-even"><td><p>gnugpu</p></td>
+<td><p>/ccs/proj/cli115/software/polaris/frontier/spack/dev_polaris_0_4_0_gnugpu_mpich/var/spack/environments/dev_polaris_0_4_0_gnugpu_mpich/.spack-env/view</p></td>
+</tr>
+<tr class="row-odd"><td><p>crayclang</p></td>
+<td><p>/ccs/proj/cli115/software/polaris/frontier/spack/dev_polaris_0_4_0_crayclang_mpich/var/spack/environments/dev_polaris_0_4_0_crayclang_mpich/.spack-env/view</p></td>
+</tr>
+<tr class="row-even"><td><p>crayclanggpu</p></td>
+<td><p>/ccs/proj/cli115/software/polaris/frontier/spack/dev_polaris_0_4_0_crayclanggpu_mpich/var/spack/environments/dev_polaris_0_4_0_crayclanggpu_mpich/.spack-env/view</p></td>
+</tr>
+<tr class="row-odd"><td rowspan="3"><p>pm-cpu</p></td>
+<td><p>gnu</p></td>
+<td><p>/global/cfs/cdirs/e3sm/software/polaris/pm-cpu/spack/dev_polaris_0_4_0_gnu_mpich/var/spack/environments/dev_polaris_0_4_0_gnu_mpich/.spack-env/view</p></td>
 </tr>
 <tr class="row-even"><td><p>intel</p></td>
-<td><p>/global/cfs/cdirs/e3sm/software/polaris/pm-cpu/spack/dev_polaris_0_6_0_intel_mpich/var/spack/environments/dev_polaris_0_6_0_intel_mpich/.spack-env/view</p></td>
+<td><p>/global/cfs/cdirs/e3sm/software/polaris/pm-cpu/spack/dev_polaris_0_4_0_intel_mpich/var/spack/environments/dev_polaris_0_4_0_intel_mpich/.spack-env/view</p></td>
 </tr>
-<tr class="row-odd"><td><p>pm-gpu</p></td>
+<tr class="row-odd"><td><p>nvidia</p></td>
+<td><p>/global/cfs/cdirs/e3sm/software/polaris/pm-cpu/spack/dev_polaris_0_4_0_nvidia_mpich/var/spack/environments/dev_polaris_0_4_0_nvidia_mpich/.spack-env/view</p></td>
+</tr>
+<tr class="row-even"><td rowspan="2"><p>pm-gpu</p></td>
 <td><p>gnugpu</p></td>
-<td><p>/global/cfs/cdirs/e3sm/software/polaris/pm-gpu/spack/dev_polaris_0_6_0_gnugpu_mpich/var/spack/environments/dev_polaris_0_6_0_gnugpu_mpich/.spack-env/view</p></td>
+<td><p>/global/cfs/cdirs/e3sm/software/polaris/pm-gpu/spack/dev_polaris_0_4_0_gnugpu_mpich/var/spack/environments/dev_polaris_0_4_0_gnugpu_mpich/.spack-env/view</p></td>
+</tr>
+<tr class="row-odd"><td><p>nvidiagpu</p></td>
+<td><p>/global/cfs/cdirs/e3sm/software/polaris/pm-gpu/spack/dev_polaris_0_4_0_nvidiagpu_mpich/var/spack/environments/dev_polaris_0_4_0_nvidiagpu_mpich/.spack-env/view</p></td>
 </tr>
 </tbody>
 </table>
