@@ -11,6 +11,7 @@
 #include "MachEnv.h"
 #include "OceanTestCommon.h"
 #include "OmegaKokkos.h"
+#include "Pacer.h"
 #include "TimeStepper.h"
 #include "Tracers.h"
 #include "mpi.h"
@@ -62,19 +63,19 @@ int initState() {
 
    Err += setScalar(
        KOKKOS_LAMBDA(Real X, Real Y) { return Setup.layerThickness(X, Y); },
-       LayerThickCell, Geom, Mesh, OnCell, NVertLevels);
+       LayerThickCell, Geom, Mesh, OnCell);
 
    Err += setScalar(
        KOKKOS_LAMBDA(Real X, Real Y) { return Setup.tracer(X, Y); },
-       TracerArray, Geom, Mesh, OnCell, NVertLevels, NTracers);
+       TracerArray, Geom, Mesh, OnCell);
 
    Err += setVectorEdge(
        KOKKOS_LAMBDA(Real(&VecField)[2], Real Lon, Real Lat) {
           VecField[0] = Setup.velocityX(Lon, Lat);
           VecField[1] = Setup.velocityY(Lon, Lat);
        },
-       NormalVelEdge, EdgeComponent::Normal, Geom, Mesh, NVertLevels,
-       ExchangeHalos::Yes, CartProjection::No);
+       NormalVelEdge, EdgeComponent::Normal, Geom, Mesh, ExchangeHalos::Yes,
+       CartProjection::No);
 
    return Err;
 }
@@ -92,17 +93,9 @@ int initAuxStateTest(const std::string &mesh) {
 
    // Open config file
    Config("Omega");
-   Err = Config::readAll("omega.yml");
-   if (Err != 0) {
-      LOG_CRITICAL("AuxStateTest: Error reading config file");
-      return Err;
-   }
+   Config::readAll("omega.yml");
 
-   int TimeStepperErr = TimeStepper::init1();
-   if (TimeStepperErr != 0) {
-      Err++;
-      LOG_ERROR("AuxStateTest: error initializing default time stepper");
-   }
+   TimeStepper::init1();
 
    int IOErr = IO::init(DefComm);
    if (IOErr != 0) {
@@ -110,11 +103,7 @@ int initAuxStateTest(const std::string &mesh) {
       LOG_ERROR("AuxStateTest: error initializing parallel IO");
    }
 
-   int DecompErr = Decomp::init(mesh);
-   if (DecompErr != 0) {
-      Err++;
-      LOG_ERROR("AuxStateTest: error initializing default decomposition");
-   }
+   Decomp::init(mesh);
 
    int HaloErr = Halo::init();
    if (HaloErr != 0) {
@@ -122,17 +111,8 @@ int initAuxStateTest(const std::string &mesh) {
       LOG_ERROR("AuxStateTest: error initializing default halo");
    }
 
-   int MeshErr = HorzMesh::init();
-   if (MeshErr != 0) {
-      Err++;
-      LOG_ERROR("AuxStateTest: error initializing default mesh");
-   }
-
-   int TracerErr = Tracers::init();
-   if (TracerErr != 0) {
-      Err++;
-      LOG_ERROR("AuxStateTest: error initializing tracer infrastructure");
-   }
+   HorzMesh::init();
+   Tracers::init();
 
    const auto &Mesh = HorzMesh::getDefault();
    // Horz dimensions created in HorzMesh
@@ -151,11 +131,7 @@ int testAuxState() {
    int Err = 0;
 
    // test initialization
-   int AuxStateErr = AuxiliaryState::init();
-   if (AuxStateErr != 0) {
-      Err++;
-      LOG_ERROR("AuxStateTest: error initializing default aux state");
-   }
+   AuxiliaryState::init();
 
    // test retrievel of default
    AuxiliaryState *DefAuxState = AuxiliaryState::getDefault();
@@ -169,8 +145,9 @@ int testAuxState() {
    }
 
    const auto *Mesh = HorzMesh::getDefault();
+   auto *MeshHalo   = Halo::getDefault();
    // test creation of another auxiliary state
-   AuxiliaryState::create("AnotherAuxState", Mesh, 12, 3);
+   AuxiliaryState::create("AnotherAuxState", Mesh, MeshHalo, 12, 3);
 
    // test retrievel of another
    if (AuxiliaryState::get("AnotherAuxState")) {
@@ -342,6 +319,8 @@ int main(int argc, char *argv[]) {
 
    MPI_Init(&argc, &argv);
    Kokkos::initialize(argc, argv);
+   Pacer::initialize(MPI_COMM_WORLD);
+   Pacer::setPrefix("Omega:");
 
    RetVal += auxStateTest();
 

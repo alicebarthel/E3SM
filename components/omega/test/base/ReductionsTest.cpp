@@ -13,6 +13,7 @@
 #include "Logging.h"
 #include "MachEnv.h"
 #include "OmegaKokkos.h"
+#include "Pacer.h"
 #include "Reductions.h"
 
 using namespace OMEGA;
@@ -24,6 +25,8 @@ int main(int argc, char *argv[]) {
    // Initialize the global MPI environment
    MPI_Init(&argc, &argv);
    Kokkos::initialize();
+   Pacer::initialize(MPI_COMM_WORLD);
+   Pacer::setPrefix("Omega:");
    {
 
       // Create reference values based on MPI_COMM_WORLD

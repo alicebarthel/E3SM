@@ -117,6 +117,18 @@ add_omega_test(
     "-n;8"
 )
 
+##################
+# Error test
+##################
+
+add_omega_test(
+    ERROR_TEST
+    testError.exe
+    infra/ErrorTest.cpp
+    "-n;8"
+)
+set_tests_properties(ERROR_TEST PROPERTIES WILL_FAIL true)
+
 ##########################
 # Decomp test using 1 task
 ##########################
@@ -305,6 +317,11 @@ add_omega_test(
     "-n 8;"
     single_precision
 )
+target_compile_definitions(
+  testTendencyTermsPlaneSinglePrecision.exe
+  PRIVATE
+  TENDENCYTERMS_TEST_PLANE
+)
 
 add_omega_test(
   TEND_SPHERE_TEST
@@ -404,4 +421,29 @@ add_omega_test(
     testTracers.exe
     ocn/TracersTest.cpp
     "-n;8"
+)
+
+##########################
+# Tridiagonal solvers test
+##########################
+
+add_omega_test(
+    TRIDIAGSOLVERS_TEST
+    testTriDiagSolvers.exe
+    base/TriDiagSolversTest.cpp
+    "-n;1"
+)
+
+##################
+# EOS tests
+##################
+add_test(NAME GSWC_CALL_TEST
+    COMMAND ${OMEGA_BUILD_DIR}/external/GSW-C/gsw_check
+)
+
+add_omega_test(
+    EOS_TEST
+    testEos.exe
+    ocn/EosTest.cpp
+    "-n;2"
 )

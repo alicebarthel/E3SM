@@ -10,15 +10,21 @@ AuxiliaryState *AuxiliaryState::DefaultAuxState = nullptr;
 std::map<std::string, std::unique_ptr<AuxiliaryState>>
     AuxiliaryState::AllAuxStates;
 
+static std::string stripDefault(const std::string &Name) {
+   return Name != "Default" ? Name : "";
+}
+
 // Constructor. Constructs the member auxiliary variables and registers their
 // fields with IOStreams
 AuxiliaryState::AuxiliaryState(const std::string &Name, const HorzMesh *Mesh,
-                               int NVertLevels, int NTracers)
-    : Mesh(Mesh), Name(Name), KineticAux(Name, Mesh, NVertLevels),
-      LayerThicknessAux(Name, Mesh, NVertLevels),
-      VorticityAux(Name, Mesh, NVertLevels),
-      VelocityDel2Aux(Name, Mesh, NVertLevels),
-      TracerAux(Name, Mesh, NVertLevels, NTracers) {
+                               Halo *MeshHalo, int NVertLevels, int NTracers)
+    : Mesh(Mesh), MeshHalo(MeshHalo), Name(stripDefault(Name)),
+      KineticAux(stripDefault(Name), Mesh, NVertLevels),
+      LayerThicknessAux(stripDefault(Name), Mesh, NVertLevels),
+      VorticityAux(stripDefault(Name), Mesh, NVertLevels),
+      VelocityDel2Aux(stripDefault(Name), Mesh, NVertLevels),
+      WindForcingAux(stripDefault(Name), Mesh),
+      TracerAux(stripDefault(Name), Mesh, NVertLevels, NTracers) {
 
    GroupName = "AuxiliaryState";
    if (Name != "Default") {
@@ -32,6 +38,7 @@ AuxiliaryState::AuxiliaryState(const std::string &Name, const HorzMesh *Mesh,
    LayerThicknessAux.registerFields(GroupName, AuxMeshName);
    VorticityAux.registerFields(GroupName, AuxMeshName);
    VelocityDel2Aux.registerFields(GroupName, AuxMeshName);
+   WindForcingAux.registerFields(GroupName, AuxMeshName);
    TracerAux.registerFields(GroupName, AuxMeshName);
 }
 
@@ -42,6 +49,7 @@ AuxiliaryState::~AuxiliaryState() {
    LayerThicknessAux.unregisterFields();
    VorticityAux.unregisterFields();
    VelocityDel2Aux.unregisterFields();
+   WindForcingAux.unregisterFields();
    TracerAux.unregisterFields();
 
    int Err = FieldGroup::destroy(GroupName);
@@ -64,6 +72,7 @@ void AuxiliaryState::computeMomAux(const OceanState *State, int ThickTimeLevel,
    OMEGA_SCOPE(LocLayerThicknessAux, LayerThicknessAux);
    OMEGA_SCOPE(LocVorticityAux, VorticityAux);
    OMEGA_SCOPE(LocVelocityDel2Aux, VelocityDel2Aux);
+   OMEGA_SCOPE(LocWindForcingAux, WindForcingAux);
 
    parallelFor(
        "vertexAuxState1", {Mesh->NVerticesAll, NChunks},
@@ -82,7 +91,12 @@ void AuxiliaryState::computeMomAux(const OceanState *State, int ThickTimeLevel,
    const auto &RelVortVertex   = VorticityAux.RelVortVertex;
 
    parallelFor(
-       "edgeAuxState1", {Mesh->NEdgesAll, NChunks},
+       "edgeAuxState1", {Mesh->NEdgesAll}, KOKKOS_LAMBDA(int IEdge) {
+          LocWindForcingAux.computeVarsOnEdge(IEdge);
+       });
+
+   parallelFor(
+       "edgeAuxState2", {Mesh->NEdgesAll, NChunks},
        KOKKOS_LAMBDA(int IEdge, int KChunk) {
           LocVorticityAux.computeVarsOnEdge(IEdge, KChunk);
           LocLayerThicknessAux.computeVarsOnEdge(IEdge, KChunk, LayerThickCell,
@@ -153,8 +167,8 @@ void AuxiliaryState::computeAll(const OceanState *State,
 
 // Create a non-default auxiliary state
 AuxiliaryState *AuxiliaryState::create(const std::string &Name,
-                                       const HorzMesh *Mesh, int NVertLevels,
-                                       const int NTracers) {
+                                       const HorzMesh *Mesh, Halo *MeshHalo,
+                                       int NVertLevels, const int NTracers) {
    if (AllAuxStates.find(Name) != AllAuxStates.end()) {
       LOG_ERROR("Attempted to create a new AuxiliaryState with name {} but it "
                 "already exists",
@@ -162,7 +176,8 @@ AuxiliaryState *AuxiliaryState::create(const std::string &Name,
       return nullptr;
    }
 
-   auto *NewAuxState = new AuxiliaryState(Name, Mesh, NVertLevels, NTracers);
+   auto *NewAuxState =
+       new AuxiliaryState(Name, Mesh, MeshHalo, NVertLevels, NTracers);
    AllAuxStates.emplace(Name, NewAuxState);
 
    return NewAuxState;
@@ -170,20 +185,18 @@ AuxiliaryState *AuxiliaryState::create(const std::string &Name,
 
 // Create the default auxiliary state. Assumes that HorzMesh has been
 // initialized.
-int AuxiliaryState::init() {
-   int Err                 = 0;
+void AuxiliaryState::init() {
    const HorzMesh *DefMesh = HorzMesh::getDefault();
+   Halo *DefHalo           = Halo::getDefault();
 
    int NVertLevels = DefMesh->NVertLevels;
    int NTracers    = Tracers::getNumTracers();
 
-   AuxiliaryState::DefaultAuxState =
-       AuxiliaryState::create("Default", DefMesh, NVertLevels, NTracers);
+   AuxiliaryState::DefaultAuxState = AuxiliaryState::create(
+       "Default", DefMesh, DefHalo, NVertLevels, NTracers);
 
    Config *OmegaConfig = Config::getOmegaConfig();
-   Err                 = DefaultAuxState->readConfigOptions(OmegaConfig);
-
-   return Err;
+   DefaultAuxState->readConfigOptions(OmegaConfig);
 }
 
 // Get the default auxiliary state
@@ -218,53 +231,70 @@ void AuxiliaryState::erase(const std::string &Name) {
 void AuxiliaryState::clear() { AllAuxStates.clear(); }
 
 // Read and set config options
-int AuxiliaryState::readConfigOptions(Config *OmegaConfig) {
+void AuxiliaryState::readConfigOptions(Config *OmegaConfig) {
 
-   int Err = 0;
+   Error Err; // error code
 
    Config AdvectConfig("Advection");
-   Err = OmegaConfig->get(AdvectConfig);
-   if (Err != 0) {
-      LOG_CRITICAL("AuxiliaryState: Advection group not found in Config");
-      return Err;
-   }
+   Err += OmegaConfig->get(AdvectConfig);
+   CHECK_ERROR_ABORT(Err, "AuxiliaryState: Advection group not in Config");
+
    std::string FluxThickTypeStr;
-   Err = AdvectConfig.get("FluxThicknessType", FluxThickTypeStr);
-   if (Err != 0) {
-      LOG_CRITICAL("AuxiliaryState: FluxThicknessType not found in "
-                   "AdvectConfig");
-      return Err;
-   }
+   Err += AdvectConfig.get("FluxThicknessType", FluxThickTypeStr);
+   CHECK_ERROR_ABORT(
+       Err, "AuxiliaryState: FluxThicknessType not found in AdvectConfig");
 
    if (FluxThickTypeStr == "Center") {
       this->LayerThicknessAux.FluxThickEdgeChoice = FluxThickEdgeOption::Center;
    } else if (FluxThickTypeStr == "Upwind") {
       this->LayerThicknessAux.FluxThickEdgeChoice = FluxThickEdgeOption::Upwind;
    } else {
-      LOG_CRITICAL("AuxiliaryState: Unknown FluxThicknessType requested");
-      Err = -1;
-      return Err;
+      ABORT_ERROR("AuxiliaryState: Unknown FluxThicknessType requested");
    }
 
    std::string FluxTracerTypeStr;
-   Err = AdvectConfig.get("FluxTracerType", FluxTracerTypeStr);
-   if (Err != 0) {
-      LOG_CRITICAL("AuxiliaryState: FluxTracerType not found in "
-                   "AdvectConfig");
-      return Err;
-   }
+   Err += AdvectConfig.get("FluxTracerType", FluxTracerTypeStr);
+   CHECK_ERROR_ABORT(
+       Err, "AuxiliaryState: FluxTracerType not found in AdvectConfig");
 
    if (FluxTracerTypeStr == "Center") {
       this->TracerAux.TracersOnEdgeChoice = FluxTracerEdgeOption::Center;
    } else if (FluxTracerTypeStr == "Upwind") {
       this->TracerAux.TracersOnEdgeChoice = FluxTracerEdgeOption::Upwind;
    } else {
-      LOG_CRITICAL("AuxiliaryState: Unknown FluxTracerType requested");
-      Err = -1;
-      return Err;
+      ABORT_ERROR("AuxiliaryState: Unknown FluxTracerType requested");
    }
 
-   return Err;
+   Config WindStressConfig("WindStress");
+   Err += OmegaConfig->get(WindStressConfig);
+
+   std::string WindStressInterpTypeStr;
+   Err += WindStressConfig.get("InterpType", WindStressInterpTypeStr);
+   CHECK_ERROR_ABORT(
+       Err, "AuxiliaryState: InterpType not found in WindStressConfig");
+
+   if (WindStressInterpTypeStr == "Isotropic") {
+      this->WindForcingAux.InterpChoice = InterpCellToEdgeOption::Isotropic;
+   } else if (WindStressInterpTypeStr == "Anisotropic") {
+      this->WindForcingAux.InterpChoice = InterpCellToEdgeOption::Anisotropic;
+   } else {
+      ABORT_ERROR("AuxiliaryState: Unknown InterpType requested");
+   }
 }
+
+//------------------------------------------------------------------------------
+// Perform auxiliary state halo exchange
+// Note that only non-computed auxiliary variables needs to be exchanged
+I4 AuxiliaryState::exchangeHalo() {
+   I4 Err = 0;
+
+   Err +=
+       MeshHalo->exchangeFullArrayHalo(WindForcingAux.ZonalStressCell, OnCell);
+   Err +=
+       MeshHalo->exchangeFullArrayHalo(WindForcingAux.MeridStressCell, OnCell);
+
+   return Err;
+
+} // end exchangeHalo
 
 } // namespace OMEGA

@@ -13,10 +13,9 @@
 
 #include "OceanDriver.h"
 #include "OmegaKokkos.h"
+#include "Pacer.h"
 #include "TimeMgr.h"
 #include "TimeStepper.h"
-
-#include "Pacer.h"
 #include <mpi.h>
 
 //------------------------------------------------------------------------------

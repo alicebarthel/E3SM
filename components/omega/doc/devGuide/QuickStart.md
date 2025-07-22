@@ -8,7 +8,7 @@
 
 We ask developers to make their own fork of the E3SM to use for development
 branches.  To do this, go to the page for the
-[E3SM-Project/E3SM](https://github.com/E3SM-Project/E3SM) respository and
+[E3SM-Project/E3SM](https://github.com/E3SM-Project/E3SM) repository and
 click on the `fork` button near the upper right corner.  Set "owner" to your
 GitHub username (this should be the default) and click "Create fork".
 
@@ -60,7 +60,14 @@ conda create -n omega_dev --file dev-conda.txt
 conda activate omega_dev
 ```
 (You can reuse `omega_dev` for other branches as long as `dev-conda.txt` has
-not changed between branchs.)
+not changed between branches.)
+
+The first time you set up the environment, you need to initiate `pre-commit`:
+```sh
+pre-commit install
+```
+This needs to be done once per environment, so re-run it as necessary if you
+re-create the development environment.
 
 Please activate this environment each time you commit code.  This will ensure
 that `pre-commit` and the associated linting utilities are available and that
@@ -81,7 +88,7 @@ In the Omega branch you would like to build, first update the submodules that
 Omega requires:
 ```sh
 git submodule update --init --recursive externals/ekat \
-    externals/scorpio cime
+    externals/scorpio cime externals/cpptrace
 ```
 
 Since some systems require tests to be run on in a scratch space, it is a good
@@ -133,8 +140,10 @@ script that you can run to build Omega:
 (omega-dev-quick-start-getting-meshes)=
 ### Getting test meshes
 
-Some tests require a valid Omega mesh file. Different tests require different meshes. At the moment, mesh files need
-to be copied or linked to specifically named files under the `test` directory. Appropriate mesh files can be downloaded from:
+Some tests require a valid Omega mesh file. Different tests require different
+meshes. At the moment, mesh files need to be copied or linked to specifically
+named files under the `test` directory. Appropriate mesh files can be
+downloaded from:
 - [Ocean Mesh](https://web.lcrc.anl.gov/public/e3sm/inputdata/ocn/mpas-o/oQU240/ocean.QU.240km.151209.nc)
 - [Global Mesh](https://web.lcrc.anl.gov/public/e3sm/polaris/ocean/polaris_cache/global_convergence/icos/cosine_bell/Icos480/init/initial_state.230220.nc)
 - [Planar Mesh](https://gist.github.com/mwarusz/f8caf260398dbe140d2102ec46a41268/raw/e3c29afbadc835797604369114321d93fd69886d/PlanarPeriodic48x48.nc)
@@ -151,7 +160,8 @@ cd ..
 
 ### Running CTests
 
-Omega includes several unit tests that run through CTest. The unit tests need to be run on a compute node.
+Omega includes several unit tests that run through CTest. The unit tests need
+to be run on a compute node.
 
 To run the tests:
 ```sh
@@ -189,7 +199,7 @@ Total Test time (real) =   8.91 sec
 
 If Omega CTests are failing or simulations are crashing, setting
 `OMEGA_BUILD_TYPE` to `Debug` can be helpful for debugging purposes. If you
-need to identify which test has failed, it may be useful to examin the CMake
+need to identify which test has failed, it may be useful to examine the CMake
 ctest log file located at `$BUILD_DIR/Testing/Temporary/LastTest.log`.
 
 (omega-dev-parmetis-libs)=
@@ -199,36 +209,38 @@ ctest log file located at `$BUILD_DIR/Testing/Temporary/LastTest.log`.
 The following table shows locations for Metis and Parmetis libraries on
 supported E3SM machines. The pattern is:
 ```
-<polaris_base>/<machine>/spack/dev_polaris_0_6_0_<compiler>_<mpi>/var/spack/environments/dev_polaris_0_6_0_<compiler>_<mpi>/.spack-env/view
+<polaris_base>/<machine>/spack/dev_polaris_0_8_0_<compiler>_<mpi>/var/spack/environments/dev_polaris_0_8_0_<compiler>_<mpi>/.spack-env/view
 ```
 
 ```{eval-rst}
 +--------------+------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Machine      | Compiler         | Parmetis path                                                                                                                                                             |
 +==============+==================+===========================================================================================================================================================================+
-| chicoma-cpu  | gnu              | /usr/projects/e3sm/polaris/chicoma-cpu/spack/dev_polaris_0_6_0_gnu_mpich/var/spack/environments/dev_polaris_0_6_0_gnu_mpich/.spack-env/view                               |
+| aurora       | oneapi-ifx       | /lus/flare/projects/E3SM_Dec/soft/polaris/aurora/spack/dev_polaris_0_8_0_oneapi-ifx_mpich/var/spack/environments/dev_polaris_0_8_0_oneapi-ifx_mpich/.spack-env/view       |
 +--------------+------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| chrysalis    | intel            | /lcrc/soft/climate/polaris/chrysalis/spack/dev_polaris_0_6_0_intel_openmpi/var/spack/environments/dev_polaris_0_6_0_intel_openmpi/.spack-env/view                         |
-|              +------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-|              | gnu              | /lcrc/soft/climate/polaris/chrysalis/spack/dev_polaris_0_6_0_gnu_openmpi/var/spack/environments/dev_polaris_0_6_0_gnu_openmpi/.spack-env/view                             |
+| chicoma-cpu  | gnu              | /usr/projects/e3sm/polaris/chicoma-cpu/spack/dev_polaris_0_8_0_gnu_mpich/var/spack/environments/dev_polaris_0_8_0_gnu_mpich/.spack-env/view                               |
 +--------------+------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| frontier     | craygnu          | /ccs/proj/cli115/software/polaris/frontier/spack/dev_polaris_0_6_0_craygnu_mpich/var/spack/environments/dev_polaris_0_6_0_craygnu_mpich/.spack-env/view                   |
+| chrysalis    | intel            | /lcrc/soft/climate/polaris/chrysalis/spack/dev_polaris_0_8_0_intel_openmpi/var/spack/environments/dev_polaris_0_8_0_intel_openmpi/.spack-env/view                         |
 |              +------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-|              | craygnu-mphipcc  | /ccs/proj/cli115/software/polaris/frontier/spack/dev_polaris_0_6_0_craygnu-mphipcc_mpich/var/spack/environments/dev_polaris_0_6_0_craygnu-mphipcc_mpich/.spack-env/view   |
+|              | gnu              | /lcrc/soft/climate/polaris/chrysalis/spack/dev_polaris_0_8_0_gnu_openmpi/var/spack/environments/dev_polaris_0_8_0_gnu_openmpi/.spack-env/view                             |
++--------------+------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| frontier     | craygnu          | /ccs/proj/cli115/software/polaris/frontier/spack/dev_polaris_0_8_0_craygnu_mpich/var/spack/environments/dev_polaris_0_8_0_craygnu_mpich/.spack-env/view                   |
 |              +------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-|              | craycray         | /ccs/proj/cli115/software/polaris/frontier/spack/dev_polaris_0_6_0_craycray_mpich/var/spack/environments/dev_polaris_0_6_0_craycray_mpich/.spack-env/view                 |
+|              | craygnu-mphipcc  | /ccs/proj/cli115/software/polaris/frontier/spack/dev_polaris_0_8_0_craygnu-mphipcc_mpich/var/spack/environments/dev_polaris_0_8_0_craygnu-mphipcc_mpich/.spack-env/view   |
 |              +------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-|              | craycray-mphipcc | /ccs/proj/cli115/software/polaris/frontier/spack/dev_polaris_0_6_0_craycray-mphipcc_mpich/var/spack/environments/dev_polaris_0_6_0_craycray-mphipcc_mpich/.spack-env/view |
+|              | craycray         | /ccs/proj/cli115/software/polaris/frontier/spack/dev_polaris_0_8_0_craycray_mpich/var/spack/environments/dev_polaris_0_8_0_craycray_mpich/.spack-env/view                 |
+|              +------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|              | craycray-mphipcc | /ccs/proj/cli115/software/polaris/frontier/spack/dev_polaris_0_8_0_craycray-mphipcc_mpich/var/spack/environments/dev_polaris_0_8_0_craycray-mphipcc_mpich/.spack-env/view |
 +              +------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-|              | crayamd          | /ccs/proj/cli115/software/polaris/frontier/spack/dev_polaris_0_6_0_crayamd_mpich/var/spack/environments/dev_polaris_0_6_0_crayamd_mpich/.spack-env/view                   |
+|              | crayamd          | /ccs/proj/cli115/software/polaris/frontier/spack/dev_polaris_0_8_0_crayamd_mpich/var/spack/environments/dev_polaris_0_8_0_crayamd_mpich/.spack-env/view                   |
 |              +------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-|              | crayamd-mphipcc  | /ccs/proj/cli115/software/polaris/frontier/spack/dev_polaris_0_6_0_crayamd-mphipcc_mpich/var/spack/environments/dev_polaris_0_6_0_crayamd-mphipcc_mpich/.spack-env/view   |
+|              | crayamd-mphipcc  | /ccs/proj/cli115/software/polaris/frontier/spack/dev_polaris_0_8_0_crayamd-mphipcc_mpich/var/spack/environments/dev_polaris_0_8_0_crayamd-mphipcc_mpich/.spack-env/view   |
 +--------------+------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| pm-cpu       | gnu              | /global/cfs/cdirs/e3sm/software/polaris/pm-cpu/spack/dev_polaris_0_6_0_gnu_mpich/var/spack/environments/dev_polaris_0_6_0_gnu_mpich/.spack-env/view                       |
+| pm-cpu       | gnu              | /global/cfs/cdirs/e3sm/software/polaris/pm-cpu/spack/dev_polaris_0_8_0_gnu_mpich/var/spack/environments/dev_polaris_0_8_0_gnu_mpich/.spack-env/view                       |
 |              +------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-|              | intel            | /global/cfs/cdirs/e3sm/software/polaris/pm-cpu/spack/dev_polaris_0_6_0_intel_mpich/var/spack/environments/dev_polaris_0_6_0_intel_mpich/.spack-env/view                   |
+|              | intel            | /global/cfs/cdirs/e3sm/software/polaris/pm-cpu/spack/dev_polaris_0_8_0_intel_mpich/var/spack/environments/dev_polaris_0_8_0_intel_mpich/.spack-env/view                   |
 +--------------+------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| pm-gpu       | gnugpu           | /global/cfs/cdirs/e3sm/software/polaris/pm-gpu/spack/dev_polaris_0_6_0_gnugpu_mpich/var/spack/environments/dev_polaris_0_6_0_gnugpu_mpich/.spack-env/view                 |
+| pm-gpu       | gnugpu           | /global/cfs/cdirs/e3sm/software/polaris/pm-gpu/spack/dev_polaris_0_8_0_gnugpu_mpich/var/spack/environments/dev_polaris_0_8_0_gnugpu_mpich/.spack-env/view                 |
 +--------------+------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 ```
 
@@ -244,7 +256,7 @@ used to but the hope is that it leads to a coherent code style in Omega.
 
 ### VS Code
 
-You may wish to condier using an integrated development environment (IDE) to
+You may wish to consider using an integrated development environment (IDE) to
 develop your code.  A convenient option for developing on HPC is
 [Visual Studio Code (VS Code)](https://code.visualstudio.com/).  It has plugins
 for [c++](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools),

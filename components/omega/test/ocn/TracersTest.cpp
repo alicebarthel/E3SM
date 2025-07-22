@@ -13,6 +13,7 @@
 #include "DataTypes.h"
 #include "Decomp.h"
 #include "Dimension.h"
+#include "Error.h"
 #include "Field.h"
 #include "Halo.h"
 #include "HorzMesh.h"
@@ -20,6 +21,7 @@
 #include "Logging.h"
 #include "MachEnv.h"
 #include "OmegaKokkos.h"
+#include "Pacer.h"
 #include "TimeStepper.h"
 #include "mpi.h"
 
@@ -49,18 +51,10 @@ I4 initTracersTest() {
 
    // Open config file
    Config("Omega");
-   Err = Config::readAll("omega.yml");
-   if (Err != 0) {
-      LOG_ERROR("Tracers: Error reading config file");
-      return Err;
-   }
+   Config::readAll("omega.yml");
 
    // Initialize the default time stepper
-   Err = TimeStepper::init1();
-   if (Err != 0) {
-      LOG_ERROR("Tracers: error initializing default time stepper");
-      return Err;
-   }
+   TimeStepper::init1();
 
    // Initialize the IO system
    Err = IO::init(DefComm);
@@ -70,11 +64,7 @@ I4 initTracersTest() {
    }
 
    // Create the default decomposition (initializes the decomposition)
-   Err = Decomp::init();
-   if (Err != 0) {
-      LOG_ERROR("Tracers: error initializing default decomposition");
-      return Err;
-   }
+   Decomp::init();
 
    // Initialize the default halo
    Err = Halo::init();
@@ -84,11 +74,7 @@ I4 initTracersTest() {
    }
 
    // Initialize the default mesh
-   Err = HorzMesh::init();
-   if (Err != 0) {
-      LOG_ERROR("Tracers: error initializing default mesh");
-      return Err;
-   }
+   HorzMesh::init();
 
    return 0;
 }
@@ -105,6 +91,8 @@ int main(int argc, char *argv[]) {
    // Initialize the global MPI environment
    MPI_Init(&argc, &argv);
    Kokkos::initialize();
+   Pacer::initialize(MPI_COMM_WORLD);
+   Pacer::setPrefix("Omega:");
    {
 
       // Call initialization routine
@@ -125,11 +113,7 @@ int main(int argc, char *argv[]) {
       TimeStepper *DefTimeStepper = TimeStepper::getDefault();
 
       // initialize Tracers infrastructure
-      Err = Tracers::init();
-      if (Err != 0) {
-         RetVal += 1;
-         LOG_ERROR("Tracers: initialzation FAIL");
-      }
+      Tracers::init();
 
       I4 NTracers    = Tracers::getNumTracers();
       I4 NCellsOwned = DefHorzMesh->NCellsOwned;

@@ -30,6 +30,8 @@ userGuide/Logging
 userGuide/Driver
 userGuide/Decomp
 userGuide/Dimension
+userGuide/EOS
+userGuide/Error
 userGuide/Field
 userGuide/IO
 userGuide/IOStreams
@@ -45,6 +47,7 @@ userGuide/TimeMgr
 userGuide/TimeStepping
 userGuide/Reductions
 userGuide/Tracers
+userGuide/TridiagonalSolvers
 ```
 
 ```{toctree}
@@ -60,11 +63,13 @@ devGuide/DataTypes
 devGuide/MachEnv
 devGuide/Config
 devGuide/Driver
+devGuide/EOS
 devGuide/Broadcast
 devGuide/CMakeBuild
 devGuide/Logging
 devGuide/Decomp
 devGuide/Dimension
+devGuide/Error
 devGuide/Field
 devGuide/IO
 devGuide/IOStreams
@@ -80,6 +85,7 @@ devGuide/TimeMgr
 devGuide/TimeStepping
 devGuide/Reductions
 devGuide/Tracers
+devGuide/TridiagonalSolvers
 ```
 
 ```{toctree}
@@ -92,6 +98,7 @@ design/Config
 design/DataTypes
 design/Decomp
 design/Driver
+design/EOS
 design/Error
 design/Halo
 design/HorzMeshClass
@@ -111,6 +118,7 @@ design/Timers
 design/TimeStepping
 design/Tracers
 design/TridiagonalSolver
+design/VerticalMixingCoeff
 
 design/Template
 ```

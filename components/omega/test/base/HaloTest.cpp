@@ -22,6 +22,7 @@
 #include "Logging.h"
 #include "MachEnv.h"
 #include "OmegaKokkos.h"
+#include "Pacer.h"
 #include "mpi.h"
 
 using namespace OMEGA;
@@ -117,11 +118,7 @@ int initHaloTest() {
 
    // Open config file
    Config("Omega");
-   IErr = Config::readAll("omega.yml");
-   if (IErr != 0) {
-      LOG_CRITICAL("HaloTest: Error reading config file");
-      return IErr;
-   }
+   Config::readAll("omega.yml");
 
    // Initialize the IO system
    IErr = IO::init(DefComm);
@@ -129,9 +126,7 @@ int initHaloTest() {
       LOG_ERROR("HaloTest: error initializing parallel IO");
 
    // Create the default decomposition (initializes the decomposition)
-   IErr = Decomp::init();
-   if (IErr != 0)
-      LOG_ERROR("HaloTest: error initializing default decomposition");
+   Decomp::init();
 
    // Initialize the default halo
    IErr = Halo::init();
@@ -160,6 +155,8 @@ int main(int argc, char *argv[]) {
    // Initialize global MPI environment and Kokkos
    MPI_Init(&argc, &argv);
    Kokkos::initialize();
+   Pacer::initialize(MPI_COMM_WORLD);
+   Pacer::setPrefix("Omega:");
    {
 
       // Call Halo test initialization routine

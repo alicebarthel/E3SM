@@ -15,6 +15,7 @@
 #include "Decomp.h"
 #include "Logging.h"
 #include "MachEnv.h"
+#include "Pacer.h"
 #include "mpi.h"
 
 #include <iostream>
@@ -41,11 +42,7 @@ int initIOTest() {
 
    // Open config file
    Config("Omega");
-   Err = Config::readAll("omega.yml");
-   if (Err != 0) {
-      LOG_CRITICAL("IOTest: Error reading config file");
-      return Err;
-   }
+   Config::readAll("omega.yml");
 
    // Initialize the IO system
    Err = IO::init(DefComm);
@@ -53,9 +50,7 @@ int initIOTest() {
       LOG_ERROR("IOTest: error initializing parallel IO");
 
    // Create the default decomposition (initializes the decomposition)
-   Err = Decomp::init();
-   if (Err != 0)
-      LOG_ERROR("IOTest: error initializing default decomposition");
+   Decomp::init();
 
    return Err;
 }
@@ -72,6 +67,8 @@ int main(int argc, char *argv[]) {
    // Initialize the global MPI environment
    MPI_Init(&argc, &argv);
    Kokkos::initialize();
+   Pacer::initialize(MPI_COMM_WORLD);
+   Pacer::setPrefix("Omega:");
    {
       // Call initialization routine to create the default decomposition
       // and initialize the parallel IO library

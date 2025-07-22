@@ -15,6 +15,7 @@
 #include "DataTypes.h"
 #include "Decomp.h"
 #include "Dimension.h"
+#include "Error.h"
 #include "Field.h"
 #include "Halo.h"
 #include "HorzMesh.h"
@@ -22,6 +23,7 @@
 #include "MachEnv.h"
 #include "OceanState.h"
 #include "OmegaKokkos.h"
+#include "Pacer.h"
 #include "TimeMgr.h"
 #include "TimeStepper.h"
 #include "Tracers.h"
@@ -31,14 +33,6 @@
 #include <vector>
 
 using namespace OMEGA;
-
-//------------------------------------------------------------------------------
-// Set some constant reference values for simplicity
-const I4 RefI4           = 3;
-const I8 RefI8           = 400000000;
-const R4 RefR4           = 5.1;
-const R8 RefR8           = 6.123456789;
-const std::string RefStr = "Reference String";
 
 //------------------------------------------------------------------------------
 // A simple test evaluation function
@@ -69,17 +63,12 @@ int initIOStreamTest(Clock *&ModelClock // Model clock
 
    // Read the model configuration
    Config("Omega");
-   Err1 = Config::readAll("omega.yml");
-   TestEval("Config read all", Err1, ErrRef, Err);
+   Config::readAll("omega.yml");
    Config *OmegaConfig = Config::getOmegaConfig();
 
    // Initialize the default time stepper (phase 1) that includes the
    // num time levels, calendar, model clock and start/stop times and alarms
-   Err = TimeStepper::init1();
-   if (Err != 0) {
-      LOG_CRITICAL("ocnInit: Error phase 1 initializing default time stepper");
-      return Err;
-   }
+   TimeStepper::init1();
 
    // Use alternative model clock rather than the input config
    // for testing
@@ -104,14 +93,11 @@ int initIOStreamTest(Clock *&ModelClock // Model clock
    TestEval("IO Field initialization", Err1, ErrRef, Err);
 
    // Initialize IOStreams
-   Err1 = IOStream::init(ModelClock);
-   TestEval("IOStream Initialization", Err1, ErrRef, Err);
+   IOStream::init(ModelClock);
 
    // Initialize HorzMesh - this should read Mesh stream
-   Err1 = HorzMesh::init();
-   TestEval("Horizontal mesh initialization", Err1, ErrRef, Err);
+   HorzMesh::init();
    HorzMesh *DefMesh = HorzMesh::getDefault();
-   I4 NCellsSize     = DefMesh->NCellsSize;
 
    // Set vertical levels and time levels
    I4 NVertLevels = 60;
@@ -123,12 +109,10 @@ int initIOStreamTest(Clock *&ModelClock // Model clock
    TestEval("Ocean state initialization", Err1, ErrRef, Err);
 
    // Initialize Aux State
-   Err1 = AuxiliaryState::init();
-   TestEval("Ocean aux state initialization", Err1, ErrRef, Err);
+   AuxiliaryState::init();
 
    // Initialize Tracers
-   Err1 = Tracers::init();
-   TestEval("Ocean tracer initialization", Err1, ErrRef, Err);
+   Tracers::init();
 
    // Add some global (Model and Simulation) metadata
    std::shared_ptr<Field> CodeField = Field::get(CodeMeta);
@@ -174,6 +158,8 @@ int main(int argc, char **argv) {
    // Initialize the global MPI and Kokkos environments
    MPI_Init(&argc, &argv);
    Kokkos::initialize();
+   Pacer::initialize(MPI_COMM_WORLD);
+   Pacer::setPrefix("Omega:");
    {
 
       Clock *ModelClock = nullptr;

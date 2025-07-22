@@ -15,6 +15,7 @@ std::string find_filename_in_rpointer (
     const bool model_restart,
     const ekat::Comm& comm,
     const util::TimeStamp& run_t0,
+    const bool allow_not_found,
     const OutputAvgType avg_type,
     const IOControl& control)
 {
@@ -64,7 +65,10 @@ std::string find_filename_in_rpointer (
   comm.broadcast(&ifound,1,0);
   found = bool(ifound);
 
-  if (not found) {
+  if (found) {
+    // Have the root rank communicate the nc filename
+    broadcast_string(filename,comm,comm.root_rank());
+  } else if (not allow_not_found) {
     broadcast_string(content,comm,comm.root_rank());
 
     if (model_restart) {
@@ -91,9 +95,6 @@ std::string find_filename_in_rpointer (
           " please rename it, so that the avg-type, freq, and freq_option reflect those of the output stream.\n");
     }
   }
-
-  // Have the root rank communicate the nc filename
-  broadcast_string(filename,comm,comm.root_rank());
 
   return filename;
 }
@@ -138,6 +139,8 @@ create_diagnostic (const std::string& diag_field_name,
   std::regex pot_temp ("(Liq)?PotentialTemperature$");
   std::regex vert_layer ("(z|geopotential|height)_(mid|int)$");
   std::regex horiz_avg ("([A-Za-z0-9_]+)_horiz_avg$");
+  std::regex vert_contract ("([A-Za-z0-9_]+)_vert_(avg|sum)(_((dp|dz)_weighted))?$");
+  std::regex zonal_avg (R"(([A-Za-z0-9_]+)_zonal_avg_(\d+)_bins$)");
 
   std::string diag_name;
   std::smatch matches;
@@ -166,24 +169,23 @@ create_diagnostic (const std::string& diag_field_name,
     params.set<std::string>("precip_type",matches[1].str());
   } else if (std::regex_search(diag_field_name,matches,water_path)) {
     diag_name = "WaterPath";
-    params.set<std::string>("Water Kind",matches[1].str());
+    params.set<std::string>("water_kind",matches[1].str());
   } else if (std::regex_search(diag_field_name,matches,number_path)) {
     diag_name = "NumberPath";
-    params.set<std::string>("Number Kind",matches[1].str());
+    params.set<std::string>("number_kind",matches[1].str());
   } else if (std::regex_search(diag_field_name,matches,aerocom_cld)) {
     diag_name = "AeroComCld";
-    params.set<std::string>("AeroComCld Kind",matches[1].str());
+    params.set<std::string>("aero_com_cld_kind",matches[1].str());
   } else if (std::regex_search(diag_field_name,matches,vap_flux)) {
     diag_name = "VaporFlux";
-    params.set<std::string>("Wind Component",matches[1].str());
+    params.set<std::string>("wind_component",matches[1].str());
   } else if (std::regex_search(diag_field_name,matches,backtend)) {
     diag_name = "AtmBackTendDiag";
-    // Set the grid_name
     params.set("grid_name",grid->name());
-    params.set<std::string>("Tendency Name",matches[1].str());
+    params.set<std::string>("tendency_name",matches[1].str());
   } else if (std::regex_search(diag_field_name,matches,pot_temp)) {
     diag_name = "PotentialTemperature";
-    params.set<std::string>("Temperature Kind", matches[1].str()!="" ? matches[1].str() : std::string("Tot"));
+    params.set<std::string>("temperature_kind", matches[1].str()!="" ? matches[1].str() : std::string("Tot"));
   } else if (std::regex_search(diag_field_name,matches,vert_layer)) {
     diag_name = "VerticalLayer";
     params.set<std::string>("diag_name",matches[1].str());
@@ -195,9 +197,25 @@ create_diagnostic (const std::string& diag_field_name,
   }
   else if (std::regex_search(diag_field_name,matches,horiz_avg)) {
     diag_name = "HorizAvgDiag";
-    // Set the grid_name
     params.set("grid_name",grid->name());
     params.set<std::string>("field_name",matches[1].str());
+  }
+  else if (std::regex_search(diag_field_name,matches,vert_contract)) {
+    diag_name = "VertContractDiag";
+    params.set("grid_name", grid->name());
+    params.set<std::string>("field_name", matches[1].str());
+    params.set<std::string>("contract_method", matches[2].str());
+    // The 3rd match an optional _(dp|dz)_weighted, so check if it was matched
+    if (matches[3].matched) {
+      // note that the 4th match is (dp|dz)_weighted, while the 5th is (dp|dz)
+      params.set<std::string>("weighting_method", matches[5].str());
+    }
+  }
+  else if (std::regex_search(diag_field_name,matches,zonal_avg)) {
+    diag_name = "ZonalAvgDiag";
+    params.set("grid_name", grid->name());
+    params.set<std::string>("field_name", matches[1].str());
+    params.set<std::string>("number_of_zonal_bins", matches[2].str());
   }
   else
   {

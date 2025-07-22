@@ -4,20 +4,21 @@ repos:
     rev: v1.9.6
     hooks:
       - id: clang-format
+        args: ["-i"]
       # - id: clang-tidy
       #   args: [--checks=readability-magic-numbers,--warnings-as-errors=*]
       # - id: cppcheck
       # - id: include-what-you-use
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v5.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
 
   # Can run individually with `pre-commit run isort --all-files`
   - repo: https://github.com/PyCQA/isort
-    rev: 5.13.2
+    rev: 6.0.1
     hooks:
       - id: isort
         args: ["--settings-file=components/omega/python_lint.cfg"]
@@ -34,7 +35,7 @@ repos:
   # Need to use flake8 GitHub mirror due to CentOS git issue with GitLab
   # https://github.com/pre-commit/pre-commit/issues/1206
   - repo: https://github.com/pycqa/flake8
-    rev: 7.1.1
+    rev: 7.1.2
     hooks:
       - id: flake8
         args: ["--config=components/omega/python_lint.cfg"]
@@ -42,15 +43,10 @@ repos:
 
   # Can run individually with `pre-commit run mypy --all-files`
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.11.2
+    rev: v1.15.0
     hooks:
       - id: mypy
         args: ["--config=components/omega/python_lint.cfg", "--show-error-codes"]
         verbose: true
         additional_dependencies: ['types-requests']
 
-
-# https://pre-commit.ci/#configuration
-ci:
-  autofix_prs: false
-  autoupdate_schedule: monthly

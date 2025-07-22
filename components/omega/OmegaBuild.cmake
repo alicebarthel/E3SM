@@ -82,9 +82,12 @@ macro(read_cime_config)
     set(NEWCASE_COMMAND "${NEWCASE_COMMAND} --project ${OMEGA_CIME_PROJECT}")
   endif()
 
-  if(NOT IS_DIRECTORY "${CASEROOT}")
+  if(NOT EXISTS ${CASEROOT})
     run_bash_command("${NEWCASE_COMMAND}" NEWCASE_OUTPUT)
+  else()
+    message(WARNING "Reusing ${CASEROOT}")
   endif()
+
   run_bash_command("cd ${CASEROOT} && ./case.setup" CASESETUP_OUTPUT)
   run_bash_command("source ${CASEROOT}/.env_mach_specific.sh && env" ENV_OUTPUT)
 
@@ -673,8 +676,6 @@ macro(update_variables)
   if(OMEGA_MPI_ON_DEVICE)
     add_definitions(-DOMEGA_MPI_ON_DEVICE)
   endif()
-
-  file(APPEND ${_EnvScript} "$*\n")
 
   # Include the findParmetis script
   list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")

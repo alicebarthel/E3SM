@@ -14,6 +14,7 @@
 #include "DataTypes.h"
 #include "Decomp.h"
 #include "Dimension.h"
+#include "Error.h"
 #include "IO.h"
 #include "Logging.h"
 #include "MachEnv.h"
@@ -28,9 +29,9 @@ std::map<std::string, std::unique_ptr<HorzMesh>> HorzMesh::AllHorzMeshes;
 //------------------------------------------------------------------------------
 // Initialize the mesh. Assumes that Decomp has already been initialized.
 
-int HorzMesh::init() {
+void HorzMesh::init() {
 
-   int Err = 0; // default successful return code
+   Error Err; // default successful error code
 
    // Retrieve the default decomposition
    Decomp *DefDecomp = Decomp::getDefault();
@@ -39,21 +40,15 @@ int HorzMesh::init() {
    I4 NVertLevels;
    Config *OmegaConfig = Config::getOmegaConfig();
    Config DimConfig("Dimension");
-   Err = OmegaConfig->get(DimConfig);
-   if (Err != 0) {
-      LOG_CRITICAL("HorzMesh: Dimension group not found in Config");
-      return Err;
-   }
-   Err = DimConfig.get("NVertLevels", NVertLevels);
-   if (Err != 0) {
-      LOG_CRITICAL("HorzMesh: NVertLevels not found in Dimension Config");
-      return Err;
-   }
+   Err += OmegaConfig->get(DimConfig);
+   CHECK_ERROR_ABORT(Err, "HorzMesh: Dimension group not found in Config");
+
+   Err += DimConfig.get("NVertLevels", NVertLevels);
+   CHECK_ERROR_ABORT(Err,
+                     "HorzMesh: NVertLevels not found in Dimension Config");
 
    // Create the default mesh and set pointer to it
    HorzMesh::DefaultHorzMesh = create("Default", DefDecomp, NVertLevels);
-
-   return Err;
 }
 
 //------------------------------------------------------------------------------
@@ -640,12 +635,18 @@ void HorzMesh::setMasks(int NVertLevels) {
 
    EdgeMask = Array2DReal("EdgeMask", NEdgesSize, NVertLevels);
 
-   OMEGA_SCOPE(O_EdgeMask, EdgeMask);
+   OMEGA_SCOPE(LocEdgeMask, EdgeMask);
+   OMEGA_SCOPE(LocCellsOnEdge, CellsOnEdge);
+   OMEGA_SCOPE(LocNCellsAll, NCellsAll);
 
+   deepCopy(EdgeMask, 1.0);
    parallelFor(
-       {NEdgesAll}, KOKKOS_LAMBDA(int Edge) {
-          for (int K = 0; K < NVertLevels; ++K) {
-             O_EdgeMask(Edge, K) = 1.0;
+       {NEdgesAll, NVertLevels}, KOKKOS_LAMBDA(int Edge, int K) {
+          const I4 Cell1 = LocCellsOnEdge(Edge, 0);
+          const I4 Cell2 = LocCellsOnEdge(Edge, 1);
+          if (!(Cell1 >= 0 and Cell1 < LocNCellsAll) or
+              !(Cell2 >= 0 and Cell2 < LocNCellsAll)) {
+             LocEdgeMask(Edge, K) = 0.0;
           }
        });
 

@@ -22,8 +22,8 @@
 	branch = scorpio_classic
 [submodule "cosp2"]
 	path = components/eam/src/physics/cosp2/external
-	url = git@github.com:bartgol/COSPv2.0.git
-	branch = bartgol/fix-cosp_optical_inputs
+	url = git@github.com:e3sm-project/COSPv2.0.git
+	branch = e3sm-master
 [submodule "cime"]
 	path = cime
 	url = git@github.com:ESMCI/cime.git
@@ -82,4 +82,15 @@
 [submodule "externals/mam4xx"]
 	path = externals/mam4xx
 	url = git@github.com:eagles-project/mam4xx.git
-
+[submodule "externals/cpptrace"]
+	path = externals/cpptrace
+	url = git@github.com:jeremy-rifkin/cpptrace
+[submodule "components/omega/external/yaml-cpp"]
+	path = components/omega/external/yaml-cpp
+	url = https://github.com/jbeder/yaml-cpp.git
+[submodule "components/omega/external/GSW-C"]
+	path = components/omega/external/GSW-C
+	url = git@github.com:E3SM-Project/GSW-C.git
+[submodule "components/omega/external/yaml-cpp"]
+	path = components/omega/external/yaml-cpp
+	url = https://github.com/jbeder/yaml-cpp.git
