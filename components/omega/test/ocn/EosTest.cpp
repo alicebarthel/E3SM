@@ -44,6 +44,8 @@ const Real TeosClampValue2 =
     0.0009662964459162306; // Expected value for TEOS-10 eos clamping test 2
 const Real TeosClampValue3 =
     0.0010086299185825206; // Expected value for TEOS-10 eos clamping test 3
+const Real TeosClampValue4 =
+    0.000970887661659709; // Expected value for TEOS-10 eos clamping test 4
 const Real LinearExpValue =
     0.0009784735812133072; // Expected value for Linear eos
 
@@ -302,7 +304,9 @@ int testEosTeos10Clamping() {
    Array2DReal TArray = Array2DReal("TArray", Mesh->NCellsAll, NVertLevels);
    Array2DReal PArray = Array2DReal("PArray", Mesh->NCellsAll, NVertLevels);
    /// Use Kokkos::deep_copy to fill the entire view with the ref value
-   /// Test with valid poly75t values first.
+   /// -------------------------------------
+   /// Test with valid poly75t values first (no clamping)
+   /// -------------------------------------
    deepCopy(SArray, 35.0);
    deepCopy(TArray, 5.0);
    deepCopy(PArray, 400.0);
@@ -334,8 +338,10 @@ int testEosTeos10Clamping() {
       LOG_INFO("EosTest SpecVolClampingNone TEOS-10: PASS");
    }
 
+   /// -------------------------------------
    /// Test with an ivalid poly75t salinity value second
-   deepCopy(SArray, 45.0);
+   /// -------------------------------------
+   deepCopy(SArray, 45.0); // Clamping happens at 42.0
    deepCopy(TArray, 5.0);
    deepCopy(PArray, 400.0);
    deepCopy(TestEos->SpecVol, 0.0);
@@ -366,9 +372,11 @@ int testEosTeos10Clamping() {
       LOG_INFO("EosTest SpecVolClampingSalt TEOS-10: PASS");
    }
 
-   /// Test with an ivalid poly75t temperature value third
+   /// -------------------------------------
+   /// Test with an ivalid high poly75t temperature value third
+   /// -------------------------------------
    deepCopy(SArray, 35.0);
-   deepCopy(TArray, 100.0);
+   deepCopy(TArray, 100.0); // Clamping happens at 95.0
    deepCopy(PArray, 400.0);
    deepCopy(TestEos->SpecVol, 0.0);
 
@@ -390,12 +398,46 @@ int testEosTeos10Clamping() {
    SpecVolH = createHostMirrorCopy(SpecVol);
    if (numMismatches != 0) {
       Err++;
-      LOG_ERROR("EosTest: TEOS SpecVolClampingTemp isApprox FAIL, "
+      LOG_ERROR("EosTest: TEOS SpecVolClampingTempHi isApprox FAIL, "
                 "expected {}, got {} with {} mismatches",
                 TeosClampValue3, SpecVolH(1, 1), numMismatches);
    }
    if (Err == 0) {
-      LOG_INFO("EosTest SpecVolClampingTemp TEOS-10: PASS");
+      LOG_INFO("EosTest SpecVolClampingTempHi TEOS-10: PASS");
+   }
+
+   /// -------------------------------------
+   /// Test with an ivalid low poly75t temperature value last
+   /// -------------------------------------
+   deepCopy(SArray, 35.0);
+   deepCopy(TArray, -5.0); // Clamping happens at -2.2160968103069774
+   deepCopy(PArray, 400.0);
+   deepCopy(TestEos->SpecVol, 0.0);
+
+   /// Compute specific volume
+   TestEos->computeSpecVol(TArray, SArray, PArray);
+
+   /// Check all array values against expected value
+   numMismatches = 0;
+   SpecVol       = TestEos->SpecVol;
+   parallelReduce(
+       "CheckSpecVolMatrix-Teos", {Mesh->NCellsAll, NVertLevels},
+       KOKKOS_LAMBDA(int i, int j, int &localCount) {
+          if (!isApprox(SpecVol(i, j), TeosClampValue4, RTol)) {
+             localCount++;
+          }
+       },
+       numMismatches);
+
+   SpecVolH = createHostMirrorCopy(SpecVol);
+   if (numMismatches != 0) {
+      Err++;
+      LOG_ERROR("EosTest: TEOS SpecVolClampingTempLo isApprox FAIL, "
+                "expected {}, got {} with {} mismatches",
+                TeosClampValue4, SpecVolH(1, 1), numMismatches);
+   }
+   if (Err == 0) {
+      LOG_INFO("EosTest SpecVolClampingTempLo TEOS-10: PASS");
    }
 
    return Err;
