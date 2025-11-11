@@ -300,9 +300,9 @@ int testEosTeos10Clamping() {
    TestEos->EosChoice = EosType::Teos10Eos;
 
    /// Create and fill ocean state arrays
-   Array2DReal SArray = Array2DReal("SArray", Mesh->NCellsAll, NVertLevels);
-   Array2DReal TArray = Array2DReal("TArray", Mesh->NCellsAll, NVertLevels);
-   Array2DReal PArray = Array2DReal("PArray", Mesh->NCellsAll, NVertLevels);
+   Array2DReal SArray = Array2DReal("SArray", Mesh->NCellsAll, NVertLayers);
+   Array2DReal TArray = Array2DReal("TArray", Mesh->NCellsAll, NVertLayers);
+   Array2DReal PArray = Array2DReal("PArray", Mesh->NCellsAll, NVertLayers);
    /// Use Kokkos::deep_copy to fill the entire view with the ref value
    /// -------------------------------------
    /// Test with valid poly75t values first (no clamping)
@@ -319,7 +319,7 @@ int testEosTeos10Clamping() {
    int numMismatches   = 0;
    Array2DReal SpecVol = TestEos->SpecVol;
    parallelReduce(
-       "CheckSpecVolMatrix-Teos", {Mesh->NCellsAll, NVertLevels},
+       "CheckSpecVolMatrix-Teos", {Mesh->NCellsAll, NVertLayers},
        KOKKOS_LAMBDA(int i, int j, int &localCount) {
           if (!isApprox(SpecVol(i, j), TeosClampValue1, RTol)) {
              localCount++;
@@ -353,7 +353,7 @@ int testEosTeos10Clamping() {
    numMismatches = 0;
    SpecVol       = TestEos->SpecVol;
    parallelReduce(
-       "CheckSpecVolMatrix-Teos", {Mesh->NCellsAll, NVertLevels},
+       "CheckSpecVolMatrix-Teos", {Mesh->NCellsAll, NVertLayers},
        KOKKOS_LAMBDA(int i, int j, int &localCount) {
           if (!isApprox(SpecVol(i, j), TeosClampValue2, RTol)) {
              localCount++;
@@ -387,7 +387,7 @@ int testEosTeos10Clamping() {
    numMismatches = 0;
    SpecVol       = TestEos->SpecVol;
    parallelReduce(
-       "CheckSpecVolMatrix-Teos", {Mesh->NCellsAll, NVertLevels},
+       "CheckSpecVolMatrix-Teos", {Mesh->NCellsAll, NVertLayers},
        KOKKOS_LAMBDA(int i, int j, int &localCount) {
           if (!isApprox(SpecVol(i, j), TeosClampValue3, RTol)) {
              localCount++;
@@ -421,7 +421,7 @@ int testEosTeos10Clamping() {
    numMismatches = 0;
    SpecVol       = TestEos->SpecVol;
    parallelReduce(
-       "CheckSpecVolMatrix-Teos", {Mesh->NCellsAll, NVertLevels},
+       "CheckSpecVolMatrix-Teos", {Mesh->NCellsAll, NVertLayers},
        KOKKOS_LAMBDA(int i, int j, int &localCount) {
           if (!isApprox(SpecVol(i, j), TeosClampValue4, RTol)) {
              localCount++;

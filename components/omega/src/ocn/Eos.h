@@ -26,6 +26,11 @@ enum class EosType {
    Teos10Eos  /// Roquet et al. 2015 75 term expansion
 };
 
+enum class EosLimits {
+   Funnel, ///
+   Cube    ///
+};
+
 struct EosRange {
    Real Lo;
    Real Hi;
@@ -35,6 +40,8 @@ struct EosRange {
 class Teos10Eos {
  public:
    Array2DReal SpecVolPCoeffs;
+   EosLimits EosLimChoice; ///< EOS clamping option in use
+   bool ClampingEnable;    ///< EOS clamping option in use
 
    /// constructor declaration
    Teos10Eos(int NVertLayers);
@@ -90,10 +97,14 @@ class Teos10Eos {
       constexpr Real DeltaS = 24.0;
       EosRange SRange       = calcSLimits(P);
       EosRange TRange       = calcTLimits(Sa, P);
-      Real SaInFunnel       = Kokkos::clamp(
-          Sa, SRange.Lo, SRange.Hi); // Salt limited to Poly75t valid range
-      Real Ss = Kokkos::sqrt((SaInFunnel + DeltaS) / SAu);
-      Real Tt = Kokkos::clamp(Ct, TRange.Lo, TRange.Hi) / CTu;
+      Real Ss               = Kokkos::sqrt((Sa + DeltaS) / SAu);
+      Real Tt               = Ct / CTu;
+      if (ClampingEnable) {
+         Real SaInRange = Kokkos::clamp(
+             Sa, SRange.Lo, SRange.Hi); // Salt limited to Poly75t valid range
+         Ss = Kokkos::sqrt((SaInRange + DeltaS) / SAu);
+         Tt = Kokkos::clamp(Ct, TRange.Lo, TRange.Hi) / CTu;
+      }
 
       /// Coefficients for the polynomial expansion
       constexpr Real V000 = 1.0769995862e-03;
@@ -215,10 +226,15 @@ class Teos10Eos {
    KOKKOS_FUNCTION Real calcDelta(const Array2DReal &SpecVolPCoeffs, const I4 K,
                                   const Real P) const {
 
-      constexpr Real Pu   = 1e4;
-      constexpr Real Pmax = 8000.0;
-      Real Pp = Kokkos::min(P, Pmax) / Pu; // P limited to Poly75t valid range
-
+      constexpr Real Pu = 1e4;
+      const Real Pmax = (EosLimChoice == EosLimits::Funnel) ? 8000.0 : 10000.0;
+      Real Pp         = P / Pu;
+      if (ClampingEnable) {
+         Pp = Kokkos::min(P, Pmax) / Pu; // P limited to Poly75t valid range
+         LOG_INFO("P={} exceeds Pmax={}; Clamping the pressure", P, Pmax);
+      } else if (P > Pmax) {
+         LOG_WARN("P={} exceeds Pmax={}", P, Pmax);
+      }
       Real Delta = ((((SpecVolPCoeffs(5, K) * Pp + SpecVolPCoeffs(4, K)) * Pp +
                       SpecVolPCoeffs(3, K)) *
                          Pp +
@@ -232,15 +248,20 @@ class Teos10Eos {
 
    /// Calculate reference profile for TEOS-10
    KOKKOS_FUNCTION Real calcRefProfile(const Real P) const {
-      constexpr Real Pu   = 1e4;
-      constexpr Real V00  = -4.4015007269e-05;
-      constexpr Real V01  = 6.9232335784e-06;
-      constexpr Real V02  = -7.5004675975e-07;
-      constexpr Real V03  = 1.7009109288e-08;
-      constexpr Real V04  = -1.6884162004e-08;
-      constexpr Real V05  = 1.9613503930e-09;
-      constexpr Real Pmax = 8000.0;
-      Real Pp = Kokkos::min(P, Pmax) / Pu; // P limited to Poly75t valid range
+      constexpr Real Pu  = 1e4;
+      constexpr Real V00 = -4.4015007269e-05;
+      constexpr Real V01 = 6.9232335784e-06;
+      constexpr Real V02 = -7.5004675975e-07;
+      constexpr Real V03 = 1.7009109288e-08;
+      constexpr Real V04 = -1.6884162004e-08;
+      constexpr Real V05 = 1.9613503930e-09;
+      const Real Pmax = (EosLimChoice == EosLimits::Funnel) ? 8000.0 : 10000.0;
+      Real Pp         = P / Pu;
+      if (ClampingEnable) {
+         Pp = Kokkos::min(P, Pmax) / Pu; // P limited to Poly75t valid range
+      } else if (P > Pmax) {
+         LOG_WARN("P={} exceeds Pmax={}", P, Pmax);
+      }
 
       Real V0 =
           (((((V05 * Pp + V04) * Pp + V03) * Pp + V02) * Pp + V01) * Pp + V00) *
@@ -250,15 +271,17 @@ class Teos10Eos {
 
    /// Calculate S limits of validity given pressure p
    KOKKOS_FUNCTION EosRange calcSLimits(const Real P) const {
-      Real Lo  = 0.0;
-      Real Hi  = 42.0;
-      Real Lo2 = P * 5e-3 - 2.5;
-      Real Lo3 = 30.0;
+      Real Lo = 0.0;
+      Real Hi = 42.0;
+      if (EosLimChoice == EosLimits::Funnel) {
+         Real Lo2 = P * 5e-3 - 2.5;
+         Real Lo3 = 30.0;
 
-      if (P >= 500.0 && P < 6500.0) {
-         Lo = Kokkos::max(Lo, Lo2);
-      } else if (P >= 6500.0) {
-         Lo = Kokkos::max(Lo, Lo3);
+         if (P >= 500.0 && P < 6500.0) {
+            Lo = Kokkos::max(Lo, Lo2);
+         } else if (P >= 6500.0) {
+            Lo = Kokkos::max(Lo, Lo3);
+         }
       }
       return {Lo, Hi};
    }
@@ -268,14 +291,20 @@ class Teos10Eos {
       Real Lo = -15.0;
       Real Hi = 95.0;
 
-      if (P < 500.0) {
-         Lo = calcCtFreezing(Sa, P, 0.0_Real);
-      } else if (P < 6500.0) {
-         Lo = calcCtFreezing(Sa, 500.0_Real, 0.0_Real);
-         Hi = 31.66666666666667 - P * 3.333333333333334e-3;
-      } else {
-         Lo = calcCtFreezing(Sa, 500.0_Real, 0.0_Real);
-         Hi = 10.0;
+      if (EosLimChoice == EosLimits::Funnel) {
+         if (P < 500.0) {
+            Lo = calcCtFreezing(Sa, P, 0.0_Real);
+         } else if (P < 6500.0) {
+            Lo = calcCtFreezing(Sa, 500.0_Real, 0.0_Real);
+            Hi = 31.66666666666667 - P * 3.333333333333334e-3;
+         } else {
+            Lo = calcCtFreezing(Sa, 500.0_Real, 0.0_Real);
+            Hi = 10.0;
+         }
+      }
+      if (EosLimChoice == EosLimits::Cube) {
+         Lo = -2.0;
+         Hi = 40.0;
       }
       return {Lo, Hi};
    }
