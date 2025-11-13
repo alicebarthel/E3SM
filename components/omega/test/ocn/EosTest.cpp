@@ -298,6 +298,7 @@ int testEosTeos10Clamping() {
    /// Get Eos instance to test
    Eos *TestEos       = Eos::getInstance();
    TestEos->EosChoice = EosType::Teos10Eos;
+   TestEos->setTeosClamping(true);
 
    /// Create and fill ocean state arrays
    Array2DReal SArray = Array2DReal("SArray", Mesh->NCellsAll, NVertLayers);

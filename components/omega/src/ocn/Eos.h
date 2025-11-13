@@ -46,6 +46,9 @@ class Teos10Eos {
    /// constructor declaration
    Teos10Eos(int NVertLayers);
 
+   KOKKOS_INLINE_FUNCTION
+   void setClamping(bool Flag) { ClampingEnable = Flag; }
+
    //   The functor takes the full arrays of specific volume (inout),
    //   the indices ICell and KChunk, and the ocean tracers (conservative)
    //   temperature, and (absolute) salinity as inputs, and outputs the
@@ -402,6 +405,7 @@ class Eos {
    /// Destroy instance (frees Kokkos views)
    static void destroyInstance();
 
+   void setTeosClamping(bool Flag) { ComputeSpecVolTeos10.setClamping(Flag); }
    EosType EosChoice;            ///< Current EOS type in use
    Array2DReal SpecVol;          ///< Specific volume field
    Array2DReal SpecVolDisplaced; ///< Displaced specific volume field
