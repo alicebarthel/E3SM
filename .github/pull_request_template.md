@@ -11,7 +11,7 @@ Checklist
   * [ ] Design document has been generated and added to the docs
   * [ ] User's Guide has been updated
   * [ ] Developer's Guide has been updated
-  * [ ] Documentation has been [built locally](https://e3sm-project.github.io/Omega/omega/develop/devGuide/BuildDocs.html) and changes look as expected
+  * [ ] Documentation has been [built locally](https://docs.e3sm.org/Omega/Omega/devGuide/BuildDocs.html) and changes look as expected
 * [ ] Building
   * [ ] CMake build does not produce any new warnings from changes in this PR
 * [ ] Testing
