@@ -109,6 +109,19 @@ class Teos10Eos {
          Tt = Kokkos::clamp(Ct, TRange.Lo, TRange.Hi) / CTu;
       }
 
+      if (Sa > SRange.Hi) {
+         LOG_WARN("In calcPCoeffs: S={} exceeds Smax={}", Sa, SRange.Hi);
+      }
+      if (Sa < SRange.Lo) {
+         LOG_WARN("In calcPCoeffs: S={} lower than Smin={}", Sa, SRange.Lo);
+      }
+      if (Ct > TRange.Hi) {
+         LOG_WARN("In calcPCoeffs: T={} exceeds Tmax={}", Ct, TRange.Hi);
+      }
+      if (Ct < TRange.Lo) {
+         LOG_WARN("In calcPCoeffs: T={} lower than Tmin={}", Ct, TRange.Lo);
+      }
+
       /// Coefficients for the polynomial expansion
       constexpr Real V000 = 1.0769995862e-03;
       constexpr Real V100 = -3.1038981976e-04;
@@ -234,9 +247,10 @@ class Teos10Eos {
       Real Pp         = P / Pu;
       if (ClampingEnable) {
          Pp = Kokkos::min(P, Pmax) / Pu; // P limited to Poly75t valid range
-         LOG_INFO("P={} exceeds Pmax={}; Clamping the pressure", P, Pmax);
+         LOG_INFO("In calcDelta: P={} exceeds Pmax={}; Clamping the pressure",
+                  P, Pmax);
       } else if (P > Pmax) {
-         LOG_WARN("P={} exceeds Pmax={}", P, Pmax);
+         LOG_WARN("In calcDelta: P={} exceeds Pmax={}", P, Pmax);
       }
       Real Delta = ((((SpecVolPCoeffs(5, K) * Pp + SpecVolPCoeffs(4, K)) * Pp +
                       SpecVolPCoeffs(3, K)) *
@@ -263,7 +277,7 @@ class Teos10Eos {
       if (ClampingEnable) {
          Pp = Kokkos::min(P, Pmax) / Pu; // P limited to Poly75t valid range
       } else if (P > Pmax) {
-         LOG_WARN("P={} exceeds Pmax={}", P, Pmax);
+         LOG_WARN("In calcRefProfile: P={} exceeds Pmax={}", P, Pmax);
       }
 
       Real V0 =
