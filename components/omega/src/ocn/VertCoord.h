@@ -109,6 +109,7 @@ class VertCoord {
    Array2DReal ZMid;
    Array2DReal GeopotentialMid;
    Array2DReal LayerThicknessTarget;
+   Array1DReal SshCell;
 
    HostArray2DReal PressureInterfaceH;
    HostArray2DReal PressureMidH;
@@ -116,6 +117,7 @@ class VertCoord {
    HostArray2DReal ZMidH;
    HostArray2DReal GeopotentialMidH;
    HostArray2DReal LayerThicknessTargetH;
+   HostArray1DReal SshCellH;
 
    // Vertical loop bounds
    Array1DI4 MinLayerCell;
@@ -186,6 +188,7 @@ class VertCoord {
    std::string ZMidFldName;           ///< Field name for midpoint Z height
    std::string GeopotFldName;         ///< Field name for geopotential
    std::string LyrThickTargetFldName; ///< Field name for target thickness
+   std::string SshFldName;        ///< Field name for sea surface height
 
    // methods
 
