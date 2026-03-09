@@ -241,10 +241,9 @@ class Teos10Eos {
 
    /// Calculate 2nd derivative of Gibbs wrt pot temp at ref P for TEOS-10
    KOKKOS_FUNCTION Real calcGibbsDerivPt0Pt0(Real Sa, Real P) const {
-      constexpr Real gsw_sfac = 0.0248826675584615; // replace
-      Real x2                 = gsw_sfac * Sa;
-      Real x                  = Kokkos::sqrt(x2);
-      Real y                  = P * 0.025;
+      Real x2 = Sfac * Sa;
+      Real x  = Kokkos::sqrt(x2);
+      Real y  = P * 0.025;
 
       Real g03 =
           -24715.571866078 +
@@ -270,23 +269,20 @@ class Teos10Eos {
 
    /// Calculate Pot Temmperature from Conservative Temp
    KOKKOS_FUNCTION Real calcPtFromCt(Real Sa, Real Ct) const {
-      constexpr Real gsw_t0  = 273.15;           // replace with TkFrz
-      constexpr Real gsw_cp0 = 3991.86795711963; // replace
-      constexpr Real gsw_ups = 35.16504 / 35.0;  // replace
-      constexpr Real a0      = -1.446013646344788e-2;
-      constexpr Real a1      = -3.305308995852924e-3;
-      constexpr Real a2      = 1.062415929128982e-4;
-      constexpr Real a3      = 9.477566673794488e-1;
-      constexpr Real a4      = 2.166591947736613e-3;
-      constexpr Real a5      = 3.828842955039902e-3;
-      constexpr Real b0      = 1.000000000000000e0;
-      constexpr Real b1      = 6.506097115635800e-4;
-      constexpr Real b2      = 3.830289486850898e-3;
-      constexpr Real b3      = 1.247811760368034e-6;
+      constexpr Real a0 = -1.446013646344788e-2;
+      constexpr Real a1 = -3.305308995852924e-3;
+      constexpr Real a2 = 1.062415929128982e-4;
+      constexpr Real a3 = 9.477566673794488e-1;
+      constexpr Real a4 = 2.166591947736613e-3;
+      constexpr Real a5 = 3.828842955039902e-3;
+      constexpr Real b0 = 1.000000000000000e0;
+      constexpr Real b1 = 6.506097115635800e-4;
+      constexpr Real b2 = 3.830289486850898e-3;
+      constexpr Real b3 = 1.247811760368034e-6;
       Real a5ct, b3ct, ct_factor, pt_num, pt_recden, ct_diff;
       Real pt, pt_old, ptm, dpt_dct, s1;
 
-      s1 = Sa / gsw_ups;
+      s1 = Sa / Psu2Gpkg;
 
       a5ct = a5 * Ct;
       b3ct = b3 * Ct;
@@ -303,7 +299,7 @@ class Teos10Eos {
       pt      = pt_old - ct_diff * dpt_dct;
       ptm     = 0.5 * (pt + pt_old);
 
-      dpt_dct = -gsw_cp0 / ((ptm + gsw_t0) * calcGibbsDerivPt0Pt0(Sa, ptm));
+      dpt_dct = -Cp0Sw / ((ptm + TkFrz) * calcGibbsDerivPt0Pt0(Sa, ptm));
 
       pt      = pt_old - ct_diff * dpt_dct;
       ct_diff = calcCtFromPt(Sa, pt) - Ct;
@@ -313,11 +309,9 @@ class Teos10Eos {
 
    /// Calculate Conservative Temmperature from Potential Temp
    KOKKOS_FUNCTION Real calcCtFromPt(Real Sa, Real Pt) const {
-      constexpr Real gsw_cp0  = 3991.86795711963;   // replace
-      constexpr Real gsw_sfac = 0.0248826675584615; // replace
       Real x2, x, y, pot_enthalpy;
 
-      x2 = gsw_sfac * Sa;
+      x2 = Sfac * Sa;
       x  = Kokkos::sqrt(x2);
       y  = Pt * 0.025e0; /*! normalize for F03 and F08 */
       pot_enthalpy =
@@ -355,7 +349,7 @@ class Teos10Eos {
                                          9.987880382780322e0 * y) *
                                             y))))));
 
-      return (pot_enthalpy / gsw_cp0);
+      return (pot_enthalpy / Cp0Sw);
    }
 
  private:
