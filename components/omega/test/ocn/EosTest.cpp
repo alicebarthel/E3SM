@@ -765,6 +765,53 @@ void checkValueGswcN2() {
    return;
 }
 
+///
+void checkValueGswcCtFromPt() {
+   /// Get mesh and coordinate info
+   // const auto Mesh     = HorzMesh::getDefault();
+   // const auto VCoord   = VertCoord::getDefault();
+   // VCoord->NVertLayers = NVertLayers;
+   // I4 NCellsAll        = Mesh->NCellsAll;
+   /// Get Eos instance to test
+   Eos *TestEos       = Eos::getInstance();
+   TestEos->EosChoice = EosType::Teos10Eos;
+
+   /// Get Ct reference from GSW-C library
+   Real CtExpValue = gsw_ct_from_pt(Sa, Ct);
+   /// Get Ct from our TEOS
+   Real CtTeos = TestEos->calcCtFromPt(Sa, Ct);
+   /// Check the value against the expected TEOS-10 value
+   bool Check = isApprox(CtTeos, CtExpValue, RTol);
+   if (!Check) {
+      ABORT_ERROR("checkValueGswcCtfromPt: Ct calc FAIL, expected {}, got {}",
+                  CtExpValue, CtTeos);
+   }
+   return;
+}
+
+void checkValueGswcPtFromCt() {
+   /// Get mesh and coordinate info
+   // const auto Mesh     = HorzMesh::getDefault();
+   // const auto VCoord   = VertCoord::getDefault();
+   // VCoord->NVertLayers = NVertLayers;
+   // I4 NCellsAll        = Mesh->NCellsAll;
+   /// Get Eos instance to test
+   Eos *TestEos       = Eos::getInstance();
+   TestEos->EosChoice = EosType::Teos10Eos;
+
+   /// Get Ct reference from GSW-C library
+   Real PtExpValue = gsw_pt_from_ct(Sa, Ct);
+   /// Get Ct from our TEOS
+   Real PtTeos = TestEos->calcPtFromCt(Sa, Ct);
+   /// Check the value against the expected TEOS-10 value
+   bool Check = isApprox(PtTeos, PtExpValue, RTol);
+   if (!Check) {
+      ABORT_ERROR("checkValueGswcPtfromCt: Pt calc FAIL, expected {}, got {}",
+                  PtExpValue, PtTeos);
+   }
+   return;
+}
+
 // the main tests (all in one to have the same log):
 // Single value test:
 // --> test calls the external GSW-C library
@@ -784,6 +831,8 @@ void eosTest(const std::string &MeshFile = "OmegaMesh.nc") {
 
    checkValueGswcSpecVol();
    checkValueGswcN2();
+   checkValueGswcCtFromPt();
+   checkValueGswcPtFromCt();
 
    testEosLinear();
    testEosLinearDisplaced();
