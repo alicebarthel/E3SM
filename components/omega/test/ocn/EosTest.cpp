@@ -767,11 +767,6 @@ void checkValueGswcN2() {
 
 ///
 void checkValueGswcCtFromPt() {
-   /// Get mesh and coordinate info
-   // const auto Mesh     = HorzMesh::getDefault();
-   // const auto VCoord   = VertCoord::getDefault();
-   // VCoord->NVertLayers = NVertLayers;
-   // I4 NCellsAll        = Mesh->NCellsAll;
    /// Get Eos instance to test
    Eos *TestEos       = Eos::getInstance();
    TestEos->EosChoice = EosType::Teos10Eos;
@@ -780,21 +775,18 @@ void checkValueGswcCtFromPt() {
    Real CtExpValue = gsw_ct_from_pt(Sa, Ct);
    /// Get Ct from our TEOS
    Real CtTeos = TestEos->calcCtFromPt(Sa, Ct);
-   /// Check the value against the expected TEOS-10 value
+   /// Check the produced value against the GSW-C value
    bool Check = isApprox(CtTeos, CtExpValue, RTol);
    if (!Check) {
       ABORT_ERROR("checkValueGswcCtfromPt: Ct calc FAIL, expected {}, got {}",
                   CtExpValue, CtTeos);
    }
+   /// LOG_INFO("checkValueGswcCtfromPt: Ct calc PASS, expected {}, got {}",
+   ///              CtExpValue, CtTeos);
    return;
 }
 
 void checkValueGswcPtFromCt() {
-   /// Get mesh and coordinate info
-   // const auto Mesh     = HorzMesh::getDefault();
-   // const auto VCoord   = VertCoord::getDefault();
-   // VCoord->NVertLayers = NVertLayers;
-   // I4 NCellsAll        = Mesh->NCellsAll;
    /// Get Eos instance to test
    Eos *TestEos       = Eos::getInstance();
    TestEos->EosChoice = EosType::Teos10Eos;
@@ -803,12 +795,14 @@ void checkValueGswcPtFromCt() {
    Real PtExpValue = gsw_pt_from_ct(Sa, Ct);
    /// Get Ct from our TEOS
    Real PtTeos = TestEos->calcPtFromCt(Sa, Ct);
-   /// Check the value against the expected TEOS-10 value
+   /// Check the produced value against the GSW-C value
    bool Check = isApprox(PtTeos, PtExpValue, RTol);
    if (!Check) {
       ABORT_ERROR("checkValueGswcPtfromCt: Pt calc FAIL, expected {}, got {}",
                   PtExpValue, PtTeos);
    }
+   /// LOG_INFO("checkValueGswcPtfromCt: Pt calc PASS, expected {}, got {}",
+   ///               PtExpValue, PtTeos);
    return;
 }
 

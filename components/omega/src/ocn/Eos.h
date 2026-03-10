@@ -710,6 +710,13 @@ class Eos {
                                   const Array2DReal &AbsSalinity,
                                   const Array2DReal &Pressure,
                                   const Array2DReal &SpecVol);
+
+   /// Compute Pot Temp from Consev Temp for ONE cell
+   Real calcPtFromCt(const Real &AbsSalinity, const Real &ConservTemp) const;
+
+   /// Compute Consev Temp from Pot Temp for ONE cell
+   Real calcCtFromPt(const Real &AbsSalinity, const Real &PotTemp) const;
+
    /// Initialize EOS from config and mesh
    static void init();
 
