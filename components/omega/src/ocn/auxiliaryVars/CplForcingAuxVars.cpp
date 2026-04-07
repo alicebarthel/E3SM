@@ -1,0 +1,182 @@
+#include "CplForcingAuxVars.h"
+#include "Field.h"
+
+#include <limits>
+
+namespace OMEGA {
+
+CplForcingAuxVars::CplForcingAuxVars(const std::string &AuxStateSuffix,
+                                     const HorzMesh *Mesh)
+    : SnowFluxCell("snowFlux" + AuxStateSuffix, Mesh->NCellsSize),
+      RainFluxCell("rainFlux" + AuxStateSuffix, Mesh->NCellsSize),
+      EvaporationFluxCell("evaporationFlux" + AuxStateSuffix, Mesh->NCellsSize),
+      SeaIceFreshWaterFluxCell("seaIceFreshWaterFlux" + AuxStateSuffix,
+                               Mesh->NCellsSize),
+      IceRunoffFluxCell("iceRunoffFlux" + AuxStateSuffix, Mesh->NCellsSize),
+      RiverRunoffFluxCell("riverRunoffFlux" + AuxStateSuffix, Mesh->NCellsSize),
+      LatentHeatFluxCell("latentHeatFlux" + AuxStateSuffix, Mesh->NCellsSize),
+      SensibleHeatFluxCell("sensibleHeatFlux" + AuxStateSuffix,
+                           Mesh->NCellsSize),
+      LongWaveHeatFluxUpCell("longWaveHeatFluxUp" + AuxStateSuffix,
+                             Mesh->NCellsSize),
+      LongWaveHeatFluxDownCell("longWaveHeatFluxDown" + AuxStateSuffix,
+                               Mesh->NCellsSize),
+      SeaIceHeatFluxCell("seaIceHeatFlux" + AuxStateSuffix, Mesh->NCellsSize),
+      ShortWaveHeatFluxCell("shortWaveHeatFlux" + AuxStateSuffix,
+                            Mesh->NCellsSize),
+      SeaIceSaltFluxCell("seaIceSalinityFlux" + AuxStateSuffix,
+                         Mesh->NCellsSize) {
+   if (AuxStateSuffix.empty()) {
+      ForcingGroupName = "CplForcing";
+   } else {
+      ForcingGroupName = "CplForcing" + AuxStateSuffix;
+   }
+
+   deepCopy(SnowFluxCell, 0.0_Real);
+   deepCopy(RainFluxCell, 0.0_Real);
+   deepCopy(EvaporationFluxCell, 0.0_Real);
+   deepCopy(SeaIceFreshWaterFluxCell, 0.0_Real);
+   deepCopy(IceRunoffFluxCell, 0.0_Real);
+   deepCopy(RiverRunoffFluxCell, 0.0_Real);
+   deepCopy(LatentHeatFluxCell, 0.0_Real);
+   deepCopy(SensibleHeatFluxCell, 0.0_Real);
+   deepCopy(LongWaveHeatFluxUpCell, 0.0_Real);
+   deepCopy(LongWaveHeatFluxDownCell, 0.0_Real);
+   deepCopy(SeaIceHeatFluxCell, 0.0_Real);
+   deepCopy(ShortWaveHeatFluxCell, 0.0_Real);
+   deepCopy(SeaIceSaltFluxCell, 0.0_Real);
+}
+
+void CplForcingAuxVars::registerFields(const std::string &AuxGroupName,
+                                       const std::string &MeshName) const {
+   const Real FillValue = -9.99e30;
+   const int NDims      = 1;
+   std::vector<std::string> DimNames(NDims);
+
+   std::string DimSuffix;
+   if (MeshName == "Default") {
+      DimSuffix = "";
+   } else {
+      DimSuffix = MeshName;
+   }
+
+   DimNames[0] = "NCells" + DimSuffix;
+
+   auto SnowFluxField = Field::create(
+       SnowFluxCell.label(), "snow freshwater flux", "kg m^-2 s^-1", "",
+       std::numeric_limits<Real>::lowest(), std::numeric_limits<Real>::max(),
+       FillValue, NDims, DimNames);
+   auto RainFluxField = Field::create(
+       RainFluxCell.label(), "rain freshwater flux", "kg m^-2 s^-1", "",
+       std::numeric_limits<Real>::lowest(), std::numeric_limits<Real>::max(),
+       FillValue, NDims, DimNames);
+   auto EvaporationFluxField = Field::create(
+       EvaporationFluxCell.label(), "evaporation freshwater flux",
+       "kg m^-2 s^-1", "", std::numeric_limits<Real>::lowest(),
+       std::numeric_limits<Real>::max(), FillValue, NDims, DimNames);
+   auto SeaIceFreshWaterFluxField = Field::create(
+       SeaIceFreshWaterFluxCell.label(), "sea-ice freshwater flux",
+       "kg m^-2 s^-1", "", std::numeric_limits<Real>::lowest(),
+       std::numeric_limits<Real>::max(), FillValue, NDims, DimNames);
+   auto IceRunoffFluxField = Field::create(
+       IceRunoffFluxCell.label(), "ice runoff freshwater flux", "kg m^-2 s^-1",
+       "", std::numeric_limits<Real>::lowest(),
+       std::numeric_limits<Real>::max(), FillValue, NDims, DimNames);
+   auto RiverRunoffFluxField = Field::create(
+       RiverRunoffFluxCell.label(), "river runoff freshwater flux",
+       "kg m^-2 s^-1", "", std::numeric_limits<Real>::lowest(),
+       std::numeric_limits<Real>::max(), FillValue, NDims, DimNames);
+
+   auto LatentHeatFluxField = Field::create(
+       LatentHeatFluxCell.label(), "latent heat flux", "W m^-2", "",
+       std::numeric_limits<Real>::lowest(), std::numeric_limits<Real>::max(),
+       FillValue, NDims, DimNames);
+   auto SensibleHeatFluxField = Field::create(
+       SensibleHeatFluxCell.label(), "sensible heat flux", "W m^-2", "",
+       std::numeric_limits<Real>::lowest(), std::numeric_limits<Real>::max(),
+       FillValue, NDims, DimNames);
+   auto LongWaveHeatFluxUpField = Field::create(
+       LongWaveHeatFluxUpCell.label(), "upward longwave heat flux", "W m^-2",
+       "", std::numeric_limits<Real>::lowest(),
+       std::numeric_limits<Real>::max(), FillValue, NDims, DimNames);
+   auto LongWaveHeatFluxDownField = Field::create(
+       LongWaveHeatFluxDownCell.label(), "downward longwave heat flux",
+       "W m^-2", "", std::numeric_limits<Real>::lowest(),
+       std::numeric_limits<Real>::max(), FillValue, NDims, DimNames);
+   auto SeaIceHeatFluxField = Field::create(
+       SeaIceHeatFluxCell.label(), "sea-ice heat flux", "W m^-2", "",
+       std::numeric_limits<Real>::lowest(), std::numeric_limits<Real>::max(),
+       FillValue, NDims, DimNames);
+   auto ShortWaveHeatFluxField = Field::create(
+       ShortWaveHeatFluxCell.label(), "shortwave heat flux", "W m^-2", "",
+       std::numeric_limits<Real>::lowest(), std::numeric_limits<Real>::max(),
+       FillValue, NDims, DimNames);
+
+   auto SeaIceSaltFluxField = Field::create(
+       SeaIceSaltFluxCell.label(), "sea-ice salt flux", "kg m^-2 s^-1", "",
+       std::numeric_limits<Real>::lowest(), std::numeric_limits<Real>::max(),
+       FillValue, NDims, DimNames);
+
+   auto ForcingGroup = FieldGroup::create(ForcingGroupName);
+
+   ForcingGroup->addField(SnowFluxCell.label());
+   ForcingGroup->addField(RainFluxCell.label());
+   ForcingGroup->addField(EvaporationFluxCell.label());
+   ForcingGroup->addField(SeaIceFreshWaterFluxCell.label());
+   ForcingGroup->addField(IceRunoffFluxCell.label());
+   ForcingGroup->addField(RiverRunoffFluxCell.label());
+   ForcingGroup->addField(LatentHeatFluxCell.label());
+   ForcingGroup->addField(SensibleHeatFluxCell.label());
+   ForcingGroup->addField(LongWaveHeatFluxUpCell.label());
+   ForcingGroup->addField(LongWaveHeatFluxDownCell.label());
+   ForcingGroup->addField(SeaIceHeatFluxCell.label());
+   ForcingGroup->addField(ShortWaveHeatFluxCell.label());
+   ForcingGroup->addField(SeaIceSaltFluxCell.label());
+
+   FieldGroup::addFieldToGroup(SnowFluxCell.label(), AuxGroupName);
+   FieldGroup::addFieldToGroup(RainFluxCell.label(), AuxGroupName);
+   FieldGroup::addFieldToGroup(EvaporationFluxCell.label(), AuxGroupName);
+   FieldGroup::addFieldToGroup(SeaIceFreshWaterFluxCell.label(), AuxGroupName);
+   FieldGroup::addFieldToGroup(IceRunoffFluxCell.label(), AuxGroupName);
+   FieldGroup::addFieldToGroup(RiverRunoffFluxCell.label(), AuxGroupName);
+   FieldGroup::addFieldToGroup(LatentHeatFluxCell.label(), AuxGroupName);
+   FieldGroup::addFieldToGroup(SensibleHeatFluxCell.label(), AuxGroupName);
+   FieldGroup::addFieldToGroup(LongWaveHeatFluxUpCell.label(), AuxGroupName);
+   FieldGroup::addFieldToGroup(LongWaveHeatFluxDownCell.label(), AuxGroupName);
+   FieldGroup::addFieldToGroup(SeaIceHeatFluxCell.label(), AuxGroupName);
+   FieldGroup::addFieldToGroup(ShortWaveHeatFluxCell.label(), AuxGroupName);
+   FieldGroup::addFieldToGroup(SeaIceSaltFluxCell.label(), AuxGroupName);
+
+   SnowFluxField->attachData<Array1DReal>(SnowFluxCell);
+   RainFluxField->attachData<Array1DReal>(RainFluxCell);
+   EvaporationFluxField->attachData<Array1DReal>(EvaporationFluxCell);
+   SeaIceFreshWaterFluxField->attachData<Array1DReal>(SeaIceFreshWaterFluxCell);
+   IceRunoffFluxField->attachData<Array1DReal>(IceRunoffFluxCell);
+   RiverRunoffFluxField->attachData<Array1DReal>(RiverRunoffFluxCell);
+   LatentHeatFluxField->attachData<Array1DReal>(LatentHeatFluxCell);
+   SensibleHeatFluxField->attachData<Array1DReal>(SensibleHeatFluxCell);
+   LongWaveHeatFluxUpField->attachData<Array1DReal>(LongWaveHeatFluxUpCell);
+   LongWaveHeatFluxDownField->attachData<Array1DReal>(LongWaveHeatFluxDownCell);
+   SeaIceHeatFluxField->attachData<Array1DReal>(SeaIceHeatFluxCell);
+   ShortWaveHeatFluxField->attachData<Array1DReal>(ShortWaveHeatFluxCell);
+   SeaIceSaltFluxField->attachData<Array1DReal>(SeaIceSaltFluxCell);
+}
+
+void CplForcingAuxVars::unregisterFields() const {
+   Field::destroy(SnowFluxCell.label());
+   Field::destroy(RainFluxCell.label());
+   Field::destroy(EvaporationFluxCell.label());
+   Field::destroy(SeaIceFreshWaterFluxCell.label());
+   Field::destroy(IceRunoffFluxCell.label());
+   Field::destroy(RiverRunoffFluxCell.label());
+   Field::destroy(LatentHeatFluxCell.label());
+   Field::destroy(SensibleHeatFluxCell.label());
+   Field::destroy(LongWaveHeatFluxUpCell.label());
+   Field::destroy(LongWaveHeatFluxDownCell.label());
+   Field::destroy(SeaIceHeatFluxCell.label());
+   Field::destroy(ShortWaveHeatFluxCell.label());
+   Field::destroy(SeaIceSaltFluxCell.label());
+   FieldGroup::destroy(ForcingGroupName);
+}
+
+} // namespace OMEGA

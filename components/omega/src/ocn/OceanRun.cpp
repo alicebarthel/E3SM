@@ -5,6 +5,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "AuxiliaryState.h"
+#include "Error.h"
 #include "IOStream.h"
 #include "OceanDriver.h"
 #include "OceanState.h"
@@ -21,6 +23,7 @@ int ocnRun(TimeInstant &CurrTime ///< [inout] current sim time
 
    // fetch default OceanState and TimeStepper
    OceanState *DefOceanState   = OceanState::getDefault();
+   AuxiliaryState *DefAuxState = AuxiliaryState::getDefault();
    TimeStepper *DefTimeStepper = TimeStepper::getDefault();
 
    // EndAlarm must be set before calling ocnRun
@@ -43,6 +46,19 @@ int ocnRun(TimeInstant &CurrTime ///< [inout] current sim time
       ++IStep;
 
       // call forcing routines, anything needed pre-timestep
+      Metadata ReqMeta;
+      Error ReadErr = IOStream::read("CplForcing", OmegaClock, ReqMeta,
+                                     true /* ForceRead */);
+      if (ReadErr.isFail()) {
+         CHECK_ERROR(ReadErr, "ocnRun: failed to read CplForcing stream");
+         Err = 1;
+         break;
+      }
+
+      Err += DefAuxState->exchangeHalo();
+      if (Err != 0) {
+         ABORT_ERROR("ocnRun: failed to exchange auxiliary-state halos");
+      }
 
       // do forward time step
       // first call to doStep can sometimes take very long

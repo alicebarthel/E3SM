@@ -28,6 +28,7 @@ AuxiliaryState::AuxiliaryState(const std::string &Name, const HorzMesh *Mesh,
       VorticityAux(stripDefault(Name), Mesh, VCoord),
       VelocityDel2Aux(stripDefault(Name), Mesh, VCoord),
       WindForcingAux(stripDefault(Name), Mesh),
+      CplForcingAux(stripDefault(Name), Mesh),
       SurfTracerRestAux(stripDefault(Name), Mesh, NTracers),
       TracerAux(stripDefault(Name), Mesh, VCoord, NTracers) {
 
@@ -44,6 +45,7 @@ AuxiliaryState::AuxiliaryState(const std::string &Name, const HorzMesh *Mesh,
    VorticityAux.registerFields(GroupName, AuxMeshName);
    VelocityDel2Aux.registerFields(GroupName, AuxMeshName);
    WindForcingAux.registerFields(GroupName, AuxMeshName);
+   CplForcingAux.registerFields(GroupName, AuxMeshName);
    SurfTracerRestAux.registerFields(GroupName, AuxMeshName);
    TracerAux.registerFields(GroupName, AuxMeshName);
 }
@@ -56,6 +58,7 @@ AuxiliaryState::~AuxiliaryState() {
    VorticityAux.unregisterFields();
    VelocityDel2Aux.unregisterFields();
    WindForcingAux.unregisterFields();
+   CplForcingAux.unregisterFields();
    SurfTracerRestAux.unregisterFields();
    TracerAux.unregisterFields();
 
@@ -454,6 +457,31 @@ I4 AuxiliaryState::exchangeHalo() {
           SurfTracerRestAux.TracersMonthlySurfClimoCell, LTracer, Kokkos::ALL);
       Err += MeshHalo->exchangeFullArrayHalo(TracerSurfClimoCell, OnCell);
    }
+   
+   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.SnowFluxCell, OnCell);
+   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.RainFluxCell, OnCell);
+   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.EvaporationFluxCell,
+                                          OnCell);
+   Err += MeshHalo->exchangeFullArrayHalo(
+       CplForcingAux.SeaIceFreshWaterFluxCell, OnCell);
+   Err +=
+       MeshHalo->exchangeFullArrayHalo(CplForcingAux.IceRunoffFluxCell, OnCell);
+   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.RiverRunoffFluxCell,
+                                          OnCell);
+   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.LatentHeatFluxCell,
+                                          OnCell);
+   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.SensibleHeatFluxCell,
+                                          OnCell);
+   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.LongWaveHeatFluxUpCell,
+                                          OnCell);
+   Err += MeshHalo->exchangeFullArrayHalo(
+       CplForcingAux.LongWaveHeatFluxDownCell, OnCell);
+   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.SeaIceHeatFluxCell,
+                                          OnCell);
+   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.ShortWaveHeatFluxCell,
+                                          OnCell);
+   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.SeaIceSaltFluxCell,
+                                          OnCell);
 
    return Err;
 

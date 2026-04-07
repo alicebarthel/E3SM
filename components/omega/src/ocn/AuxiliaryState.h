@@ -10,6 +10,7 @@
 #include "Tracers.h"
 #include "VertAdv.h"
 #include "VertCoord.h"
+#include "auxiliaryVars/CplForcingAuxVars.h"
 #include "auxiliaryVars/KineticAuxVars.h"
 #include "auxiliaryVars/PseudoThicknessAuxVars.h"
 #include "auxiliaryVars/SurfTracerRestAuxVars.h"
@@ -37,13 +38,14 @@ class AuxiliaryState {
    std::string GroupName;
 
    // Auxiliary variables
+   CplForcingAuxVars CplForcingAux;
    KineticAuxVars KineticAux;
    PseudoThicknessAuxVars PseudoThicknessAux;
+   SurfTracerRestAuxVars SurfTracerRestAux;
    TracerAuxVars TracerAux;
    VorticityAuxVars VorticityAux;
    VelocityDel2AuxVars VelocityDel2Aux;
    WindForcingAuxVars WindForcingAux;
-   SurfTracerRestAuxVars SurfTracerRestAux;
 
    ~AuxiliaryState();
 

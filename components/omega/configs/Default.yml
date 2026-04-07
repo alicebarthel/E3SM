@@ -51,6 +51,8 @@ Omega:
     SurfaceTracerRestoringEnable: false
     BottomDragTendencyEnable: false
     BottomDragCoeff: 0.0
+    CplFluxThicknessTendencyEnable: false
+    CplFluxTracerTendencyEnable: false
     TracerHorzAdvTendencyEnable: true
     TracerDiffTendencyEnable: true
     EddyDiff2: 10.0
@@ -125,6 +127,16 @@ Omega:
       EndTime: 99999-12-31_00:00:00
       Contents:
         - Restart
+    CplForcing:
+      UsePointerFile: false
+      Filename: forcing.nc
+      Mode: read
+      Precision: double
+      Freq: 1
+      FreqUnits: days
+      UseStartEnd: false
+      Contents:
+        - CplForcing
     RestartWrite:
       UsePointerFile: true
       PointerFilename: ocn.pointer

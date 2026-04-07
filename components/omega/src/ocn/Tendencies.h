@@ -68,6 +68,8 @@ class Tendencies {
    VelocityHyperDiffOnEdge VelocityHyperDiff;
    WindForcingOnEdge WindForcing;
    BottomDragOnEdge BottomDrag;
+   CplFluxThicknessOnCell CplFluxThickness;
+   CplFluxTracerOnCell CplFluxTracer;
    TracerHorzAdvOnCell TracerHorzAdv;
    TracerDiffOnCell TracerDiffusion;
    TracerHyperDiffOnCell TracerHyperDiff;
