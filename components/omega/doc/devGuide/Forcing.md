@@ -6,6 +6,7 @@ This page describes design and implementation details for forcing-related
 pathways in Omega, currently this includes:
 
 - Wind forcing
+- Coupled flux forcing
 - Surface tracer restoring
 
 ## Wind forcing design
@@ -35,6 +36,60 @@ pathways in Omega, currently this includes:
   - mapped to `InterpCellToEdgeOption`
 - `Omega.Tendencies.WindForcingTendencyEnable`
   - gates execution of wind forcing tendency kernel
+
+## Coupled flux forcing design
+
+### Coupled flux forcing data flow
+
+**Thickness equation pathway:**
+
+1. External fields provide freshwater and salt flux components:
+   - `SnowFlux`, `RainFlux`, `EvaporationFlux`
+   - `SeaIceFreshWaterFlux`, `IceRunoffFlux`, `RiverRunoffFlux`
+   - `SeaIceSaltFlux`
+2. Auxiliary-state stores coupled flux fields in `CplForcingAuxVars`
+3. Tendency term sums both the freshwater and salt mass fluxes, converted to be applied to
+the surface layer pseudo-thickness.
+
+**Tracer equation pathway:**
+
+1. External fields provide heat and salt flux components:
+   - `LatentHeatFlux`, `SensibleHeatFlux`
+   - `LongWaveHeatFluxUp`, `LongWaveHeatFluxDown`
+   - `SeaIceHeatFlux`, `ShortWaveHeatFlux`
+   - `SeaIceSaltFlux`, `SnowFlux`, `IceRunoffFlux`
+2. Auxiliary-state stores coupled flux fields in `CplForcingAuxVars`
+3. Tendency terms converts external heat fluxes to tendencies in conservative temperature,
+ and external mass salt flux to salinity (g/kg) in the surface layer.
+
+### Coupled flux forcing key classes/components
+
+- `CplForcingAuxVars`
+  - Stores 13 coupled flux cell-centered fields: 7 freshwater fluxes and 6 heat
+    fluxes, plus 1 salt flux component
+  - Fields initialized to zero and registered in `CplForcing` field group
+- `CplFluxThicknessOnCell` tendency term
+  - Computes freshwater flux contribution: $\sum (\text{SnowFlux} + \text{RainFlux} + \text{EvaporationFlux} + \text{SeaIceFreshWaterFlux} + \text{IceRunoffFlux} + \text{RiverRunoffFlux} + \text{SeaIceSaltFlux}) / \rho_{sw}$
+  - Applied only at surface layer (top active layer) using `MinLayerCell`
+- `CplFluxTracerOnCell` tendency term
+  - For temperature: computes heat flux minus latent heat of fusion contribution: $(\sum \text{HeatFluxes} - (\text{SnowFlux} + \text{IceRunoffFlux}) L_i) \times H_{\text{FluxFac}}$
+  - For salinity: applies salt flux with unit conversion: $\text{SeaIceSaltFlux} \times S_{\text{FluxFac}}$
+  - Applied only at surface layer using `MinLayerCell`
+  - Uses tracer index validation to apply to specific tracers only
+- `AuxiliaryState::computeAuxVars`
+  - Manages `CplForcingAuxVars` instance
+- `Tendencies`
+  - Calls `CplFluxThicknessOnCell` in `computeThicknessTendenciesOnly`
+  - Calls `CplFluxTracerOnCell` in `computeTracerTendenciesOnly` after surface tracer restoring
+
+### Coupled flux forcing config coupling
+
+- `Omega.Tendencies.CplFluxThicknessTendencyEnable`
+  - gates execution of coupled flux thickness kernel
+  - controls freshwater and salt flux forcing on sea surface height
+- `Omega.Tendencies.CplFluxTracerTendencyEnable`
+  - gates execution of coupled flux tracer kernel
+  - controls heat flux forcing on temperature and salt flux forcing on salinity
 
 ## Surface tracer restoring design
 
