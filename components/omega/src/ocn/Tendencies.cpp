@@ -390,7 +390,8 @@ Tendencies::Tendencies(const std::string &Name_, ///< [in] Name for tendencies
       KEGrad(Mesh, VCoord), SSHGrad(Mesh, VCoord),
       VelocityDiffusion(Mesh, VCoord), VelocityHyperDiff(Mesh, VCoord),
       WindForcing(Mesh, VCoord), BottomDrag(Mesh, VCoord),
-      CplFluxThickness(Mesh, VCoord), CplFluxTracer(Mesh, VCoord),
+      CplFluxThickness(Mesh, VCoord), 
+      CplFluxTracer(Mesh, VCoord, Tracers::IndxTemp, Tracers::IndxSalt),
       TracerDiffusion(Mesh, VCoord), TracerHyperDiff(Mesh, VCoord),
       TracerHorzAdv(Mesh, VCoord), SurfaceTracerRestoring(Mesh),
       CustomThicknessTend(InCustomThicknessTend),
@@ -843,7 +844,8 @@ void Tendencies::computeTracerTendenciesOnly(
                                        TracersMonthlySurfClimo, TracerArray);
           });
       Pacer::stop("Tend:surfaceTracerRestoring", 2);
-   
+   }
+
    // compute tracer forcing tendency
    if (LocCplFluxTracer.Enabled) {
       Pacer::start("Tend:cplFluxTracer", 2);
@@ -872,6 +874,7 @@ void Tendencies::computeTracerTendenciesOnly(
    }
 
    Pacer::stop("Tend:computeTracerTendenciesOnly", 1);
+
 } // end tracer tendency compute
 
 void Tendencies::computePseudoThicknessTendencies(

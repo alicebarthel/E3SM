@@ -144,7 +144,6 @@ void CplForcingAuxVars::registerFields(const std::string &AuxGroupName,
    ForcingGroup->addField(SeaIceHeatFluxCell.label());
    ForcingGroup->addField(ShortWaveHeatFluxCell.label());
    ForcingGroup->addField(SeaIceSaltFluxCell.label());
-   ForcingGroup->addField(SurfInsituTemperature.label());
 
    FieldGroup::addFieldToGroup(SnowFluxCell.label(), AuxGroupName);
    FieldGroup::addFieldToGroup(RainFluxCell.label(), AuxGroupName);
@@ -172,10 +171,8 @@ void CplForcingAuxVars::registerFields(const std::string &AuxGroupName,
    LongWaveHeatFluxUpField->attachData<Array1DReal>(LongWaveHeatFluxUpCell);
    LongWaveHeatFluxDownField->attachData<Array1DReal>(LongWaveHeatFluxDownCell);
    SeaIceHeatFluxField->attachData<Array1DReal>(SeaIceHeatFluxCell);
-   ShortWaveHeatFluxField->attachData<Array1DReal>(
-       ShortWaveHeatFlux SurfInsituTemperatureField->attachData<Array1DReal>(
-           SurfInsituTemperature);
-       Cell);
+   ShortWaveHeatFluxField->attachData<Array1DReal>(ShortWaveHeatFluxCell);
+   SurfInsituTemperatureField->attachData<Array1DReal>(SurfInsituTemperature);
    SeaIceSaltFluxField->attachData<Array1DReal>(SeaIceSaltFluxCell);
 }
 
@@ -231,5 +228,5 @@ void CplForcingAuxVars::computeSurfInsituTemp(const Array3DReal &TracerArray,
                  EosInst->calcPtFromCt(AbsSalinity, ConservTemp);
           }
        });
-
+}
 } // namespace OMEGA
