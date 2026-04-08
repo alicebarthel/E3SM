@@ -1,5 +1,8 @@
 #include "CplForcingAuxVars.h"
+#include "Eos.h"
 #include "Field.h"
+#include "Tracers.h"
+#include "VertCoord.h"
 
 #include <limits>
 
@@ -25,7 +28,9 @@ CplForcingAuxVars::CplForcingAuxVars(const std::string &AuxStateSuffix,
       ShortWaveHeatFluxCell("shortWaveHeatFlux" + AuxStateSuffix,
                             Mesh->NCellsSize),
       SeaIceSaltFluxCell("seaIceSalinityFlux" + AuxStateSuffix,
-                         Mesh->NCellsSize) {
+                         Mesh->NCellsSize),
+      SurfInsituTemperature("surfInsituTemperature" + AuxStateSuffix,
+                            Mesh->NCellsSize) {
    if (AuxStateSuffix.empty()) {
       ForcingGroupName = "CplForcing";
    } else {
@@ -45,6 +50,7 @@ CplForcingAuxVars::CplForcingAuxVars(const std::string &AuxStateSuffix,
    deepCopy(SeaIceHeatFluxCell, 0.0_Real);
    deepCopy(ShortWaveHeatFluxCell, 0.0_Real);
    deepCopy(SeaIceSaltFluxCell, 0.0_Real);
+   deepCopy(SurfInsituTemperature, 0.0_Real);
 }
 
 void CplForcingAuxVars::registerFields(const std::string &AuxGroupName,
@@ -117,6 +123,12 @@ void CplForcingAuxVars::registerFields(const std::string &AuxGroupName,
        std::numeric_limits<Real>::lowest(), std::numeric_limits<Real>::max(),
        FillValue, NDims, DimNames);
 
+   auto SurfInsituTemperatureField = Field::create(
+       SurfInsituTemperature.label(),
+       "insitu (potential) temperature at surface layer", "degrees Celsius", "",
+       std::numeric_limits<Real>::lowest(), std::numeric_limits<Real>::max(),
+       FillValue, NDims, DimNames);
+
    auto ForcingGroup = FieldGroup::create(ForcingGroupName);
 
    ForcingGroup->addField(SnowFluxCell.label());
@@ -132,6 +144,7 @@ void CplForcingAuxVars::registerFields(const std::string &AuxGroupName,
    ForcingGroup->addField(SeaIceHeatFluxCell.label());
    ForcingGroup->addField(ShortWaveHeatFluxCell.label());
    ForcingGroup->addField(SeaIceSaltFluxCell.label());
+   ForcingGroup->addField(SurfInsituTemperature.label());
 
    FieldGroup::addFieldToGroup(SnowFluxCell.label(), AuxGroupName);
    FieldGroup::addFieldToGroup(RainFluxCell.label(), AuxGroupName);
@@ -146,6 +159,7 @@ void CplForcingAuxVars::registerFields(const std::string &AuxGroupName,
    FieldGroup::addFieldToGroup(SeaIceHeatFluxCell.label(), AuxGroupName);
    FieldGroup::addFieldToGroup(ShortWaveHeatFluxCell.label(), AuxGroupName);
    FieldGroup::addFieldToGroup(SeaIceSaltFluxCell.label(), AuxGroupName);
+   FieldGroup::addFieldToGroup(SurfInsituTemperature.label(), AuxGroupName);
 
    SnowFluxField->attachData<Array1DReal>(SnowFluxCell);
    RainFluxField->attachData<Array1DReal>(RainFluxCell);
@@ -158,7 +172,10 @@ void CplForcingAuxVars::registerFields(const std::string &AuxGroupName,
    LongWaveHeatFluxUpField->attachData<Array1DReal>(LongWaveHeatFluxUpCell);
    LongWaveHeatFluxDownField->attachData<Array1DReal>(LongWaveHeatFluxDownCell);
    SeaIceHeatFluxField->attachData<Array1DReal>(SeaIceHeatFluxCell);
-   ShortWaveHeatFluxField->attachData<Array1DReal>(ShortWaveHeatFluxCell);
+   ShortWaveHeatFluxField->attachData<Array1DReal>(
+       ShortWaveHeatFlux SurfInsituTemperatureField->attachData<Array1DReal>(
+           SurfInsituTemperature);
+       Cell);
    SeaIceSaltFluxField->attachData<Array1DReal>(SeaIceSaltFluxCell);
 }
 
@@ -176,7 +193,43 @@ void CplForcingAuxVars::unregisterFields() const {
    Field::destroy(SeaIceHeatFluxCell.label());
    Field::destroy(ShortWaveHeatFluxCell.label());
    Field::destroy(SeaIceSaltFluxCell.label());
+   Field::destroy(SurfInsituTemperature.label());
    FieldGroup::destroy(ForcingGroupName);
 }
+
+void CplForcingAuxVars::computeSurfInsituTemp(const Array3DReal &TracerArray,
+                                              const VertCoord *VCoord,
+                                              const Eos *EosInst) const {
+   const int IndxTemp = Tracers::IndxTemp;
+   const int IndxSalt = Tracers::IndxSalt;
+
+   // Skip computation if temperature or salinity tracers are not defined
+   if (IndxTemp < 0 || IndxSalt < 0) {
+      return;
+   }
+
+   OMEGA_SCOPE(LocMinLayerCell, VCoord->MinLayerCell);
+   OMEGA_SCOPE(LocMaxLayerCell, VCoord->MaxLayerCell);
+   OMEGA_SCOPE(LocSurfInsituTemp, SurfInsituTemperature);
+
+   int NCellsOwned = SurfInsituTemperature.extent_int(0);
+
+   parallelFor(
+       "CplForcingAux:computeSurfInsituTemp", {NCellsOwned},
+       KOKKOS_LAMBDA(int ICell) {
+          const int KMin = LocMinLayerCell(ICell);
+          const int KMax = LocMaxLayerCell(ICell);
+
+          // Only compute for valid ocean cells
+          if (KMin <= KMax) {
+             const Real ConservTemp = TracerArray(IndxTemp, ICell, KMin);
+             const Real AbsSalinity = TracerArray(IndxSalt, ICell, KMin);
+
+             // Call EOS function to compute potential temperature from
+             // conservative temperature at surface (reference pressure = 0)
+             LocSurfInsituTemp(ICell) =
+                 EosInst->calcPtFromCt(AbsSalinity, ConservTemp);
+          }
+       });
 
 } // namespace OMEGA

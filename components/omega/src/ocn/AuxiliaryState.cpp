@@ -1,5 +1,6 @@
 #include "AuxiliaryState.h"
 #include "Config.h"
+#include "Eos.h"
 #include "Field.h"
 #include "Logging.h"
 #include "Pacer.h"
@@ -314,6 +315,9 @@ void AuxiliaryState::computeAll(const OceanState *State,
        });
    Pacer::stop("AuxState:cellAuxState4", 2);
 
+   // Compute surface insitu temperature for coupling
+   CplForcingAux.computeSurfInsituTemp(TracerArray, VCoord, Eos::getInstance());
+
    Pacer::stop("AuxState:computeAll", 1);
 }
 
@@ -457,7 +461,7 @@ I4 AuxiliaryState::exchangeHalo() {
           SurfTracerRestAux.TracersMonthlySurfClimoCell, LTracer, Kokkos::ALL);
       Err += MeshHalo->exchangeFullArrayHalo(TracerSurfClimoCell, OnCell);
    }
-   
+
    Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.SnowFluxCell, OnCell);
    Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.RainFluxCell, OnCell);
    Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.EvaporationFluxCell,

@@ -8,6 +8,11 @@
 
 namespace OMEGA {
 
+// Forward declarations. Full definitions not needed in this header since only
+// pointers are used.
+class VertCoord;
+class Eos;
+
 class CplForcingAuxVars {
  public:
    Array1DReal SnowFluxCell;
@@ -26,11 +31,18 @@ class CplForcingAuxVars {
 
    Array1DReal SeaIceSaltFluxCell;
 
+   Array1DReal SurfInsituTemperature;
+
    CplForcingAuxVars(const std::string &AuxStateSuffix, const HorzMesh *Mesh);
 
    void registerFields(const std::string &AuxGroupName,
                        const std::string &MeshName) const;
    void unregisterFields() const;
+
+   /// Compute surface insitu temperature from conservative temperature
+   void computeSurfInsituTemp(const Array3DReal &TracerArray,
+                              const VertCoord *VCoord,
+                              const Eos *EosInst) const;
 
  private:
    std::string ForcingGroupName;
