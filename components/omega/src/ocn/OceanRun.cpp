@@ -5,8 +5,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "AuxiliaryState.h"
 #include "Error.h"
+#include "Forcing.h"
 #include "IOStream.h"
 #include "OceanDriver.h"
 #include "OceanState.h"
@@ -23,7 +23,6 @@ int ocnRun(TimeInstant &CurrTime ///< [inout] current sim time
 
    // fetch default OceanState and TimeStepper
    OceanState *DefOceanState   = OceanState::getDefault();
-   AuxiliaryState *DefAuxState = AuxiliaryState::getDefault();
    TimeStepper *DefTimeStepper = TimeStepper::getDefault();
 
    // EndAlarm must be set before calling ocnRun
@@ -55,9 +54,9 @@ int ocnRun(TimeInstant &CurrTime ///< [inout] current sim time
          break;
       }
 
-      Err += DefAuxState->exchangeHalo();
+      Err += Forcing::getDefault()->exchangeHalo();
       if (Err != 0) {
-         ABORT_ERROR("ocnRun: failed to exchange auxiliary-state halos");
+         ABORT_ERROR("ocnRun: failed to exchange forcing halos");
       }
 
       // do forward time step

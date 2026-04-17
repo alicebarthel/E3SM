@@ -5,6 +5,7 @@
 #include "Dimension.h"
 #include "Eos.h"
 #include "Field.h"
+#include "Forcing.h"
 #include "GlobalConstants.h"
 #include "Halo.h"
 #include "HorzMesh.h"
@@ -119,6 +120,7 @@ int initAuxStateTest(const std::string &mesh) {
    VertCoord::init();
 
    Tracers::init();
+   Forcing::init();
    Eos::init();
    int StateErr = OceanState::init();
    if (StateErr != 0) {
@@ -195,7 +197,7 @@ int testAuxState() {
    deepCopy(DefAuxState->VelocityDel2Aux.Del2RelVortVertex, NAN);
 
    deepCopy(DefAuxState->TracerAux.Del2TracersCell, NAN);
-   deepCopy(DefAuxState->CplForcingAux.SurfInsituTemperature, NAN);
+   deepCopy(Forcing::getDefault()->CplForcingAux.SurfInsituTemperature, NAN);
 
    // compute auxiliary variables
    const auto *State       = OceanState::getDefault();
@@ -313,14 +315,15 @@ int testAuxState() {
       LOG_ERROR("AuxStateTest: Del2TracersOnCell FAIL");
    }
 
-   const Real SurfInsituTemperatureSum =
-       sum(DefAuxState->CplForcingAux.SurfInsituTemperature, NCellsOwned);
+   const Real SurfInsituTemperatureSum = sum(
+       Forcing::getDefault()->CplForcingAux.SurfInsituTemperature, NCellsOwned);
    if (!Kokkos::isfinite(SurfInsituTemperatureSum)) {
       Err++;
       LOG_ERROR("AuxStateTest: SurfInsituTemperature FAIL");
    }
 
    AuxiliaryState::clear();
+   Forcing::clear();
 
    return Err;
 }
@@ -328,6 +331,7 @@ int testAuxState() {
 void finalizeAuxStateTest() {
    Tracers::clear();
    OceanState::clear();
+   Forcing::clear();
    Eos::destroyInstance();
    VertAdv::clear();
    VertCoord::clear();

@@ -1,7 +1,7 @@
 #include "AuxiliaryState.h"
 #include "Config.h"
-#include "Eos.h"
 #include "Field.h"
+#include "Forcing.h"
 #include "Logging.h"
 #include "Pacer.h"
 #include "Tendencies.h"
@@ -28,9 +28,6 @@ AuxiliaryState::AuxiliaryState(const std::string &Name, const HorzMesh *Mesh,
       PseudoThicknessAux(stripDefault(Name), Mesh, VCoord),
       VorticityAux(stripDefault(Name), Mesh, VCoord),
       VelocityDel2Aux(stripDefault(Name), Mesh, VCoord),
-      WindForcingAux(stripDefault(Name), Mesh),
-      CplForcingAux(stripDefault(Name), Mesh),
-      SurfTracerRestAux(stripDefault(Name), Mesh, NTracers),
       TracerAux(stripDefault(Name), Mesh, VCoord, NTracers) {
 
    GroupName = "AuxiliaryState";
@@ -41,13 +38,14 @@ AuxiliaryState::AuxiliaryState(const std::string &Name, const HorzMesh *Mesh,
 
    auto AuxGroup = FieldGroup::create(GroupName);
 
+   const std::string ForcingName = this->Name.empty() ? "Default" : this->Name;
+   const auto *LocForcingState   = Forcing::get(ForcingName);
+
    KineticAux.registerFields(GroupName, AuxMeshName);
    PseudoThicknessAux.registerFields(GroupName, AuxMeshName);
    VorticityAux.registerFields(GroupName, AuxMeshName);
    VelocityDel2Aux.registerFields(GroupName, AuxMeshName);
-   WindForcingAux.registerFields(GroupName, AuxMeshName);
-   CplForcingAux.registerFields(GroupName, AuxMeshName);
-   SurfTracerRestAux.registerFields(GroupName, AuxMeshName);
+   LocForcingState->registerFields(GroupName, AuxMeshName);
    TracerAux.registerFields(GroupName, AuxMeshName);
 }
 
@@ -58,9 +56,6 @@ AuxiliaryState::~AuxiliaryState() {
    PseudoThicknessAux.unregisterFields();
    VorticityAux.unregisterFields();
    VelocityDel2Aux.unregisterFields();
-   WindForcingAux.unregisterFields();
-   CplForcingAux.unregisterFields();
-   SurfTracerRestAux.unregisterFields();
    TracerAux.unregisterFields();
 
    FieldGroup::destroy(GroupName);
@@ -121,7 +116,9 @@ void AuxiliaryState::computeMomAux(const OceanState *State,
    OMEGA_SCOPE(LocPseudoThicknessAux, PseudoThicknessAux);
    OMEGA_SCOPE(LocVorticityAux, VorticityAux);
    OMEGA_SCOPE(LocVelocityDel2Aux, VelocityDel2Aux);
-   OMEGA_SCOPE(LocWindForcingAux, WindForcingAux);
+
+   const std::string ForcingName = this->Name.empty() ? "Default" : this->Name;
+   const auto *LocForcingState   = Forcing::get(ForcingName);
 
    OMEGA_SCOPE(MinLayerCell, VCoord->MinLayerCell);
    OMEGA_SCOPE(MaxLayerCell, VCoord->MaxLayerCell);
@@ -177,12 +174,7 @@ void AuxiliaryState::computeMomAux(const OceanState *State,
    const auto &VelocityDivCell = KineticAux.VelocityDivCell;
    const auto &RelVortVertex   = VorticityAux.RelVortVertex;
 
-   Pacer::start("AuxState:edgeAuxState1", 2);
-   parallelFor(
-       "edgeAuxState1", {Mesh->NEdgesAll}, KOKKOS_LAMBDA(int IEdge) {
-          LocWindForcingAux.computeVarsOnEdge(IEdge);
-       });
-   Pacer::stop("AuxState:edgeAuxState1", 2);
+   LocForcingState->computeWindForcingOnEdge();
 
    Pacer::start("AuxState:edgeAuxState2", 2);
    parallelForOuter(
@@ -316,7 +308,9 @@ void AuxiliaryState::computeAll(const OceanState *State,
    Pacer::stop("AuxState:cellAuxState4", 2);
 
    // Compute surface insitu temperature for coupling
-   CplForcingAux.computeSurfInsituTemp(TracerArray, VCoord, Eos::getInstance());
+   const std::string ForcingName = this->Name.empty() ? "Default" : this->Name;
+   const auto *LocForcingState   = Forcing::get(ForcingName);
+   LocForcingState->computeSurfInsituTemp(TracerArray);
 
    Pacer::stop("AuxState:computeAll", 1);
 }
@@ -340,6 +334,15 @@ AuxiliaryState *AuxiliaryState::create(const std::string &Name,
       return nullptr;
    }
 
+   if (!Forcing::exists(Name)) {
+      if (Forcing::create(Name, Mesh, MeshHalo, VCoord, NTracers) == nullptr) {
+         LOG_ERROR("Attempted to create AuxiliaryState with name {} but "
+                   "associated forcing state creation failed",
+                   Name);
+         return nullptr;
+      }
+   }
+
    auto *NewAuxState = new AuxiliaryState(Name, Mesh, MeshHalo, VCoord, VAdv,
                                           NTracers, TimeStep);
    AllAuxStates.emplace(Name, NewAuxState);
@@ -350,6 +353,8 @@ AuxiliaryState *AuxiliaryState::create(const std::string &Name,
 // Create the default auxiliary state. Assumes that HorzMesh, VertCoord,
 // VertAdv, and Halo have been initialized.
 void AuxiliaryState::init() {
+   Forcing::init();
+
    const HorzMesh *DefMesh           = HorzMesh::getDefault();
    Halo *DefHalo                     = Halo::getDefault();
    VertCoord *DefVCoord              = VertCoord::getDefault();
@@ -392,11 +397,13 @@ AuxiliaryState *AuxiliaryState::get(const std::string &Name) {
 // Remove auxiliary state by name
 void AuxiliaryState::erase(const std::string &Name) {
    AllAuxStates.erase(Name);
+   Forcing::erase(Name);
 }
 
 // Remove all auxiliary states
 void AuxiliaryState::clear() {
    AllAuxStates.clear();
+   Forcing::clear();
    DefaultAuxState = nullptr; // prevent dangling pointer
 }
 
@@ -423,72 +430,6 @@ void AuxiliaryState::readConfigOptions(Config *OmegaConfig) {
    } else {
       ABORT_ERROR("AuxiliaryState: Unknown FluxThicknessType requested");
    }
-
-   Config WindStressConfig("WindStress");
-   Err += OmegaConfig->get(WindStressConfig);
-
-   std::string WindStressInterpTypeStr;
-   Err += WindStressConfig.get("InterpType", WindStressInterpTypeStr);
-   CHECK_ERROR_ABORT(
-       Err, "AuxiliaryState: InterpType not found in WindStressConfig");
-
-   if (WindStressInterpTypeStr == "Isotropic") {
-      this->WindForcingAux.InterpChoice = InterpCellToEdgeOption::Isotropic;
-   } else if (WindStressInterpTypeStr == "Anisotropic") {
-      this->WindForcingAux.InterpChoice = InterpCellToEdgeOption::Anisotropic;
-   } else {
-      ABORT_ERROR("AuxiliaryState: Unknown InterpType requested");
-   }
 }
-
-//------------------------------------------------------------------------------
-// Perform auxiliary state halo exchange
-// Note that only non-computed auxiliary variables needs to be exchanged
-I4 AuxiliaryState::exchangeHalo() {
-   I4 Err = 0;
-
-   Err +=
-       MeshHalo->exchangeFullArrayHalo(WindForcingAux.ZonalStressCell, OnCell);
-   Err +=
-       MeshHalo->exchangeFullArrayHalo(WindForcingAux.MeridStressCell, OnCell);
-
-   // Performing halo exchange on individual tracers because full halo exchange
-   // on a 2D array assumes the first dimension is the vertical
-   const I4 NTracers =
-       SurfTracerRestAux.TracersMonthlySurfClimoCell.extent_int(0);
-   for (I4 LTracer = 0; LTracer < NTracers; ++LTracer) {
-      auto TracerSurfClimoCell = Kokkos::subview(
-          SurfTracerRestAux.TracersMonthlySurfClimoCell, LTracer, Kokkos::ALL);
-      Err += MeshHalo->exchangeFullArrayHalo(TracerSurfClimoCell, OnCell);
-   }
-
-   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.SnowFluxCell, OnCell);
-   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.RainFluxCell, OnCell);
-   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.EvaporationFluxCell,
-                                          OnCell);
-   Err += MeshHalo->exchangeFullArrayHalo(
-       CplForcingAux.SeaIceFreshWaterFluxCell, OnCell);
-   Err +=
-       MeshHalo->exchangeFullArrayHalo(CplForcingAux.IceRunoffFluxCell, OnCell);
-   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.RiverRunoffFluxCell,
-                                          OnCell);
-   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.LatentHeatFluxCell,
-                                          OnCell);
-   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.SensibleHeatFluxCell,
-                                          OnCell);
-   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.LongWaveHeatFluxUpCell,
-                                          OnCell);
-   Err += MeshHalo->exchangeFullArrayHalo(
-       CplForcingAux.LongWaveHeatFluxDownCell, OnCell);
-   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.SeaIceHeatFluxCell,
-                                          OnCell);
-   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.ShortWaveHeatFluxCell,
-                                          OnCell);
-   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.SeaIceSaltFluxCell,
-                                          OnCell);
-
-   return Err;
-
-} // end exchangeHalo
 
 } // namespace OMEGA

@@ -13,6 +13,7 @@
 #include "Eos.h"
 #include "Error.h"
 #include "Field.h"
+#include "Forcing.h"
 #include "OceanState.h"
 #include "PGrad.h"
 #include "Pacer.h"
@@ -485,14 +486,21 @@ void Tendencies::computePseudoThicknessTendenciesOnly(
 
    if (LocCplFluxThickness.Enabled) {
       Pacer::start("Tend:cplFluxThickness", 2);
-      const auto &SnowFlux        = AuxState->CplForcingAux.SnowFluxCell;
-      const auto &RainFlux        = AuxState->CplForcingAux.RainFluxCell;
-      const auto &EvaporationFlux = AuxState->CplForcingAux.EvaporationFluxCell;
+      const std::string ForcingName =
+          AuxState->Name.empty() ? "Default" : AuxState->Name;
+      const auto *ForcingState = Forcing::get(ForcingName);
+
+      const auto &SnowFlux = ForcingState->CplForcingAux.SnowFluxCell;
+      const auto &RainFlux = ForcingState->CplForcingAux.RainFluxCell;
+      const auto &EvaporationFlux =
+          ForcingState->CplForcingAux.EvaporationFluxCell;
       const auto &SeaIceFreshWaterFlux =
-          AuxState->CplForcingAux.SeaIceFreshWaterFluxCell;
-      const auto &IceRunoffFlux   = AuxState->CplForcingAux.IceRunoffFluxCell;
-      const auto &RiverRunoffFlux = AuxState->CplForcingAux.RiverRunoffFluxCell;
-      const auto &SeaIceSaltFlux  = AuxState->CplForcingAux.SeaIceSaltFluxCell;
+          ForcingState->CplForcingAux.SeaIceFreshWaterFluxCell;
+      const auto &IceRunoffFlux = ForcingState->CplForcingAux.IceRunoffFluxCell;
+      const auto &RiverRunoffFlux =
+          ForcingState->CplForcingAux.RiverRunoffFluxCell;
+      const auto &SeaIceSaltFlux =
+          ForcingState->CplForcingAux.SeaIceSaltFluxCell;
 
       parallelFor(
           {Mesh->NCellsAll}, KOKKOS_LAMBDA(int ICell) {
@@ -658,6 +666,9 @@ void Tendencies::computeVelocityTendenciesOnly(
    const auto &NormalStressEdge = AuxState->WindForcingAux.NormalStressEdge;
    const auto &MeanPseudoThickEdge =
        AuxState->PseudoThicknessAux.MeanPseudoThickEdge;
+   const std::string ForcingName =
+       AuxState->Name.empty() ? "Default" : AuxState->Name;
+   const auto *ForcingState     = Forcing::get(ForcingName);
    if (LocWindForcing.Enabled) {
       Pacer::start("Tend:windForcing", 2);
       parallelForOuter(
@@ -828,8 +839,11 @@ void Tendencies::computeTracerTendenciesOnly(
    Pacer::stop("Tend:computeTracerVAdvTend", 2);
 
    // compute tracer surface restoring
+   const std::string ForcingName =
+       AuxState->Name.empty() ? "Default" : AuxState->Name;
+   const auto *ForcingState = Forcing::get(ForcingName);
    const Array2DReal &TracersMonthlySurfClimo =
-       AuxState->SurfTracerRestAux.TracersMonthlySurfClimoCell;
+       ForcingState->SurfTracerRestAux.TracersMonthlySurfClimoCell;
    const I4 NTracersToRestore = LocSurfaceTracerRestoring.NTracersToRestore;
    const auto &TracerIdsToRestore =
        LocSurfaceTracerRestoring.TracerIdsToRestore;
@@ -849,19 +863,22 @@ void Tendencies::computeTracerTendenciesOnly(
    // compute tracer forcing tendency
    if (LocCplFluxTracer.Enabled) {
       Pacer::start("Tend:cplFluxTracer", 2);
-      const auto &LatentHeatFlux = AuxState->CplForcingAux.LatentHeatFluxCell;
+      const auto &LatentHeatFlux =
+          ForcingState->CplForcingAux.LatentHeatFluxCell;
       const auto &SensibleHeatFlux =
-          AuxState->CplForcingAux.SensibleHeatFluxCell;
+          ForcingState->CplForcingAux.SensibleHeatFluxCell;
       const auto &LongWaveHeatFluxUp =
-          AuxState->CplForcingAux.LongWaveHeatFluxUpCell;
+          ForcingState->CplForcingAux.LongWaveHeatFluxUpCell;
       const auto &LongWaveHeatFluxDown =
-          AuxState->CplForcingAux.LongWaveHeatFluxDownCell;
-      const auto &SeaIceHeatFlux = AuxState->CplForcingAux.SeaIceHeatFluxCell;
+          ForcingState->CplForcingAux.LongWaveHeatFluxDownCell;
+      const auto &SeaIceHeatFlux =
+          ForcingState->CplForcingAux.SeaIceHeatFluxCell;
       const auto &ShortWaveHeatFlux =
-          AuxState->CplForcingAux.ShortWaveHeatFluxCell;
-      const auto &SnowFlux       = AuxState->CplForcingAux.SnowFluxCell;
-      const auto &IceRunoffFlux  = AuxState->CplForcingAux.IceRunoffFluxCell;
-      const auto &SeaIceSaltFlux = AuxState->CplForcingAux.SeaIceSaltFluxCell;
+          ForcingState->CplForcingAux.ShortWaveHeatFluxCell;
+      const auto &SnowFlux      = ForcingState->CplForcingAux.SnowFluxCell;
+      const auto &IceRunoffFlux = ForcingState->CplForcingAux.IceRunoffFluxCell;
+      const auto &SeaIceSaltFlux =
+          ForcingState->CplForcingAux.SeaIceSaltFluxCell;
 
       parallelFor(
           {Mesh->NCellsAll}, KOKKOS_LAMBDA(int ICell) {
