@@ -13,7 +13,6 @@
 #include "VertCoord.h"
 #include "auxiliaryVars/KineticAuxVars.h"
 #include "auxiliaryVars/PseudoThicknessAuxVars.h"
-#include "auxiliaryVars/SurfTracerRestAuxVars.h"
 #include "auxiliaryVars/TracerAuxVars.h"
 #include "auxiliaryVars/VelocityDel2AuxVars.h"
 #include "auxiliaryVars/VorticityAuxVars.h"
@@ -39,7 +38,6 @@ class AuxiliaryState {
    // Auxiliary variables
    KineticAuxVars KineticAux;
    PseudoThicknessAuxVars PseudoThicknessAux;
-   SurfTracerRestAuxVars SurfTracerRestAux;
    TracerAuxVars TracerAux;
    VorticityAuxVars VorticityAux;
    VelocityDel2AuxVars VelocityDel2Aux;

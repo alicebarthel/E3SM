@@ -1,4 +1,4 @@
-#include "CplForcingAuxVars.h"
+#include "TracerForcingAuxVars.h"
 #include "Eos.h"
 #include "Field.h"
 #include "Tracers.h"
@@ -8,8 +8,8 @@
 
 namespace OMEGA {
 
-CplForcingAuxVars::CplForcingAuxVars(const std::string &AuxStateSuffix,
-                                     const HorzMesh *Mesh)
+TracerForcingAuxVars::TracerForcingAuxVars(const std::string &AuxStateSuffix,
+                                           const HorzMesh *Mesh)
     : SnowFluxCell("snowFlux" + AuxStateSuffix, Mesh->NCellsSize),
       RainFluxCell("rainFlux" + AuxStateSuffix, Mesh->NCellsSize),
       EvaporationFluxCell("evaporationFlux" + AuxStateSuffix, Mesh->NCellsSize),
@@ -31,12 +31,6 @@ CplForcingAuxVars::CplForcingAuxVars(const std::string &AuxStateSuffix,
                          Mesh->NCellsSize),
       SurfInsituTemperature("surfInsituTemperature" + AuxStateSuffix,
                             Mesh->NCellsSize) {
-   if (AuxStateSuffix.empty()) {
-      ForcingGroupName = "CplForcing";
-   } else {
-      ForcingGroupName = "CplForcing" + AuxStateSuffix;
-   }
-
    deepCopy(SnowFluxCell, 0.0_Real);
    deepCopy(RainFluxCell, 0.0_Real);
    deepCopy(EvaporationFluxCell, 0.0_Real);
@@ -53,8 +47,7 @@ CplForcingAuxVars::CplForcingAuxVars(const std::string &AuxStateSuffix,
    deepCopy(SurfInsituTemperature, 0.0_Real);
 }
 
-void CplForcingAuxVars::registerFields(const std::string &AuxGroupName,
-                                       const std::string &MeshName) const {
+void TracerForcingAuxVars::registerFields(const std::string &MeshName) const {
    const Real FillValue = -9.99e30;
    const int NDims      = 1;
    std::vector<std::string> DimNames(NDims);
@@ -129,36 +122,19 @@ void CplForcingAuxVars::registerFields(const std::string &AuxGroupName,
        std::numeric_limits<Real>::lowest(), std::numeric_limits<Real>::max(),
        FillValue, NDims, DimNames);
 
-   auto ForcingGroup = FieldGroup::create(ForcingGroupName);
-
-   ForcingGroup->addField(SnowFluxCell.label());
-   ForcingGroup->addField(RainFluxCell.label());
-   ForcingGroup->addField(EvaporationFluxCell.label());
-   ForcingGroup->addField(SeaIceFreshWaterFluxCell.label());
-   ForcingGroup->addField(IceRunoffFluxCell.label());
-   ForcingGroup->addField(RiverRunoffFluxCell.label());
-   ForcingGroup->addField(LatentHeatFluxCell.label());
-   ForcingGroup->addField(SensibleHeatFluxCell.label());
-   ForcingGroup->addField(LongWaveHeatFluxUpCell.label());
-   ForcingGroup->addField(LongWaveHeatFluxDownCell.label());
-   ForcingGroup->addField(SeaIceHeatFluxCell.label());
-   ForcingGroup->addField(ShortWaveHeatFluxCell.label());
-   ForcingGroup->addField(SeaIceSaltFluxCell.label());
-
-   FieldGroup::addFieldToGroup(SnowFluxCell.label(), AuxGroupName);
-   FieldGroup::addFieldToGroup(RainFluxCell.label(), AuxGroupName);
-   FieldGroup::addFieldToGroup(EvaporationFluxCell.label(), AuxGroupName);
-   FieldGroup::addFieldToGroup(SeaIceFreshWaterFluxCell.label(), AuxGroupName);
-   FieldGroup::addFieldToGroup(IceRunoffFluxCell.label(), AuxGroupName);
-   FieldGroup::addFieldToGroup(RiverRunoffFluxCell.label(), AuxGroupName);
-   FieldGroup::addFieldToGroup(LatentHeatFluxCell.label(), AuxGroupName);
-   FieldGroup::addFieldToGroup(SensibleHeatFluxCell.label(), AuxGroupName);
-   FieldGroup::addFieldToGroup(LongWaveHeatFluxUpCell.label(), AuxGroupName);
-   FieldGroup::addFieldToGroup(LongWaveHeatFluxDownCell.label(), AuxGroupName);
-   FieldGroup::addFieldToGroup(SeaIceHeatFluxCell.label(), AuxGroupName);
-   FieldGroup::addFieldToGroup(ShortWaveHeatFluxCell.label(), AuxGroupName);
-   FieldGroup::addFieldToGroup(SeaIceSaltFluxCell.label(), AuxGroupName);
-   FieldGroup::addFieldToGroup(SurfInsituTemperature.label(), AuxGroupName);
+   FieldGroup::addFieldToGroup(SnowFluxCell.label(), "Forcing");
+   FieldGroup::addFieldToGroup(RainFluxCell.label(), "Forcing");
+   FieldGroup::addFieldToGroup(EvaporationFluxCell.label(), "Forcing");
+   FieldGroup::addFieldToGroup(SeaIceFreshWaterFluxCell.label(), "Forcing");
+   FieldGroup::addFieldToGroup(IceRunoffFluxCell.label(), "Forcing");
+   FieldGroup::addFieldToGroup(RiverRunoffFluxCell.label(), "Forcing");
+   FieldGroup::addFieldToGroup(LatentHeatFluxCell.label(), "Forcing");
+   FieldGroup::addFieldToGroup(SensibleHeatFluxCell.label(), "Forcing");
+   FieldGroup::addFieldToGroup(LongWaveHeatFluxUpCell.label(), "Forcing");
+   FieldGroup::addFieldToGroup(LongWaveHeatFluxDownCell.label(), "Forcing");
+   FieldGroup::addFieldToGroup(SeaIceHeatFluxCell.label(), "Forcing");
+   FieldGroup::addFieldToGroup(ShortWaveHeatFluxCell.label(), "Forcing");
+   FieldGroup::addFieldToGroup(SeaIceSaltFluxCell.label(), "Forcing");
 
    SnowFluxField->attachData<Array1DReal>(SnowFluxCell);
    RainFluxField->attachData<Array1DReal>(RainFluxCell);
@@ -176,7 +152,7 @@ void CplForcingAuxVars::registerFields(const std::string &AuxGroupName,
    SeaIceSaltFluxField->attachData<Array1DReal>(SeaIceSaltFluxCell);
 }
 
-void CplForcingAuxVars::unregisterFields() const {
+void TracerForcingAuxVars::unregisterFields() const {
    Field::destroy(SnowFluxCell.label());
    Field::destroy(RainFluxCell.label());
    Field::destroy(EvaporationFluxCell.label());
@@ -191,12 +167,11 @@ void CplForcingAuxVars::unregisterFields() const {
    Field::destroy(ShortWaveHeatFluxCell.label());
    Field::destroy(SeaIceSaltFluxCell.label());
    Field::destroy(SurfInsituTemperature.label());
-   FieldGroup::destroy(ForcingGroupName);
 }
 
-void CplForcingAuxVars::computeSurfInsituTemp(const Array3DReal &TracerArray,
-                                              const VertCoord *VCoord,
-                                              const Eos *EosInst) const {
+void TracerForcingAuxVars::computeSurfInsituTemp(const Array3DReal &TracerArray,
+                                                 const VertCoord *VCoord,
+                                                 const Eos *EosInst) const {
    const int IndxTemp = Tracers::IndxTemp;
    const int IndxSalt = Tracers::IndxSalt;
 
@@ -212,7 +187,7 @@ void CplForcingAuxVars::computeSurfInsituTemp(const Array3DReal &TracerArray,
    int NCellsOwned = SurfInsituTemperature.extent_int(0);
 
    parallelFor(
-       "CplForcingAux:computeSurfInsituTemp", {NCellsOwned},
+       "TracerForcingAux:computeSurfInsituTemp", {NCellsOwned},
        KOKKOS_LAMBDA(int ICell) {
           const int KMin = LocMinLayerCell(ICell);
           const int KMax = LocMaxLayerCell(ICell);

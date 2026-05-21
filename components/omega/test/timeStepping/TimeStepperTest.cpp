@@ -22,6 +22,7 @@
 #include "Eos.h"
 #include "Error.h"
 #include "Field.h"
+#include "Forcing.h"
 #include "Halo.h"
 #include "HorzMesh.h"
 #include "IO.h"
@@ -281,6 +282,7 @@ void timeLoop(TimeInstant TimeStart, Real TimeEnd) {
 }
 
 void finalizeTimeStepperTest() {
+   Forcing::clear();
    Tracers::clear();
    TimeStepper::clear();
    PressureGrad::clear();

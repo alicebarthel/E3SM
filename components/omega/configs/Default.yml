@@ -127,7 +127,7 @@ Omega:
       EndTime: 99999-12-31_00:00:00
       Contents:
         - Restart
-    CplForcing:
+    Forcing:
       UsePointerFile: false
       Filename: forcing.nc
       Mode: read
@@ -136,7 +136,7 @@ Omega:
       FreqUnits: days
       UseStartEnd: false
       Contents:
-        - CplForcing
+        - Forcing
     RestartWrite:
       UsePointerFile: true
       PointerFilename: ocn.pointer

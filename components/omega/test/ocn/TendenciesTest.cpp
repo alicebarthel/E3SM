@@ -8,6 +8,7 @@
 #include "Eos.h"
 #include "Error.h"
 #include "Field.h"
+#include "Forcing.h"
 #include "GlobalConstants.h"
 #include "Halo.h"
 #include "HorzMesh.h"
@@ -255,6 +256,7 @@ int testTendencies() {
 }
 
 void finalizeTendenciesTest() {
+   Forcing::clear();
    Tracers::clear();
    PressureGrad::clear();
    Eos::destroyInstance();

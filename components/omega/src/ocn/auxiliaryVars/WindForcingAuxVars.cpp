@@ -16,8 +16,7 @@ WindForcingAuxVars::WindForcingAuxVars(const std::string &AuxStateSuffix,
 }
 
 void WindForcingAuxVars::registerFields(
-    const std::string &AuxGroupName, // name of Auxiliary field group
-    const std::string &MeshName      // name of horizontal mesh
+    const std::string &MeshName // name of horizontal mesh
 ) const {
 
    // Create fields
@@ -58,9 +57,9 @@ void WindForcingAuxVars::registerFields(
                      DimNames   // dimension names
        );
 
-   // Add fields to FieldGroup
-   FieldGroup::addFieldToGroup(ZonalStressCell.label(), AuxGroupName);
-   FieldGroup::addFieldToGroup(MeridStressCell.label(), AuxGroupName);
+   // Add fields to Forcing FieldGroup
+   FieldGroup::addFieldToGroup(ZonalStressCell.label(), "Forcing");
+   FieldGroup::addFieldToGroup(MeridStressCell.label(), "Forcing");
 
    // Attach data
    ZonalStressCellField->attachData<Array1DReal>(ZonalStressCell);

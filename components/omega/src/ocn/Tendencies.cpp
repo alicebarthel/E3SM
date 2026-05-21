@@ -391,7 +391,7 @@ Tendencies::Tendencies(const std::string &Name_, ///< [in] Name for tendencies
       KEGrad(Mesh, VCoord), SSHGrad(Mesh, VCoord),
       VelocityDiffusion(Mesh, VCoord), VelocityHyperDiff(Mesh, VCoord),
       WindForcing(Mesh, VCoord), BottomDrag(Mesh, VCoord),
-      CplFluxThickness(Mesh, VCoord), 
+      CplFluxThickness(Mesh, VCoord),
       CplFluxTracer(Mesh, VCoord, Tracers::IndxTemp, Tracers::IndxSalt),
       TracerDiffusion(Mesh, VCoord), TracerHyperDiff(Mesh, VCoord),
       TracerHorzAdv(Mesh, VCoord), SurfaceTracerRestoring(Mesh),
@@ -486,25 +486,24 @@ void Tendencies::computePseudoThicknessTendenciesOnly(
 
    if (LocCplFluxThickness.Enabled) {
       Pacer::start("Tend:cplFluxThickness", 2);
-      const std::string ForcingName =
-          AuxState->Name.empty() ? "Default" : AuxState->Name;
-      const auto *ForcingState = Forcing::get(ForcingName);
+      const auto *ForcingState = Forcing::getDefault();
 
-      const auto &SnowFlux = ForcingState->CplForcingAux.SnowFluxCell;
-      const auto &RainFlux = ForcingState->CplForcingAux.RainFluxCell;
+      const auto &SnowFlux = ForcingState->TracerForcingAux.SnowFluxCell;
+      const auto &RainFlux = ForcingState->TracerForcingAux.RainFluxCell;
       const auto &EvaporationFlux =
-          ForcingState->CplForcingAux.EvaporationFluxCell;
+          ForcingState->TracerForcingAux.EvaporationFluxCell;
       const auto &SeaIceFreshWaterFlux =
-          ForcingState->CplForcingAux.SeaIceFreshWaterFluxCell;
-      const auto &IceRunoffFlux = ForcingState->CplForcingAux.IceRunoffFluxCell;
+          ForcingState->TracerForcingAux.SeaIceFreshWaterFluxCell;
+      const auto &IceRunoffFlux =
+          ForcingState->TracerForcingAux.IceRunoffFluxCell;
       const auto &RiverRunoffFlux =
-          ForcingState->CplForcingAux.RiverRunoffFluxCell;
+          ForcingState->TracerForcingAux.RiverRunoffFluxCell;
       const auto &SeaIceSaltFlux =
-          ForcingState->CplForcingAux.SeaIceSaltFluxCell;
+          ForcingState->TracerForcingAux.SeaIceSaltFluxCell;
 
       parallelFor(
           {Mesh->NCellsAll}, KOKKOS_LAMBDA(int ICell) {
-             LocCplFluxThickness(LocLayerThicknessTend, ICell, SnowFlux,
+             LocCplFluxThickness(LocPseudoThicknessTend, ICell, SnowFlux,
                                  RainFlux, EvaporationFlux,
                                  SeaIceFreshWaterFlux, IceRunoffFlux,
                                  RiverRunoffFlux, SeaIceSaltFlux);
@@ -663,12 +662,11 @@ void Tendencies::computeVelocityTendenciesOnly(
    Pacer::stop("Tend:computeVelocityVAdvTend", 2);
 
    // Compute wind forcing
-   const auto &NormalStressEdge = AuxState->WindForcingAux.NormalStressEdge;
+   const auto *ForcingState     = Forcing::getDefault();
+   const auto &NormalStressEdge = ForcingState->WindForcingAux.NormalStressEdge;
    const auto &MeanPseudoThickEdge =
        AuxState->PseudoThicknessAux.MeanPseudoThickEdge;
-   const std::string ForcingName =
-       AuxState->Name.empty() ? "Default" : AuxState->Name;
-   const auto *ForcingState     = Forcing::get(ForcingName);
+
    if (LocWindForcing.Enabled) {
       Pacer::start("Tend:windForcing", 2);
       parallelForOuter(
@@ -839,9 +837,7 @@ void Tendencies::computeTracerTendenciesOnly(
    Pacer::stop("Tend:computeTracerVAdvTend", 2);
 
    // compute tracer surface restoring
-   const std::string ForcingName =
-       AuxState->Name.empty() ? "Default" : AuxState->Name;
-   const auto *ForcingState = Forcing::get(ForcingName);
+   const auto *ForcingState = Forcing::getDefault();
    const Array2DReal &TracersMonthlySurfClimo =
        ForcingState->SurfTracerRestAux.TracersMonthlySurfClimoCell;
    const I4 NTracersToRestore = LocSurfaceTracerRestoring.NTracersToRestore;
@@ -864,21 +860,22 @@ void Tendencies::computeTracerTendenciesOnly(
    if (LocCplFluxTracer.Enabled) {
       Pacer::start("Tend:cplFluxTracer", 2);
       const auto &LatentHeatFlux =
-          ForcingState->CplForcingAux.LatentHeatFluxCell;
+          ForcingState->TracerForcingAux.LatentHeatFluxCell;
       const auto &SensibleHeatFlux =
-          ForcingState->CplForcingAux.SensibleHeatFluxCell;
+          ForcingState->TracerForcingAux.SensibleHeatFluxCell;
       const auto &LongWaveHeatFluxUp =
-          ForcingState->CplForcingAux.LongWaveHeatFluxUpCell;
+          ForcingState->TracerForcingAux.LongWaveHeatFluxUpCell;
       const auto &LongWaveHeatFluxDown =
-          ForcingState->CplForcingAux.LongWaveHeatFluxDownCell;
+          ForcingState->TracerForcingAux.LongWaveHeatFluxDownCell;
       const auto &SeaIceHeatFlux =
-          ForcingState->CplForcingAux.SeaIceHeatFluxCell;
+          ForcingState->TracerForcingAux.SeaIceHeatFluxCell;
       const auto &ShortWaveHeatFlux =
-          ForcingState->CplForcingAux.ShortWaveHeatFluxCell;
-      const auto &SnowFlux      = ForcingState->CplForcingAux.SnowFluxCell;
-      const auto &IceRunoffFlux = ForcingState->CplForcingAux.IceRunoffFluxCell;
+          ForcingState->TracerForcingAux.ShortWaveHeatFluxCell;
+      const auto &SnowFlux = ForcingState->TracerForcingAux.SnowFluxCell;
+      const auto &IceRunoffFlux =
+          ForcingState->TracerForcingAux.IceRunoffFluxCell;
       const auto &SeaIceSaltFlux =
-          ForcingState->CplForcingAux.SeaIceSaltFluxCell;
+          ForcingState->TracerForcingAux.SeaIceSaltFluxCell;
 
       parallelFor(
           {Mesh->NCellsAll}, KOKKOS_LAMBDA(int ICell) {

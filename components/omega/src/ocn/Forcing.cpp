@@ -1,5 +1,6 @@
 #include "Forcing.h"
 #include "Eos.h"
+#include "Field.h"
 #include "Logging.h"
 #include "Pacer.h"
 #include "Tracers.h"
@@ -15,23 +16,22 @@ static std::string stripDefault(const std::string &Name) {
 
 Forcing::Forcing(const std::string &Name, const HorzMesh *Mesh, Halo *MeshHalo,
                  const VertCoord *VCoord, int NTracers)
-    : Name(stripDefault(Name)), CplForcingAux(stripDefault(Name), Mesh),
+    : Name(stripDefault(Name)), TracerForcingAux(stripDefault(Name), Mesh),
       SurfTracerRestAux(stripDefault(Name), Mesh, NTracers),
       WindForcingAux(stripDefault(Name), Mesh), Mesh(Mesh), MeshHalo(MeshHalo),
       VCoord(VCoord) {}
 
 Forcing::~Forcing() { unregisterFields(); }
 
-void Forcing::registerFields(const std::string &AuxGroupName,
-                             const std::string &MeshName) const {
-   WindForcingAux.registerFields(AuxGroupName, MeshName);
-   CplForcingAux.registerFields(AuxGroupName, MeshName);
-   SurfTracerRestAux.registerFields(AuxGroupName, MeshName);
+void Forcing::registerFields(const std::string &MeshName) const {
+   WindForcingAux.registerFields(MeshName);
+   TracerForcingAux.registerFields(MeshName);
+   SurfTracerRestAux.registerFields(MeshName);
 }
 
 void Forcing::unregisterFields() const {
    WindForcingAux.unregisterFields();
-   CplForcingAux.unregisterFields();
+   TracerForcingAux.unregisterFields();
    SurfTracerRestAux.unregisterFields();
 }
 
@@ -56,6 +56,8 @@ void Forcing::init() {
       return;
    }
 
+   FieldGroup::create("Forcing");
+
    const HorzMesh *DefMesh    = HorzMesh::getDefault();
    Halo *DefHalo              = Halo::getDefault();
    const VertCoord *DefVCoord = VertCoord::getDefault();
@@ -63,6 +65,12 @@ void Forcing::init() {
 
    DefaultForcing =
        Forcing::create("Default", DefMesh, DefHalo, DefVCoord, NTracers);
+
+   if (DefaultForcing == nullptr) {
+      ABORT_ERROR("Forcing: failed to initialize default forcing state");
+   }
+
+   DefaultForcing->registerFields(DefMesh->MeshName);
 
    Config *OmegaConfig = Config::getOmegaConfig();
    DefaultForcing->readConfigOptions(OmegaConfig);
@@ -90,6 +98,8 @@ void Forcing::erase(const std::string &Name) { AllForcing.erase(Name); }
 void Forcing::clear() {
    AllForcing.clear();
    DefaultForcing = nullptr;
+   if (FieldGroup::exists("Forcing"))
+      FieldGroup::destroy("Forcing");
 }
 
 void Forcing::readConfigOptions(Config *OmegaConfig) {
@@ -123,7 +133,8 @@ void Forcing::computeWindForcingOnEdge() const {
 }
 
 void Forcing::computeSurfInsituTemp(const Array3DReal &TracerArray) const {
-   CplForcingAux.computeSurfInsituTemp(TracerArray, VCoord, Eos::getInstance());
+   TracerForcingAux.computeSurfInsituTemp(TracerArray, VCoord,
+                                          Eos::getInstance());
 }
 
 I4 Forcing::exchangeHalo() const {
@@ -142,29 +153,31 @@ I4 Forcing::exchangeHalo() const {
       Err += MeshHalo->exchangeFullArrayHalo(TracerSurfClimoCell, OnCell);
    }
 
-   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.SnowFluxCell, OnCell);
-   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.RainFluxCell, OnCell);
-   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.EvaporationFluxCell,
-                                          OnCell);
-   Err += MeshHalo->exchangeFullArrayHalo(
-       CplForcingAux.SeaIceFreshWaterFluxCell, OnCell);
    Err +=
-       MeshHalo->exchangeFullArrayHalo(CplForcingAux.IceRunoffFluxCell, OnCell);
-   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.RiverRunoffFluxCell,
-                                          OnCell);
-   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.LatentHeatFluxCell,
-                                          OnCell);
-   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.SensibleHeatFluxCell,
-                                          OnCell);
-   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.LongWaveHeatFluxUpCell,
+       MeshHalo->exchangeFullArrayHalo(TracerForcingAux.SnowFluxCell, OnCell);
+   Err +=
+       MeshHalo->exchangeFullArrayHalo(TracerForcingAux.RainFluxCell, OnCell);
+   Err += MeshHalo->exchangeFullArrayHalo(TracerForcingAux.EvaporationFluxCell,
                                           OnCell);
    Err += MeshHalo->exchangeFullArrayHalo(
-       CplForcingAux.LongWaveHeatFluxDownCell, OnCell);
-   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.SeaIceHeatFluxCell,
+       TracerForcingAux.SeaIceFreshWaterFluxCell, OnCell);
+   Err += MeshHalo->exchangeFullArrayHalo(TracerForcingAux.IceRunoffFluxCell,
                                           OnCell);
-   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.ShortWaveHeatFluxCell,
+   Err += MeshHalo->exchangeFullArrayHalo(TracerForcingAux.RiverRunoffFluxCell,
                                           OnCell);
-   Err += MeshHalo->exchangeFullArrayHalo(CplForcingAux.SeaIceSaltFluxCell,
+   Err += MeshHalo->exchangeFullArrayHalo(TracerForcingAux.LatentHeatFluxCell,
+                                          OnCell);
+   Err += MeshHalo->exchangeFullArrayHalo(TracerForcingAux.SensibleHeatFluxCell,
+                                          OnCell);
+   Err += MeshHalo->exchangeFullArrayHalo(
+       TracerForcingAux.LongWaveHeatFluxUpCell, OnCell);
+   Err += MeshHalo->exchangeFullArrayHalo(
+       TracerForcingAux.LongWaveHeatFluxDownCell, OnCell);
+   Err += MeshHalo->exchangeFullArrayHalo(TracerForcingAux.SeaIceHeatFluxCell,
+                                          OnCell);
+   Err += MeshHalo->exchangeFullArrayHalo(
+       TracerForcingAux.ShortWaveHeatFluxCell, OnCell);
+   Err += MeshHalo->exchangeFullArrayHalo(TracerForcingAux.SeaIceSaltFluxCell,
                                           OnCell);
 
    return Err;

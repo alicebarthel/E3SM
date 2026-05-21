@@ -1,5 +1,5 @@
-#ifndef OMEGA_AUX_CPL_FORCING_H
-#define OMEGA_AUX_CPL_FORCING_H
+#ifndef OMEGA_AUX_TRACER_FORCING_H
+#define OMEGA_AUX_TRACER_FORCING_H
 
 #include "DataTypes.h"
 #include "HorzMesh.h"
@@ -13,7 +13,7 @@ namespace OMEGA {
 class VertCoord;
 class Eos;
 
-class CplForcingAuxVars {
+class TracerForcingAuxVars {
  public:
    Array1DReal SnowFluxCell;
    Array1DReal RainFluxCell;
@@ -33,19 +33,16 @@ class CplForcingAuxVars {
 
    Array1DReal SurfInsituTemperature;
 
-   CplForcingAuxVars(const std::string &AuxStateSuffix, const HorzMesh *Mesh);
+   TracerForcingAuxVars(const std::string &AuxStateSuffix,
+                        const HorzMesh *Mesh);
 
-   void registerFields(const std::string &AuxGroupName,
-                       const std::string &MeshName) const;
+   void registerFields(const std::string &MeshName) const;
    void unregisterFields() const;
 
    /// Compute surface insitu temperature from conservative temperature
    void computeSurfInsituTemp(const Array3DReal &TracerArray,
                               const VertCoord *VCoord,
                               const Eos *EosInst) const;
-
- private:
-   std::string ForcingGroupName;
 };
 
 } // namespace OMEGA

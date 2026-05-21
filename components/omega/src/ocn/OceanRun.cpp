@@ -46,10 +46,10 @@ int ocnRun(TimeInstant &CurrTime ///< [inout] current sim time
 
       // call forcing routines, anything needed pre-timestep
       Metadata ReqMeta;
-      Error ReadErr = IOStream::read("CplForcing", OmegaClock, ReqMeta,
-                                     true /* ForceRead */);
+      Error ReadErr =
+          IOStream::read("Forcing", OmegaClock, ReqMeta, true /* ForceRead */);
       if (ReadErr.isFail()) {
-         CHECK_ERROR(ReadErr, "ocnRun: failed to read CplForcing stream");
+         CHECK_ERROR(ReadErr, "ocnRun: failed to read Forcing stream");
          Err = 1;
          break;
       }

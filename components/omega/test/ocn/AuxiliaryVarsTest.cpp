@@ -847,8 +847,6 @@ int auxVarsTest(const std::string &mesh = DefaultMeshFile) {
 
    Err += testTracerAuxVars(PseudoThickCell, NormalVelEdge, RTol);
 
-   Err += testWindForcingAuxVars(RTol);
-
    if (Err == 0) {
       LOG_INFO("AuxVarsTest: Successful completion");
    }

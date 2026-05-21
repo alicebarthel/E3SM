@@ -6,8 +6,8 @@
 #include "Halo.h"
 #include "HorzMesh.h"
 #include "VertCoord.h"
-#include "auxiliaryVars/CplForcingAuxVars.h"
 #include "auxiliaryVars/SurfTracerRestAuxVars.h"
+#include "auxiliaryVars/TracerForcingAuxVars.h"
 #include "auxiliaryVars/WindForcingAuxVars.h"
 
 #include <memory>
@@ -19,7 +19,7 @@ class Forcing {
  public:
    std::string Name;
 
-   CplForcingAuxVars CplForcingAux;
+   TracerForcingAuxVars TracerForcingAux;
    SurfTracerRestAuxVars SurfTracerRestAux;
    WindForcingAuxVars WindForcingAux;
 
@@ -43,8 +43,7 @@ class Forcing {
 
    void readConfigOptions(Config *OmegaConfig);
 
-   void registerFields(const std::string &AuxGroupName,
-                       const std::string &MeshName) const;
+   void registerFields(const std::string &MeshName) const;
 
    void unregisterFields() const;
 

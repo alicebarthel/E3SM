@@ -38,14 +38,10 @@ AuxiliaryState::AuxiliaryState(const std::string &Name, const HorzMesh *Mesh,
 
    auto AuxGroup = FieldGroup::create(GroupName);
 
-   const std::string ForcingName = this->Name.empty() ? "Default" : this->Name;
-   const auto *LocForcingState   = Forcing::get(ForcingName);
-
    KineticAux.registerFields(GroupName, AuxMeshName);
    PseudoThicknessAux.registerFields(GroupName, AuxMeshName);
    VorticityAux.registerFields(GroupName, AuxMeshName);
    VelocityDel2Aux.registerFields(GroupName, AuxMeshName);
-   LocForcingState->registerFields(GroupName, AuxMeshName);
    TracerAux.registerFields(GroupName, AuxMeshName);
 }
 
@@ -117,8 +113,7 @@ void AuxiliaryState::computeMomAux(const OceanState *State,
    OMEGA_SCOPE(LocVorticityAux, VorticityAux);
    OMEGA_SCOPE(LocVelocityDel2Aux, VelocityDel2Aux);
 
-   const std::string ForcingName = this->Name.empty() ? "Default" : this->Name;
-   const auto *LocForcingState   = Forcing::get(ForcingName);
+   const auto *LocForcingState = Forcing::getDefault();
 
    OMEGA_SCOPE(MinLayerCell, VCoord->MinLayerCell);
    OMEGA_SCOPE(MaxLayerCell, VCoord->MaxLayerCell);
@@ -308,8 +303,7 @@ void AuxiliaryState::computeAll(const OceanState *State,
    Pacer::stop("AuxState:cellAuxState4", 2);
 
    // Compute surface insitu temperature for coupling
-   const std::string ForcingName = this->Name.empty() ? "Default" : this->Name;
-   const auto *LocForcingState   = Forcing::get(ForcingName);
+   const auto *LocForcingState = Forcing::getDefault();
    LocForcingState->computeSurfInsituTemp(TracerArray);
 
    Pacer::stop("AuxState:computeAll", 1);
@@ -332,15 +326,6 @@ AuxiliaryState *AuxiliaryState::create(const std::string &Name,
                 "already exists",
                 Name);
       return nullptr;
-   }
-
-   if (!Forcing::exists(Name)) {
-      if (Forcing::create(Name, Mesh, MeshHalo, VCoord, NTracers) == nullptr) {
-         LOG_ERROR("Attempted to create AuxiliaryState with name {} but "
-                   "associated forcing state creation failed",
-                   Name);
-         return nullptr;
-      }
    }
 
    auto *NewAuxState = new AuxiliaryState(Name, Mesh, MeshHalo, VCoord, VAdv,
@@ -397,13 +382,11 @@ AuxiliaryState *AuxiliaryState::get(const std::string &Name) {
 // Remove auxiliary state by name
 void AuxiliaryState::erase(const std::string &Name) {
    AllAuxStates.erase(Name);
-   Forcing::erase(Name);
 }
 
 // Remove all auxiliary states
 void AuxiliaryState::clear() {
    AllAuxStates.clear();
-   Forcing::clear();
    DefaultAuxState = nullptr; // prevent dangling pointer
 }
 

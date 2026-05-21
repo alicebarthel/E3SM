@@ -29,8 +29,7 @@ class WindForcingAuxVars {
           Kokkos::sin(AngleEdge(IEdge)) * MeridStressEdge;
    }
 
-   void registerFields(const std::string &AuxGroupName,
-                       const std::string &MeshName) const;
+   void registerFields(const std::string &MeshName) const;
    void unregisterFields() const;
 
  private:
