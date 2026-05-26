@@ -6,9 +6,9 @@
 #include "Halo.h"
 #include "HorzMesh.h"
 #include "VertCoord.h"
+#include "auxiliaryVars/MomForcingAuxVars.h"
 #include "auxiliaryVars/SurfTracerRestAuxVars.h"
 #include "auxiliaryVars/TracerForcingAuxVars.h"
-#include "auxiliaryVars/WindForcingAuxVars.h"
 
 #include <memory>
 #include <string>
@@ -21,7 +21,7 @@ class Forcing {
 
    TracerForcingAuxVars TracerForcingAux;
    SurfTracerRestAuxVars SurfTracerRestAux;
-   WindForcingAuxVars WindForcingAux;
+   MomForcingAuxVars MomForcingAux;
 
    ~Forcing();
 
@@ -47,7 +47,7 @@ class Forcing {
 
    void unregisterFields() const;
 
-   void computeWindForcingOnEdge() const;
+   void computeSrfStressForcingOnEdge() const;
 
    void computeSurfInsituTemp(const Array3DReal &TracerArray) const;
 

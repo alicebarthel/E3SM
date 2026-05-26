@@ -1,4 +1,4 @@
-#include "WindForcingAuxVars.h"
+#include "MomForcingAuxVars.h"
 #include "DataTypes.h"
 #include "Field.h"
 
@@ -6,8 +6,8 @@
 
 namespace OMEGA {
 
-WindForcingAuxVars::WindForcingAuxVars(const std::string &AuxStateSuffix,
-                                       const HorzMesh *Mesh)
+MomForcingAuxVars::MomForcingAuxVars(const std::string &AuxStateSuffix,
+                                     const HorzMesh *Mesh)
     : NormalStressEdge("NormalStressEdge" + AuxStateSuffix, Mesh->NEdgesSize),
       ZonalStressCell("WindStressZonal" + AuxStateSuffix, Mesh->NCellsSize),
       MeridStressCell("WindStressMeridional" + AuxStateSuffix,
@@ -15,7 +15,7 @@ WindForcingAuxVars::WindForcingAuxVars(const std::string &AuxStateSuffix,
       CellsOnEdge(Mesh->CellsOnEdge), AngleEdge(Mesh->AngleEdge), Interp(Mesh) {
 }
 
-void WindForcingAuxVars::registerFields(
+void MomForcingAuxVars::registerFields(
     const std::string &MeshName // name of horizontal mesh
 ) const {
 
@@ -66,7 +66,7 @@ void WindForcingAuxVars::registerFields(
    MeridStressCellField->attachData<Array1DReal>(MeridStressCell);
 }
 
-void WindForcingAuxVars::unregisterFields() const {
+void MomForcingAuxVars::unregisterFields() const {
    Field::destroy(ZonalStressCell.label());
    Field::destroy(MeridStressCell.label());
 }

@@ -663,7 +663,7 @@ void Tendencies::computeVelocityTendenciesOnly(
 
    // Compute wind forcing
    const auto *ForcingState     = Forcing::getDefault();
-   const auto &NormalStressEdge = ForcingState->WindForcingAux.NormalStressEdge;
+   const auto &NormalStressEdge = ForcingState->MomForcingAux.NormalStressEdge;
    const auto &MeanPseudoThickEdge =
        AuxState->PseudoThicknessAux.MeanPseudoThickEdge;
 

@@ -21,11 +21,11 @@ pathways in Omega, currently this includes:
 
 ### Wind forcing key classes/components
 
-- `WindForcingAuxVars`
+- `MomForcingAuxVars`
   - Stores wind-stress cell fields and computed `NormalStressEdge`
   - Applies configured interpolation choice (`InterpType`)
 - `AuxiliaryState::computeMomAux`
-  - Calls `WindForcingAuxVars::computeVarsOnEdge`
+  - Calls `MomForcingAuxVars::computeVarsOnEdge`
 - `WindForcingOnEdge` tendency term
   - Adds contribution proportional to normal stress and inverse layer
     thickness in the surface layer

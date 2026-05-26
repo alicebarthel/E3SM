@@ -18,19 +18,19 @@ Forcing::Forcing(const std::string &Name, const HorzMesh *Mesh, Halo *MeshHalo,
                  const VertCoord *VCoord, int NTracers)
     : Name(stripDefault(Name)), TracerForcingAux(stripDefault(Name), Mesh),
       SurfTracerRestAux(stripDefault(Name), Mesh, NTracers),
-      WindForcingAux(stripDefault(Name), Mesh), Mesh(Mesh), MeshHalo(MeshHalo),
+      MomForcingAux(stripDefault(Name), Mesh), Mesh(Mesh), MeshHalo(MeshHalo),
       VCoord(VCoord) {}
 
 Forcing::~Forcing() { unregisterFields(); }
 
 void Forcing::registerFields(const std::string &MeshName) const {
-   WindForcingAux.registerFields(MeshName);
+   MomForcingAux.registerFields(MeshName);
    TracerForcingAux.registerFields(MeshName);
    SurfTracerRestAux.registerFields(MeshName);
 }
 
 void Forcing::unregisterFields() const {
-   WindForcingAux.unregisterFields();
+   MomForcingAux.unregisterFields();
    TracerForcingAux.unregisterFields();
    SurfTracerRestAux.unregisterFields();
 }
@@ -113,22 +113,21 @@ void Forcing::readConfigOptions(Config *OmegaConfig) {
    CHECK_ERROR_ABORT(Err, "Forcing: InterpType not found in WindStressConfig");
 
    if (WindStressInterpTypeStr == "Isotropic") {
-      this->WindForcingAux.InterpChoice = InterpCellToEdgeOption::Isotropic;
+      this->MomForcingAux.InterpChoice = InterpCellToEdgeOption::Isotropic;
    } else if (WindStressInterpTypeStr == "Anisotropic") {
-      this->WindForcingAux.InterpChoice = InterpCellToEdgeOption::Anisotropic;
+      this->MomForcingAux.InterpChoice = InterpCellToEdgeOption::Anisotropic;
    } else {
       ABORT_ERROR("Forcing: Unknown InterpType requested");
    }
 }
 
-void Forcing::computeWindForcingOnEdge() const {
-   OMEGA_SCOPE(LocWindForcingAux, WindForcingAux);
+void Forcing::computeSrfStressForcingOnEdge() const {
+   OMEGA_SCOPE(LocMomForcingAux, MomForcingAux);
 
    Pacer::start("Forcing:edgeAuxState1", 2);
    parallelFor(
-       "Forcing:edgeAuxState1", {Mesh->NEdgesAll}, KOKKOS_LAMBDA(int IEdge) {
-          LocWindForcingAux.computeVarsOnEdge(IEdge);
-       });
+       "Forcing:edgeAuxState1", {Mesh->NEdgesAll},
+       KOKKOS_LAMBDA(int IEdge) { LocMomForcingAux.computeVarsOnEdge(IEdge); });
    Pacer::stop("Forcing:edgeAuxState1", 2);
 }
 
@@ -141,9 +140,9 @@ I4 Forcing::exchangeHalo() const {
    I4 Err = 0;
 
    Err +=
-       MeshHalo->exchangeFullArrayHalo(WindForcingAux.ZonalStressCell, OnCell);
+       MeshHalo->exchangeFullArrayHalo(MomForcingAux.ZonalStressCell, OnCell);
    Err +=
-       MeshHalo->exchangeFullArrayHalo(WindForcingAux.MeridStressCell, OnCell);
+       MeshHalo->exchangeFullArrayHalo(MomForcingAux.MeridStressCell, OnCell);
 
    const I4 NTracers =
        SurfTracerRestAux.TracersMonthlySurfClimoCell.extent_int(0);
