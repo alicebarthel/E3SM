@@ -5,24 +5,24 @@
 This page describes design and implementation details for forcing-related
 pathways in Omega, currently this includes:
 
-- Wind forcing
-- Coupled flux forcing
+- Surface momemtum forcing (e.g. stress from wind forcing)
+- Surface thickness and tracer forcing
 - Surface tracer restoring
 
-## Wind forcing design
+## Surface momentum forcing design
 
-### Wind forcing data flow
+### Surface stress forcing data flow
 
 1. External fields provide:
    - `WindStressZonal`
    - `WindStressMeridional`
 2. Auxiliary-state compute builds `NormalStressEdge` from those fields.
-3. Tendency term applies wind-stress forcing to edge-normal velocity tendency.
+3. Tendency term applies stress forcing to edge-normal velocity tendency.
 
-### Wind forcing key classes/components
+### Surface momemtum forcing key classes/components
 
 - `MomForcingAuxVars`
-  - Stores wind-stress cell fields and computed `NormalStressEdge`
+  - Stores surface stress cell fields and computed `NormalStressEdge`
   - Applies configured interpolation choice (`InterpType`)
 - `AuxiliaryState::computeMomAux`
   - Calls `MomForcingAuxVars::computeVarsOnEdge`
@@ -30,16 +30,16 @@ pathways in Omega, currently this includes:
   - Adds contribution proportional to normal stress and inverse layer
     thickness in the surface layer
 
-### Wind forcing config coupling
+### Surface stress forcing config coupling
 
 - `Omega.SrfStress.InterpType`
   - mapped to `InterpCellToEdgeOption`
 - `Omega.Tendencies.SrfStressForcingTendencyEnable`
   - gates execution of surface stress (e.g. wind forcing) tendency kernel
 
-## Coupled flux forcing design
+## Surface flux forcing design
 
-### Coupled flux forcing data flow
+### Surface flux forcing data flow
 
 **Thickness equation pathway:**
 
@@ -47,8 +47,8 @@ pathways in Omega, currently this includes:
    - `SnowFlux`, `RainFlux`, `EvaporationFlux`
    - `SeaIceFreshWaterFlux`, `IceRunoffFlux`, `RiverRunoffFlux`
    - `SeaIceSaltFlux`
-2. Auxiliary-state stores coupled flux fields in `CplForcingAuxVars`
-3. Tendency term sums both the freshwater and salt mass fluxes, converted to be applied to
+2. `Forcing` stores the flux fields in `TracerForcingAuxVars`
+3. The tendency term `SrfThicknessForcing`sums both the freshwater and salt mass fluxes, converted to be applied to
 the surface layer pseudo-thickness.
 
 **Tracer equation pathway:**
@@ -58,16 +58,16 @@ the surface layer pseudo-thickness.
    - `LongWaveHeatFluxUp`, `LongWaveHeatFluxDown`
    - `SeaIceHeatFlux`, `ShortWaveHeatFlux`
    - `SeaIceSaltFlux`, `SnowFlux`, `IceRunoffFlux`
-2. Auxiliary-state stores coupled flux fields in `CplForcingAuxVars`
-3. Tendency terms converts external heat fluxes to tendencies in conservative temperature,
+2. `Forcing` stores the flux fields in `TracerForcingAuxVars`
+3. The tendency terms for each tracer `SrfTracerForcing` converts external heat fluxes to tendencies in conservative temperature,
  and external mass salt flux to salinity (g/kg) in the surface layer.
 
 ### Coupled flux forcing key classes/components
 
-- `CplForcingAuxVars`
+- `TracerForcingAuxVars`
   - Stores 13 coupled flux cell-centered fields: 7 freshwater fluxes and 6 heat
     fluxes, plus 1 salt flux component
-  - Fields initialized to zero and registered in `CplForcing` field group
+  - Fields initialized to zero and registered in `Forcing` field group
 - `SrfThicknessForcingOnCell` tendency term
   - Computes freshwater flux contribution: $\sum (\text{SnowFlux} + \text{RainFlux} + \text{EvaporationFlux} + \text{SeaIceFreshWaterFlux} + \text{IceRunoffFlux} + \text{RiverRunoffFlux} + \text{SeaIceSaltFlux}) / \rho_{sw}$
   - Applied only at surface layer (top active layer) using `MinLayerCell`
@@ -76,8 +76,8 @@ the surface layer pseudo-thickness.
   - For salinity: applies salt flux with unit conversion: $\text{SeaIceSaltFlux} \times S_{\text{FluxFac}}$
   - Applied only at surface layer using `MinLayerCell`
   - Uses tracer index validation to apply to specific tracers only
-- `AuxiliaryState::computeAuxVars`
-  - Manages `CplForcingAuxVars` instance
+- `Forcing`
+  - Manages `TracerForcingAuxVars` instance
 - `Tendencies`
   - Calls `SrfThicknessForcingOnCell` in `computeThicknessTendenciesOnly`
   - Calls `SrfTracerForcingOnCell` in `computeTracerTendenciesOnly` after surface tracer restoring
@@ -96,17 +96,15 @@ the surface layer pseudo-thickness.
 ### Surface tracer restoring data flow
 
 1. External fields provide target values: `TracersMonthlySurfClimoCell` (values and units should match the state variables)
-2. Auxiliary-state compute forms restoring differences: `SurfTracerRestoringDiffsCell = target - tracer_surface`
+2. `SurfTracerRestAuxVars` stores `TracersMonthlySurfClimoCell` for later restoring use.
 3. Tendency term applies restoring only at surface layer and only for tracers selected from `SrfRestoring.TracersToRestore`.
 
 ### Surface tracer restoring key classes/components
 
 - `SurfTracerRestAuxVars`
-  - Inputs: `TracersMonthlySurfClimoCell`, tracer state array
-  - Output: `SurfTracerRestoringDiffsCell`
-  - Uses `MinLayerCell` to select surface layer index
-- `SurfaceTracerRestoringOnCell` tendency term
-  - Applies `PistonVelocity * SurfTracerRestoringDiffsCell` at surface
+  - Stores `TracersMonthlySurfClimoCell`
+- `SrfTracerRestoringOnCell` tendency term
+  - Applies `PistonVelocity * (target - state)` at the surface layer
 - `Tendencies`
   - Parses `SrfRestoring.TracersToRestore` and resolves tracer indices
   - Builds `TracerIdsToRestore` and `NTracersToRestore`
@@ -120,7 +118,7 @@ the surface layer pseudo-thickness.
   - tendency scaling
 - `Omega.SrfRestoring.TracersToRestore`
   - tracer-level enable list used to build `TracerIdsToRestore`
-- `Omega.Tendencies.SurfaceTracerRestoringEnable`
+- `Omega.Tendencies.SrfTracerRestoringEnable`
   - gates restoring tendency execution
 
 ## Notes

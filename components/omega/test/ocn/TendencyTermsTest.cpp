@@ -1018,7 +1018,7 @@ int testTracerHyperDiffOnCell(int NVertLayers, int NTracers, Real RTol) {
    return Err;
 } // end testTracerHyperDiffOnCell
 
-int testSurfaceTracerRestoringOnCell(int NVertLayers, int NTracers, Real RTol) {
+int testSrfTracerRestoringOnCell(int NVertLayers, int NTracers, Real RTol) {
 
    I4 Err = 0;
    TestSetup Setup;
@@ -1026,16 +1026,16 @@ int testSurfaceTracerRestoringOnCell(int NVertLayers, int NTracers, Real RTol) {
    const auto Mesh = HorzMesh::getDefault();
 
    if (NTracers < 3) {
-      LOG_ERROR("TendencyTermsTest: SurfaceTracerRestoring requires at least 3 "
+      LOG_ERROR("TendencyTermsTest: SrfTracerRestoring requires at least 3 "
                 "tracers, found {}",
                 NTracers);
       return 1;
    }
 
    // Test multiple cases with different combinations of tracers being restored
-   const char *CaseLabels[3] = {"SurfaceTracerRestoringSalinityOnly",
-                                "SurfaceTracerRestoringTemperatureOnly",
-                                "SurfaceTracerRestoringTempSaltDebug"};
+   const char *CaseLabels[3] = {"SrfTracerRestoringSalinityOnly",
+                                "SrfTracerRestoringTemperatureOnly",
+                                "SrfTracerRestoringTempSaltDebug"};
 
    const std::vector<std::vector<I4>> CaseTracerIds = {
        {1},       // Salinity Only
@@ -1082,7 +1082,7 @@ int testSurfaceTracerRestoringOnCell(int NVertLayers, int NTracers, Real RTol) {
              TracersOnCell(L, ICell, K) += 0.04_Real * K;
           });
 
-      SurfaceTracerRestoringOnCell SurfRestOnC(Mesh);
+      SrfTracerRestoringOnCell SurfRestOnC(Mesh);
       SurfRestOnC.PistonVelocity = 1.585e-5;
 
       // Build host-selected tracer IDs for restoring and copy to device.
@@ -1096,7 +1096,7 @@ int testSurfaceTracerRestoringOnCell(int NVertLayers, int NTracers, Real RTol) {
       deepCopy(TracerIdsToRestore, TracerIdsToRestoreH);
 
       // Compute exact result using the same logic as
-      // SurfaceTracerRestoringOnCell, but iterating
+      // SrfTracerRestoringOnCell, but iterating
       // selected tracer IDs to match restoring implementation.
       parallelFor(
           {NTracersToRestore, Mesh->NCellsOwned},
@@ -1127,11 +1127,11 @@ int testSurfaceTracerRestoringOnCell(int NVertLayers, int NTracers, Real RTol) {
    }
 
    if (Err == 0) {
-      LOG_INFO("TendencyTermsTest: SurfaceTracerRestoring PASS");
+      LOG_INFO("TendencyTermsTest: SrfTracerRestoring PASS");
    }
 
    return Err;
-} // end testSurfaceTracerRestoringOnCell
+} // end testSrfTracerRestoringOnCell
 
 void initTendTest(const std::string &MeshFile, int NVertLayers) {
 
@@ -1213,7 +1213,7 @@ int tendencyTermsTest(const std::string &MeshFile = DefaultMeshFile) {
 
    Err += testTracerHyperDiffOnCell(NVertLayers, NTracers, RTol);
 
-   Err += testSurfaceTracerRestoringOnCell(NVertLayers, NTracers, RTol);
+   Err += testSrfTracerRestoringOnCell(NVertLayers, NTracers, RTol);
 
    if (Err == 0) {
       LOG_INFO("TendencyTermsTest: Successful completion");

@@ -73,7 +73,7 @@ class Tendencies {
    TracerHorzAdvOnCell TracerHorzAdv;
    TracerDiffOnCell TracerDiffusion;
    TracerHyperDiffOnCell TracerHyperDiff;
-   SurfaceTracerRestoringOnCell SurfaceTracerRestoring;
+   SrfTracerRestoringOnCell SrfTracerRestoring;
 
    std::string Name;
 

@@ -199,11 +199,11 @@ static int initOmegaModulesImpl(MPI_Comm Comm) {
    PressureGrad::init();
    Tendencies::init();
 
-   // Validate SurfaceTracerRestoring configuration
+   // Validate SrfTracerRestoring configuration
    Tendencies *DefTend = Tendencies::getDefault();
-   if (DefTend->SurfaceTracerRestoring.Enabled &&
-       DefTend->SurfaceTracerRestoring.NTracersToRestore == 0) {
-      ABORT_ERROR("OceanInit: SurfaceTracerRestoring is enabled but "
+   if (DefTend->SrfTracerRestoring.Enabled &&
+       DefTend->SrfTracerRestoring.NTracersToRestore == 0) {
+      ABORT_ERROR("OceanInit: SrfTracerRestoring is enabled but "
                   "TracersToRestore is empty");
    }
 

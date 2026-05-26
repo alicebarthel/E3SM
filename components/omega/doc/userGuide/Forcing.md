@@ -40,15 +40,15 @@ Wind forcing uses auxiliary wind-stress fields:
 These are used to form edge-normal stress (`NormalStressEdge`) that enters
 momentum tendencies.
 
-## Coupled flux forcing
+## Surface flux forcing
 
-Coupled flux forcing applies ocean-atmosphere and ocean-sea ice fluxes from the coupled model
+Surface flux forcing applies ocean-atmosphere and ocean-sea ice fluxes from the other model
 components (atmosphere, sea ice) to the thickness and tracer equations. This enables
-the ocean to respond to heat, freshwater, and salt exchanges at the surface.
+the ocean to respond to heat, freshwater, and salt exchanges at the surface. These fluxes can be from data or (active) coupled components.
 
-### Coupled flux forcing configuration
+### Surface flux forcing configuration
 
-Coupled flux forcing is controlled by two configuration flags:
+Surface flux forcing is controlled by two configuration flags:
 
 ```yaml
 Omega:
@@ -124,12 +124,12 @@ Omega:
     PistonVelocity: 1.585e-5
 
   Tendencies:
-    SurfaceTracerRestoringEnable: true
+    SrfTracerRestoringEnable: true
 ```
 
 - `TracersToRestore`: list of tracer names that restoring is applied to
 - `PistonVelocity`: restoring rate coefficient
-- `SurfaceTracerRestoringEnable`: switch to enable surface tracer restoring
+- `SrfTracerRestoringEnable`: switch to enable surface tracer restoring
 
 When restoring is enabled, Omega resolves `TracersToRestore` into an internal
 list of tracer IDs and applies restoring only to tracers in that list.
@@ -139,10 +139,9 @@ list of tracer IDs and applies restoring only to tracers in that list.
 Surface restoring uses auxiliary fields:
 
 - `TracersMonthlySurfClimoCell`: restoring target climatological values
-- `SurfTracerRestoringDiffsCell`: computed target-minus-state differences
 
-The restoring tendency is computed at the surface layer only and is limited by
-the configured `PistonVelocity` and target-minus-state difference.
+The restoring tendency `SrfTracerRestoring` is computed at the surface layer only using the
+configured `PistonVelocity` and the inline target-minus-state difference.
 
 ## Notes
 

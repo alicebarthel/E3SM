@@ -266,15 +266,15 @@ void Tendencies::readConfig(Config *OmegaConfig ///< [in] Omega config
    CHECK_ERROR_ABORT(
        Err, "Tendencies: PressureGradTendencyEnable not found in TendConfig");
 
-   Err += TendConfig.get("SurfaceTracerRestoringEnable",
-                         this->SurfaceTracerRestoring.Enabled);
+   Err += TendConfig.get("SrfTracerRestoringEnable",
+                         this->SrfTracerRestoring.Enabled);
    CHECK_ERROR_ABORT(
-       Err, "Tendencies: SurfaceTracerRestoringEnable not found in TendConfig");
-   if (this->SurfaceTracerRestoring.Enabled) {
+       Err, "Tendencies: SrfTracerRestoringEnable not found in TendConfig");
+   if (this->SrfTracerRestoring.Enabled) {
       Config SrfRestConfig("SrfRestoring");
       Err += OmegaConfig->get(SrfRestConfig);
       Err += SrfRestConfig.get("PistonVelocity",
-                               this->SurfaceTracerRestoring.PistonVelocity);
+                               this->SrfTracerRestoring.PistonVelocity);
       CHECK_ERROR_ABORT(
           Err, "Tendencies: PistonVelocity not found in SrfRestoringConfig");
 
@@ -311,11 +311,11 @@ void Tendencies::readConfig(Config *OmegaConfig ///< [in] Omega config
                      NumInvalidTracers);
       }
 
-      this->SurfaceTracerRestoring.NTracersToRestore =
+      this->SrfTracerRestoring.NTracersToRestore =
           static_cast<I4>(TracerIdsToRestoreVec.size());
-      this->SurfaceTracerRestoring.TracerIdsToRestore = Array1DI4(
-          "TracerIdsToRestore", this->SurfaceTracerRestoring.NTracersToRestore);
-      deepCopy(this->SurfaceTracerRestoring.TracerIdsToRestore,
+      this->SrfTracerRestoring.TracerIdsToRestore = Array1DI4(
+          "TracerIdsToRestore", this->SrfTracerRestoring.NTracersToRestore);
+      deepCopy(this->SrfTracerRestoring.TracerIdsToRestore,
                HostArray1DI4(TracerIdsToRestoreVec.data(),
                              TracerIdsToRestoreVec.size()));
    }
@@ -395,7 +395,7 @@ Tendencies::Tendencies(const std::string &Name_, ///< [in] Name for tendencies
       SrfThicknessForcing(Mesh, VCoord),
       SrfTracerForcing(Mesh, VCoord, Tracers::IndxTemp, Tracers::IndxSalt),
       TracerDiffusion(Mesh, VCoord), TracerHyperDiff(Mesh, VCoord),
-      TracerHorzAdv(Mesh, VCoord), SurfaceTracerRestoring(Mesh),
+      TracerHorzAdv(Mesh, VCoord), SrfTracerRestoring(Mesh),
       CustomThicknessTend(InCustomThicknessTend),
       CustomVelocityTend(InCustomVelocityTend), EqState(EqState), PGrad(PGrad) {
 
@@ -733,7 +733,7 @@ void Tendencies::computeTracerTendenciesOnly(
    OMEGA_SCOPE(LocTracerHorzAdv, TracerHorzAdv);
    OMEGA_SCOPE(LocTracerDiffusion, TracerDiffusion);
    OMEGA_SCOPE(LocTracerHyperDiff, TracerHyperDiff);
-   OMEGA_SCOPE(LocSurfaceTracerRestoring, SurfaceTracerRestoring);
+   OMEGA_SCOPE(LocSrfTracerRestoring, SrfTracerRestoring);
    OMEGA_SCOPE(LocSrfTracerForcing, SrfTracerForcing);
    OMEGA_SCOPE(MinLayerCell, VCoord->MinLayerCell);
    OMEGA_SCOPE(MaxLayerCell, VCoord->MaxLayerCell);
@@ -841,20 +841,19 @@ void Tendencies::computeTracerTendenciesOnly(
    const auto *ForcingState = Forcing::getDefault();
    const Array2DReal &TracersMonthlySurfClimo =
        ForcingState->SurfTracerRestAux.TracersMonthlySurfClimoCell;
-   const I4 NTracersToRestore = LocSurfaceTracerRestoring.NTracersToRestore;
-   const auto &TracerIdsToRestore =
-       LocSurfaceTracerRestoring.TracerIdsToRestore;
-   if (LocSurfaceTracerRestoring.Enabled && NTracersToRestore > 0) {
-      Pacer::start("Tend:surfaceTracerRestoring", 2);
+   const I4 NTracersToRestore     = LocSrfTracerRestoring.NTracersToRestore;
+   const auto &TracerIdsToRestore = LocSrfTracerRestoring.TracerIdsToRestore;
+   if (LocSrfTracerRestoring.Enabled && NTracersToRestore > 0) {
+      Pacer::start("Tend:srfTracerRestoring", 2);
       parallelFor(
           {NTracersToRestore, Mesh->NCellsAll},
           KOKKOS_LAMBDA(int R, int ICell) {
              const int KMin = MinLayerCell(ICell);
              const int L    = TracerIdsToRestore(R);
-             LocSurfaceTracerRestoring(LocTracerTend, L, ICell, KMin,
-                                       TracersMonthlySurfClimo, TracerArray);
+             LocSrfTracerRestoring(LocTracerTend, L, ICell, KMin,
+                                   TracersMonthlySurfClimo, TracerArray);
           });
-      Pacer::stop("Tend:surfaceTracerRestoring", 2);
+      Pacer::stop("Tend:srfTracerRestoring", 2);
    }
 
    // compute tracer forcing tendency

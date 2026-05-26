@@ -651,7 +651,7 @@ class TracerHyperDiffOnCell {
 };
 
 /// Surface tracer restoring term
-class SurfaceTracerRestoringOnCell {
+class SrfTracerRestoringOnCell {
  public:
    bool Enabled;
    Real PistonVelocity  = 1.585e-5; ///< piston velocity
@@ -660,7 +660,7 @@ class SurfaceTracerRestoringOnCell {
    /// Need to add under sea ice restoring option when that is available
 
    /// constructor declaration
-   SurfaceTracerRestoringOnCell(const HorzMesh *Mesh);
+   SrfTracerRestoringOnCell(const HorzMesh *Mesh);
 
    /// The functor takes the cell index and the array for the tracer surface
    /// restoring values, outputs tendency array
