@@ -30,9 +30,9 @@ Omega:
     HorzTracerFluxOrder: 2
     VerticalTracerFluxLimiterEnable: true
     VerticalTracerFluxOrder: 3
-  WindStress:
+  SrfStress:
     InterpType: Isotropic
-  SurfaceRestoring:
+  SrfRestoring:
     TracersToRestore: [Temperature, Salinity]
     PistonVelocity: 1.585e-5
   PressureGrad:

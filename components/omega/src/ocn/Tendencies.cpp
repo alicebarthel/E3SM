@@ -271,16 +271,15 @@ void Tendencies::readConfig(Config *OmegaConfig ///< [in] Omega config
    CHECK_ERROR_ABORT(
        Err, "Tendencies: SurfaceTracerRestoringEnable not found in TendConfig");
    if (this->SurfaceTracerRestoring.Enabled) {
-      Config SurfRestConfig("SurfaceRestoring");
-      Err += OmegaConfig->get(SurfRestConfig);
-      Err += SurfRestConfig.get("PistonVelocity",
-                                this->SurfaceTracerRestoring.PistonVelocity);
+      Config SrfRestConfig("SrfRestoring");
+      Err += OmegaConfig->get(SrfRestConfig);
+      Err += SrfRestConfig.get("PistonVelocity",
+                               this->SurfaceTracerRestoring.PistonVelocity);
       CHECK_ERROR_ABORT(
-          Err,
-          "Tendencies: PistonVelocity not found in SurfaceRestoringConfig");
+          Err, "Tendencies: PistonVelocity not found in SrfRestoringConfig");
 
       std::vector<std::string> TracersToRestore;
-      SurfRestConfig.get("TracersToRestore", TracersToRestore);
+      SrfRestConfig.get("TracersToRestore", TracersToRestore);
 
       // Enable restoring for specified individual tracers
       I4 NumInvalidTracers = 0;

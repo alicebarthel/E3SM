@@ -32,10 +32,10 @@ pathways in Omega, currently this includes:
 
 ### Wind forcing config coupling
 
-- `Omega.WindStress.InterpType`
+- `Omega.SrfStress.InterpType`
   - mapped to `InterpCellToEdgeOption`
-- `Omega.Tendencies.WindForcingTendencyEnable`
-  - gates execution of wind forcing tendency kernel
+- `Omega.Tendencies.SrfStressForcingTendencyEnable`
+  - gates execution of surface stress (e.g. wind forcing) tendency kernel
 
 ## Coupled flux forcing design
 
@@ -97,7 +97,7 @@ the surface layer pseudo-thickness.
 
 1. External fields provide target values: `TracersMonthlySurfClimoCell` (values and units should match the state variables)
 2. Auxiliary-state compute forms restoring differences: `SurfTracerRestoringDiffsCell = target - tracer_surface`
-3. Tendency term applies restoring only at surface layer and only for tracers selected from `SurfaceRestoring.TracersToRestore`.
+3. Tendency term applies restoring only at surface layer and only for tracers selected from `SrfRestoring.TracersToRestore`.
 
 ### Surface tracer restoring key classes/components
 
@@ -108,7 +108,7 @@ the surface layer pseudo-thickness.
 - `SurfaceTracerRestoringOnCell` tendency term
   - Applies `PistonVelocity * SurfTracerRestoringDiffsCell` at surface
 - `Tendencies`
-  - Parses `SurfaceRestoring.TracersToRestore` and resolves tracer indices
+  - Parses `SrfRestoring.TracersToRestore` and resolves tracer indices
   - Builds `TracerIdsToRestore` and `NTracersToRestore`
   - Applies tracer-selection logic at call site in
     `computeTracerTendenciesOnly`
@@ -116,9 +116,9 @@ the surface layer pseudo-thickness.
 
 ### Surface tracer restoring config coupling
 
-- `Omega.SurfaceRestoring.PistonVelocity`
+- `Omega.SrfRestoring.PistonVelocity`
   - tendency scaling
-- `Omega.SurfaceRestoring.TracersToRestore`
+- `Omega.SrfRestoring.TracersToRestore`
   - tracer-level enable list used to build `TracerIdsToRestore`
 - `Omega.Tendencies.SurfaceTracerRestoringEnable`
   - gates restoring tendency execution

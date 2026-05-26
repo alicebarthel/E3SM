@@ -18,14 +18,14 @@ Wind forcing behavior is controlled by two configuration blocks:
 
 ```yaml
 Omega:
-  WindStress:
+  SrfStress:
     InterpType: Isotropic
 
   Tendencies:
     SrfStressForcingTendencyEnable: true
 ```
 
-- `WindStress.InterpType`
+- `SrfStress.InterpType`
   - `Isotropic`: isotropic cell-to-edge interpolation for wind stress
   - `Anisotropic`: anisotropic interpolation option
 - `Tendencies.SrfStressForcingTendencyEnable`: switch to enable wind forcing tendency
@@ -119,7 +119,7 @@ Surface tracer restoring is controlled by two configuration blocks:
 
 ```yaml
 Omega:
-  SurfaceRestoring:
+  SrfRestoring:
     TracersToRestore: [Temperature, Salinity]
     PistonVelocity: 1.585e-5
 
