@@ -51,8 +51,8 @@ Omega:
     SurfaceTracerRestoringEnable: false
     BottomDragTendencyEnable: false
     BottomDragCoeff: 0.0
-    CplFluxThicknessTendencyEnable: false
-    CplFluxTracerTendencyEnable: false
+    SrfThicknessForcingTendencyEnable: false
+    SrfTracerForcingTendencyEnable: false
     TracerHorzAdvTendencyEnable: true
     TracerDiffTendencyEnable: true
     EddyDiff2: 10.0

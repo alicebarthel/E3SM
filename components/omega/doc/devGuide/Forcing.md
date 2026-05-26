@@ -68,10 +68,10 @@ the surface layer pseudo-thickness.
   - Stores 13 coupled flux cell-centered fields: 7 freshwater fluxes and 6 heat
     fluxes, plus 1 salt flux component
   - Fields initialized to zero and registered in `CplForcing` field group
-- `CplFluxThicknessOnCell` tendency term
+- `SrfThicknessForcingOnCell` tendency term
   - Computes freshwater flux contribution: $\sum (\text{SnowFlux} + \text{RainFlux} + \text{EvaporationFlux} + \text{SeaIceFreshWaterFlux} + \text{IceRunoffFlux} + \text{RiverRunoffFlux} + \text{SeaIceSaltFlux}) / \rho_{sw}$
   - Applied only at surface layer (top active layer) using `MinLayerCell`
-- `CplFluxTracerOnCell` tendency term
+- `SrfTracerForcingOnCell` tendency term
   - For temperature: computes heat flux minus latent heat of fusion contribution: $(\sum \text{HeatFluxes} - (\text{SnowFlux} + \text{IceRunoffFlux}) L_i) \times H_{\text{FluxFac}}$
   - For salinity: applies salt flux with unit conversion: $\text{SeaIceSaltFlux} \times S_{\text{FluxFac}}$
   - Applied only at surface layer using `MinLayerCell`
@@ -79,15 +79,15 @@ the surface layer pseudo-thickness.
 - `AuxiliaryState::computeAuxVars`
   - Manages `CplForcingAuxVars` instance
 - `Tendencies`
-  - Calls `CplFluxThicknessOnCell` in `computeThicknessTendenciesOnly`
-  - Calls `CplFluxTracerOnCell` in `computeTracerTendenciesOnly` after surface tracer restoring
+  - Calls `SrfThicknessForcingOnCell` in `computeThicknessTendenciesOnly`
+  - Calls `SrfTracerForcingOnCell` in `computeTracerTendenciesOnly` after surface tracer restoring
 
 ### Coupled flux forcing config coupling
 
-- `Omega.Tendencies.CplFluxThicknessTendencyEnable`
+- `Omega.Tendencies.SrfThicknessForcingTendencyEnable`
   - gates execution of coupled flux thickness kernel
   - controls freshwater and salt flux forcing on sea surface height
-- `Omega.Tendencies.CplFluxTracerTendencyEnable`
+- `Omega.Tendencies.SrfTracerForcingTendencyEnable`
   - gates execution of coupled flux tracer kernel
   - controls heat flux forcing on temperature and salt flux forcing on salinity
 

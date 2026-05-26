@@ -53,12 +53,12 @@ Coupled flux forcing is controlled by two configuration flags:
 ```yaml
 Omega:
   Tendencies:
-    CplFluxThicknessTendencyEnable: false
-    CplFluxTracerTendencyEnable: false
+    SrfThicknessForcingTendencyEnable: false
+    SrfTracerForcingTendencyEnable: false
 ```
 
-- `Tendencies.CplFluxThicknessTendencyEnable`: enables coupled freshwater and salt flux forcing on thickness
-- `Tendencies.CplFluxTracerTendencyEnable`: enables coupled heat and salt flux forcing on tracers
+- `Tendencies.SrfThicknessForcingTendencyEnable`: enables coupled freshwater and salt flux forcing on thickness
+- `Tendencies.SrfTracerForcingTendencyEnable`: enables coupled heat and salt flux forcing on tracers
 
 ### Required input fields
 

@@ -364,11 +364,11 @@ class BottomDragOnEdge {
 };
 
 /// Coupled freshwater flux forcing for thickness equation.
-class CplFluxThicknessOnCell {
+class SrfThicknessForcingOnCell {
  public:
    bool Enabled = false;
 
-   CplFluxThicknessOnCell(const HorzMesh *Mesh, const VertCoord *VCoord);
+   SrfThicknessForcingOnCell(const HorzMesh *Mesh, const VertCoord *VCoord);
 
    KOKKOS_FUNCTION void operator()(const Array2DReal &Tend, I4 ICell,
                                    const Array1DReal &SnowFlux,
@@ -398,12 +398,12 @@ class CplFluxThicknessOnCell {
 };
 
 /// Coupled surface flux forcing for active tracers.
-class CplFluxTracerOnCell {
+class SrfTracerForcingOnCell {
  public:
    bool Enabled = false;
 
-   CplFluxTracerOnCell(const HorzMesh *Mesh, const VertCoord *VCoord,
-                       I4 TempTracerIndex, I4 SaltTracerIndex);
+   SrfTracerForcingOnCell(const HorzMesh *Mesh, const VertCoord *VCoord,
+                          I4 TempTracerIndex, I4 SaltTracerIndex);
 
    KOKKOS_FUNCTION void operator()(const Array3DReal &Tend, I4 ICell,
                                    const Array1DReal &LatentHeatFlux,

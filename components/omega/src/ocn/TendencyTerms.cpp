@@ -71,13 +71,14 @@ BottomDragOnEdge::BottomDragOnEdge(const HorzMesh *Mesh,
       NVertLayers(VCoord->NVertLayers), EdgeMask(VCoord->EdgeMask),
       MaxLayerEdgeTop(VCoord->MaxLayerEdgeTop) {}
 
-CplFluxThicknessOnCell::CplFluxThicknessOnCell(const HorzMesh *Mesh,
-                                               const VertCoord *VCoord)
+SrfThicknessForcingOnCell::SrfThicknessForcingOnCell(const HorzMesh *Mesh,
+                                                     const VertCoord *VCoord)
     : MinLayerCell(VCoord->MinLayerCell), MaxLayerCell(VCoord->MaxLayerCell) {}
 
-CplFluxTracerOnCell::CplFluxTracerOnCell(const HorzMesh *Mesh,
-                                         const VertCoord *VCoord,
-                                         I4 TempTracerIndex, I4 SaltTracerIndex)
+SrfTracerForcingOnCell::SrfTracerForcingOnCell(const HorzMesh *Mesh,
+                                               const VertCoord *VCoord,
+                                               I4 TempTracerIndex,
+                                               I4 SaltTracerIndex)
     : TempIndex(TempTracerIndex), SaltIndex(SaltTracerIndex),
       MinLayerCell(VCoord->MinLayerCell), MaxLayerCell(VCoord->MaxLayerCell) {}
 
