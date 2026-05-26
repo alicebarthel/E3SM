@@ -35,7 +35,7 @@ implemented:
 - `SSHGradOnEdge`
 - `VelocityDiffusionOnEdge`
 - `VelocityHyperDiffOnEdge`
-- `WindForcingOnEdge`
+- `SrfStressForcingOnEdge`
 - `BottomDragOnEdge`
 - `TracerHorzAdvOnCell`
 - `TracerHighOrderHorzAdvOnCell`

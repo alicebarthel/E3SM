@@ -26,7 +26,7 @@ pathways in Omega, currently this includes:
   - Applies configured interpolation choice (`InterpType`)
 - `AuxiliaryState::computeMomAux`
   - Calls `MomForcingAuxVars::computeVarsOnEdge`
-- `WindForcingOnEdge` tendency term
+- `SrfStressForcingOnEdge` tendency term
   - Adds contribution proportional to normal stress and inverse layer
     thickness in the surface layer
 

@@ -22,13 +22,13 @@ Omega:
     InterpType: Isotropic
 
   Tendencies:
-    WindForcingTendencyEnable: true
+    SrfStressForcingTendencyEnable: true
 ```
 
 - `WindStress.InterpType`
   - `Isotropic`: isotropic cell-to-edge interpolation for wind stress
   - `Anisotropic`: anisotropic interpolation option
-- `Tendencies.WindForcingTendencyEnable`: switch to enable wind forcing tendency
+- `Tendencies.SrfStressForcingTendencyEnable`: switch to enable wind forcing tendency
 
 ### Required input fields
 
