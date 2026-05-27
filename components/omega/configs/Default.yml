@@ -81,6 +81,10 @@ Omega:
       DRhoDT: -0.2
       DRhoDS: 0.8
       RhoT0S0: 1000.0
+  Frazil:
+    FrazilType: teos
+    massLimit: 0.1
+    phi: 0.75
   VertMix:
     Background:
       Diffusivity: 1.0e-5
