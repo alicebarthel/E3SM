@@ -99,9 +99,12 @@ class FrazilFormation {
       TTend = (h - solidMass - liquidMass) * CTnew - h * CT;
       STend = (h - solidMass - liquidMass) * SAnew - h * SA;
 
+      // these are not currently mass or energy, they all need a RhoSw factor
       AccMIce += solidMass;
       AccMLiq += liquidMass;
-      AccMSalt += liquidMass * SAnew;
+      AccMSalt +=
+          liquidMass * SAnew * PPt2Salt; // the PPt2Salt scaling could be moved
+                                         // to the coupler interaction
       AccELiq += liquidMass * Cp0Sw * CTnew;
       AccEIce += solidMass * gsw_pot_enthalpy_from_pt_ice_poly(CTnew);
    }
