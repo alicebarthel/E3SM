@@ -14,6 +14,12 @@ namespace OMEGA {
 Frazil *Frazil::DefaultFrazil = nullptr;
 std::map<std::string, std::unique_ptr<Frazil>> Frazil::AllFrazil;
 
+/// Constructor for FrazilFormation
+FrazilFormation::FrazilFormation() {}
+
+/// Constructor for FrazilMelt
+FrazilMelt::FrazilMelt() {}
+
 void Frazil::init() {
 
    if (!HorzMesh::getDefault() or !VertCoord::getDefault()) {
@@ -28,7 +34,8 @@ void Frazil::init() {
 Frazil::Frazil(const HorzMesh *Mesh, const VertCoord *VCoord)
     : frazilChoice(FrazilType::TeosFrazil), massLimit(0.1_Real), phi(0.75_Real),
       NCellsAll(Mesh->NCellsAll),
-      NChunks((VCoord->NVertLayers + VecLength - 1) / VecLength) {
+      NChunks((VCoord->NVertLayers + VecLength - 1) / VecLength), MeshPtr(Mesh),
+      VCoordPtr(VCoord), computeFrazilFormation(), computeFrazilMelt() {
 
    FrazilTTend =
        Array2DReal("FrazilTTend", Mesh->NCellsSize, VCoord->NVertLayers);
@@ -90,11 +97,12 @@ Frazil *Frazil::create(const std::string &Name) {
       ABORT_ERROR("Frazil::create: Unknown FrazilType requested");
    }
 
-   Err += FrazilConfig.get("massLimit", NewFrazil->massLimit);
+   Err += FrazilConfig.get("massLimit",
+                           NewFrazil->computeFrazilFormation.MassLimit);
    CHECK_ERROR_ABORT(Err,
                      "Frazil::create: massLimit not found in Frazil config");
 
-   Err += FrazilConfig.get("phi", NewFrazil->phi);
+   Err += FrazilConfig.get("phi", NewFrazil->computeFrazilFormation.Phi);
    CHECK_ERROR_ABORT(Err, "Frazil::create: phi not found in Frazil config");
 
    if (Name == "Default") {
@@ -129,16 +137,64 @@ void Frazil::clear() {
    DefaultFrazil = nullptr;
 }
 
-void Frazil::checkFrazil() {
-   // Placeholder for frazil consistency checks.
-}
+void Frazil::computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
+                           const Array2DReal &P, const Array2DReal &LayerH) {
+   OMEGA_SCOPE(MinLayerCell, VCoordPtr->MinLayerCell);
+   OMEGA_SCOPE(MaxLayerCell, VCoordPtr->MaxLayerCell);
 
-void Frazil::computeFrazilFormation() {
-   // Placeholder for frazil formation implementation.
-}
+   OMEGA_SCOPE(LocComputeFrazilFormation, computeFrazilFormation);
+   OMEGA_SCOPE(LocComputeFrazilMelt, computeFrazilMelt);
+   OMEGA_SCOPE(LocFrazilTTend, FrazilTTend);
+   OMEGA_SCOPE(LocFrazilSTend, FrazilSTend);
+   OMEGA_SCOPE(LocFrazilHTend, FrazilHTend);
+   OMEGA_SCOPE(LocAccMIce, AccMIce);
+   OMEGA_SCOPE(LocAccEIce, AccEIce);
+   OMEGA_SCOPE(LocAccMLiq, AccMLiq);
+   OMEGA_SCOPE(LocAccELiq, AccELiq);
+   OMEGA_SCOPE(LocAccMSalt, AccMSalt);
 
-void Frazil::computeFrazilMelt() {
-   // Placeholder for frazil melt implementation.
+   parallelFor(
+       {NCellsAll}, KOKKOS_LAMBDA(I4 ICell) {
+          const I4 KMin = MinLayerCell(ICell);
+          const I4 KMax = MaxLayerCell(ICell);
+
+          // Explicit accumulation order: bottom layer to top layer.
+          for (I4 K = KMax; K >= KMin; --K) {
+             const Real SAIn = SA(ICell, K);
+             const Real CTIn = CT(ICell, K);
+             const Real PIn  = P(ICell, K);
+             const Real H    = LayerH(ICell, K);
+
+             const Real Tfrz = gsw_ct_freezing_poly(SAIn, PIn, 0.0_Real);
+
+             Real HTend = 0.0_Real;
+             Real TTend = 0.0_Real;
+             Real STend = 0.0_Real;
+             Real Dt    = 1800.0_Real; // hard-coded for now (30min in s)
+
+             if (CTIn < Tfrz) {
+                LocComputeFrazilFormation(
+                    SAIn, CTIn, PIn, H, Dt, LocAccMIce(ICell),
+                    LocAccMLiq(ICell), LocAccMSalt(ICell), LocAccELiq(ICell),
+                    LocAccEIce(ICell), HTend, TTend, STend);
+             } else {
+                LocComputeFrazilMelt(LocAccMIce(ICell), LocAccMLiq(ICell),
+                                     LocAccMSalt(ICell), LocAccELiq(ICell),
+                                     LocAccEIce(ICell), HTend, TTend, STend);
+             }
+
+             // LocAccMIce(ICell) += solidMass;
+             // LocAccMLiq(ICell) += liquidMass;
+             // LocAccMSalt(ICell) += liquidMass * SAnew;
+             // LocAccELiq(ICell) += liquidMass * Cp0Sw * CTnew;
+             // LocAccEIce(ICell) +=
+             //     solidMass * gsw_pot_enthalpy_from_pt_ice_poly(CTnew);
+
+             LocFrazilHTend(ICell, K) = HTend;
+             LocFrazilTTend(ICell, K) = TTend;
+             LocFrazilSTend(ICell, K) = STend;
+          }
+       });
 }
 
 } // namespace OMEGA
