@@ -69,7 +69,6 @@ void testFrazilFormationCold() {
    const Real CTIn = -2.0_Real;
    const Real PIn  = 100.0_Real;
    const Real h    = 10.0_Real;
-   const Real Dt   = 1800.0_Real;
    const Real RTol = 1e-10_Real;
 
    (void)Mesh;
@@ -86,7 +85,7 @@ void testFrazilFormationCold() {
    Real TTend = 0.0_Real;
    Real STend = 0.0_Real;
 
-   ComputeFrazilFormation(SAIn, CTIn, PIn, h, Dt, AccMIce, AccMLiq, AccMSalt,
+   ComputeFrazilFormation(SAIn, CTIn, PIn, h, AccMIce, AccMLiq, AccMSalt,
                           AccELiq, AccEIce, HTend, TTend, STend);
 
    if (AccMIce <= 0.0_Real) {
@@ -138,7 +137,6 @@ void testFrazilFormationWarm() {
    const Real CTIn = 10.0_Real;
    const Real PIn  = 100.0_Real;
    const Real h    = 10.0_Real;
-   const Real Dt   = 1800.0_Real;
    const Real RTol = 1e-10_Real;
 
    (void)Mesh;
@@ -155,7 +153,7 @@ void testFrazilFormationWarm() {
    Real TTend = 0.0_Real;
    Real STend = 0.0_Real;
 
-   ComputeFrazilFormation(SAIn, CTIn, PIn, h, Dt, AccMIce, AccMLiq, AccMSalt,
+   ComputeFrazilFormation(SAIn, CTIn, PIn, h, AccMIce, AccMLiq, AccMSalt,
                           AccELiq, AccEIce, HTend, TTend, STend);
 
    if (!isApprox(AccMIce, 0.0_Real, RTol)) {
@@ -191,10 +189,110 @@ void testFrazilFormationWarm() {
             AccMIce, AccMLiq, AccMSalt, AccELiq, AccEIce, HTend, TTend, STend);
 }
 
+void testComputeFrazilColumn() {
+   const auto Mesh   = HorzMesh::getDefault();
+   const auto VCoord = VertCoord::getDefault();
+   auto *TestFrazil  = Frazil::getDefault();
+
+   if (!TestFrazil) {
+      ABORT_ERROR("FrazilTestColumn: default frazil object is null");
+   }
+
+   const Real RTol   = 1e-10_Real;
+   const Real SACold = 35.0_Real;
+   const Real PRef   = 100.0_Real;
+   const Real HRef   = 10.0_Real;
+   const Real CTCold = -2.0_Real;
+   const Real CTWarm = 10.0_Real;
+
+   Array2DReal SA("SA", Mesh->NCellsSize, NVertLayers);
+   Array2DReal CT("CT", Mesh->NCellsSize, NVertLayers);
+   Array2DReal P("P", Mesh->NCellsSize, NVertLayers);
+   Array2DReal H("H", Mesh->NCellsSize, NVertLayers);
+
+   deepCopy(SA, SACold);
+   deepCopy(CT, CTWarm);
+   deepCopy(P, PRef);
+   deepCopy(H, HRef);
+
+   deepCopy(TestFrazil->AccMIce, 0.0_Real);
+   deepCopy(TestFrazil->AccMLiq, 0.0_Real);
+   deepCopy(TestFrazil->AccMSalt, 0.0_Real);
+   deepCopy(TestFrazil->AccELiq, 0.0_Real);
+   deepCopy(TestFrazil->AccEIce, 0.0_Real);
+   deepCopy(TestFrazil->FrazilHTend, 0.0_Real);
+   deepCopy(TestFrazil->FrazilTTend, 0.0_Real);
+   deepCopy(TestFrazil->FrazilSTend, 0.0_Real);
+
+   auto MinLayerCellH = createHostMirrorCopy(VCoord->MinLayerCell);
+   auto MaxLayerCellH = createHostMirrorCopy(VCoord->MaxLayerCell);
+
+   const I4 ICell = 0;
+   const I4 KMin  = MinLayerCellH(ICell);
+   const I4 KMax  = MaxLayerCellH(ICell);
+   if ((KMax - KMin + 1) < 4) {
+      ABORT_ERROR("FrazilTestColumn: cell {} has fewer than 4 active layers",
+                  ICell);
+   }
+
+   const I4 KBottom0 = KMax;
+   const I4 KBottom1 = KMax - 1;
+   const I4 KWarm    = KMax - 2;
+   const I4 KTopCold = KMax - 3;
+
+   auto CTH             = createHostMirrorCopy(CT);
+   CTH(ICell, KBottom0) = CTCold;
+   CTH(ICell, KBottom1) = CTCold;
+   CTH(ICell, KWarm)    = CTWarm;
+   CTH(ICell, KTopCold) = CTCold;
+   deepCopy(CT, CTH);
+
+   TestFrazil->computeFrazil(CT, SA, P, H);
+
+   auto HTendH = createHostMirrorCopy(TestFrazil->FrazilHTend);
+   auto TTendH = createHostMirrorCopy(TestFrazil->FrazilTTend);
+   auto STendH = createHostMirrorCopy(TestFrazil->FrazilSTend);
+
+   if (HTendH(ICell, KBottom0) >= 0.0_Real ||
+       TTendH(ICell, KBottom0) <= 0.0_Real ||
+       STendH(ICell, KBottom0) >= 0.0_Real) {
+      ABORT_ERROR(
+          "FrazilTestColumn: bottom cold layer sign check failed (HTend<0, "
+          "TTend>0, STend<0 expected)");
+   }
+
+   if (HTendH(ICell, KBottom1) >= 0.0_Real ||
+       TTendH(ICell, KBottom1) <= 0.0_Real ||
+       STendH(ICell, KBottom1) >= 0.0_Real) {
+      ABORT_ERROR(
+          "FrazilTestColumn: second cold layer sign check failed (HTend<0, "
+          "TTend>0, STend<0 expected)");
+   }
+
+   if (HTendH(ICell, KWarm) < 0.0_Real || TTendH(ICell, KWarm) > 0.0_Real ||
+       STendH(ICell, KWarm) < 0.0_Real) {
+      ABORT_ERROR("FrazilTestColumn: warm layer sign check failed (HTend>=0, "
+                  "TTend<=0, STend>=0 expected)");
+   }
+
+   if (HTendH(ICell, KTopCold) >= 0.0_Real ||
+       TTendH(ICell, KTopCold) <= 0.0_Real ||
+       STendH(ICell, KTopCold) >= 0.0_Real) {
+      ABORT_ERROR(
+          "FrazilTestColumn: top cold layer sign check failed (HTend<0, "
+          "TTend>0, STend<0 expected)");
+   }
+
+   LOG_INFO(
+       "FrazilTestColumn: XTend branch-switching checks passed for ICell={}",
+       ICell);
+}
+
 void frazilTest(const std::string &MeshFile = "OmegaMesh.nc") {
    initFrazilTest(MeshFile);
    testFrazilFormationCold();
    testFrazilFormationWarm();
+   testComputeFrazilColumn();
    finalizeFrazilTest();
 }
 
