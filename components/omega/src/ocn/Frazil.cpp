@@ -170,30 +170,36 @@ void Frazil::computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
              Real HTend = 0.0_Real;
              Real TTend = 0.0_Real;
              Real STend = 0.0_Real;
-             Real Dt    = 1800.0_Real; // hard-coded for now (30min in s)
 
              if (CTIn < Tfrz) {
-                LocComputeFrazilFormation(
-                    SAIn, CTIn, PIn, H, Dt, LocAccMIce(ICell),
-                    LocAccMLiq(ICell), LocAccMSalt(ICell), LocAccELiq(ICell),
-                    LocAccEIce(ICell), HTend, TTend, STend);
+                LocComputeFrazilFormation(SAIn, CTIn, PIn, H, LocAccMIce(ICell),
+                                          LocAccMLiq(ICell), LocAccMSalt(ICell),
+                                          LocAccELiq(ICell), LocAccEIce(ICell),
+                                          HTend, TTend, STend);
              } else {
-                LocComputeFrazilMelt(LocAccMIce(ICell), LocAccMLiq(ICell),
-                                     LocAccMSalt(ICell), LocAccELiq(ICell),
-                                     LocAccEIce(ICell), HTend, TTend, STend);
+                LocComputeFrazilMelt(SAIn, CTIn, PIn, H, LocAccMIce(ICell),
+                                     LocAccMLiq(ICell), LocAccMSalt(ICell),
+                                     LocAccELiq(ICell), LocAccEIce(ICell),
+                                     HTend, TTend, STend);
              }
 
-             // LocAccMIce(ICell) += solidMass;
-             // LocAccMLiq(ICell) += liquidMass;
-             // LocAccMSalt(ICell) += liquidMass * SAnew;
-             // LocAccELiq(ICell) += liquidMass * Cp0Sw * CTnew;
-             // LocAccEIce(ICell) +=
-             //     solidMass * gsw_pot_enthalpy_from_pt_ice_poly(CTnew);
+             // temporary log -- TBRemoved
+             LOG_INFO("computeFrazil cell={} K={} (cold={}) AccMIce={} "
+                      "AccMLiq={} AccMSalt={} AccELiq={} AccEIce={}",
+                      ICell, K, (CTIn < Tfrz), LocAccMIce(ICell),
+                      LocAccMLiq(ICell), LocAccMSalt(ICell), LocAccELiq(ICell),
+                      LocAccEIce(ICell));
 
-             LocFrazilHTend(ICell, K) = HTend;
+             LocFrazilHTend(ICell, K) = HTend; // not scaled by dt
              LocFrazilTTend(ICell, K) = TTend;
              LocFrazilSTend(ICell, K) = STend;
           }
+          // Convert to coupler units
+          LocAccMIce(ICell)  = LocAccMIce(ICell) * RhoSw;
+          LocAccMLiq(ICell)  = LocAccMLiq(ICell) * RhoSw;
+          LocAccMSalt(ICell) = LocAccMSalt(ICell) * RhoSw * PPt2Salt;
+          LocAccELiq(ICell)  = LocAccELiq(ICell) * RhoSw;
+          LocAccEIce(ICell)  = LocAccEIce(ICell) * RhoSw;
        });
 }
 
