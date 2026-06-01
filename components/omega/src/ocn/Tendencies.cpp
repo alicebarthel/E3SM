@@ -13,6 +13,7 @@
 #include "Eos.h"
 #include "Error.h"
 #include "Field.h"
+#include "Forcing.h"
 #include "OceanState.h"
 #include "PGrad.h"
 #include "Pacer.h"
@@ -620,7 +621,8 @@ void Tendencies::computeVelocityTendenciesOnly(
    Pacer::stop("Tend:computeVelocityVAdvTend", 2);
 
    // Compute wind forcing
-   const auto &NormalStressEdge = AuxState->WindForcingAux.NormalStressEdge;
+   const auto *ForcingState     = Forcing::getDefault();
+   const auto &NormalStressEdge = ForcingState->MomForcingAux.NormalStressEdge;
    const auto &MeanPseudoThickEdge =
        AuxState->PseudoThicknessAux.MeanPseudoThickEdge;
    if (LocWindForcing.Enabled) {

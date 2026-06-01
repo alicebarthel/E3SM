@@ -1,4 +1,4 @@
-#include "WindForcingAuxVars.h"
+#include "MomForcingAuxVars.h"
 #include "DataTypes.h"
 #include "Field.h"
 
@@ -6,8 +6,8 @@
 
 namespace OMEGA {
 
-WindForcingAuxVars::WindForcingAuxVars(const std::string &AuxStateSuffix,
-                                       const HorzMesh *Mesh)
+MomForcingAuxVars::MomForcingAuxVars(const std::string &AuxStateSuffix,
+                                     const HorzMesh *Mesh)
     : NormalStressEdge("NormalStressEdge" + AuxStateSuffix, Mesh->NEdgesSize),
       ZonalStressCell("WindStressZonal" + AuxStateSuffix, Mesh->NCellsSize),
       MeridStressCell("WindStressMeridional" + AuxStateSuffix,
@@ -15,12 +15,10 @@ WindForcingAuxVars::WindForcingAuxVars(const std::string &AuxStateSuffix,
       CellsOnEdge(Mesh->CellsOnEdge), AngleEdge(Mesh->AngleEdge), Interp(Mesh) {
 }
 
-void WindForcingAuxVars::registerFields(
-    const std::string &AuxGroupName, // name of Auxiliary field group
-    const std::string &MeshName      // name of horizontal mesh
+void MomForcingAuxVars::registerFields(
+    const std::string &MeshName // name of horizontal mesh
 ) const {
 
-   // Create fields
    const Real FillValue = -9.99e30;
    int NDims            = 1;
    std::vector<std::string> DimNames(NDims);
@@ -31,7 +29,6 @@ void WindForcingAuxVars::registerFields(
       DimSuffix = MeshName;
    }
 
-   // Zonal wind stress
    DimNames[0] = "NCells" + DimSuffix;
    auto ZonalStressCellField =
        Field::create(ZonalStressCell.label(),          // field name
@@ -40,12 +37,11 @@ void WindForcingAuxVars::registerFields(
                      "",                               // CF standard Name
                      std::numeric_limits<Real>::min(), // min valid value
                      std::numeric_limits<Real>::max(), // max valid value
-                     FillValue, // scalar for undefined entries
-                     NDims,     // number of dimensions
-                     DimNames   // dim names
+                     FillValue,                        // scalar for undefined
+                     NDims,                            // number of dimensions
+                     DimNames                          // dim names
        );
 
-   // Meridional wind stress
    auto MeridStressCellField =
        Field::create(MeridStressCell.label(),  // field name
                      "meridional wind stress", // long Name or description
@@ -53,21 +49,19 @@ void WindForcingAuxVars::registerFields(
                      "",                       // CF standard Name
                      std::numeric_limits<Real>::min(), // min valid value
                      std::numeric_limits<Real>::max(), // max valid value
-                     FillValue, // scalar used for undefined entries
-                     NDims,     // number of dimensions
-                     DimNames   // dimension names
+                     FillValue,                        // scalar used undefined
+                     NDims,                            // number of dimensions
+                     DimNames                          // dimension names
        );
 
-   // Add fields to FieldGroup
-   FieldGroup::addFieldToGroup(ZonalStressCell.label(), AuxGroupName);
-   FieldGroup::addFieldToGroup(MeridStressCell.label(), AuxGroupName);
+   FieldGroup::addFieldToGroup(ZonalStressCell.label(), "Forcing");
+   FieldGroup::addFieldToGroup(MeridStressCell.label(), "Forcing");
 
-   // Attach data
    ZonalStressCellField->attachData<Array1DReal>(ZonalStressCell);
    MeridStressCellField->attachData<Array1DReal>(MeridStressCell);
 }
 
-void WindForcingAuxVars::unregisterFields() const {
+void MomForcingAuxVars::unregisterFields() const {
    Field::destroy(ZonalStressCell.label());
    Field::destroy(MeridStressCell.label());
 }

@@ -1,6 +1,7 @@
 #include "AuxiliaryState.h"
 #include "Config.h"
 #include "Field.h"
+#include "Forcing.h"
 #include "Logging.h"
 #include "Pacer.h"
 #include "Tendencies.h"
@@ -27,7 +28,6 @@ AuxiliaryState::AuxiliaryState(const std::string &Name, const HorzMesh *Mesh,
       PseudoThicknessAux(stripDefault(Name), Mesh, VCoord),
       VorticityAux(stripDefault(Name), Mesh, VCoord),
       VelocityDel2Aux(stripDefault(Name), Mesh, VCoord),
-      WindForcingAux(stripDefault(Name), Mesh),
       SurfTracerRestAux(stripDefault(Name), Mesh, NTracers),
       TracerAux(stripDefault(Name), Mesh, VCoord, NTracers) {
 
@@ -43,7 +43,6 @@ AuxiliaryState::AuxiliaryState(const std::string &Name, const HorzMesh *Mesh,
    PseudoThicknessAux.registerFields(GroupName, AuxMeshName);
    VorticityAux.registerFields(GroupName, AuxMeshName);
    VelocityDel2Aux.registerFields(GroupName, AuxMeshName);
-   WindForcingAux.registerFields(GroupName, AuxMeshName);
    SurfTracerRestAux.registerFields(GroupName, AuxMeshName);
    TracerAux.registerFields(GroupName, AuxMeshName);
 }
@@ -55,7 +54,6 @@ AuxiliaryState::~AuxiliaryState() {
    PseudoThicknessAux.unregisterFields();
    VorticityAux.unregisterFields();
    VelocityDel2Aux.unregisterFields();
-   WindForcingAux.unregisterFields();
    SurfTracerRestAux.unregisterFields();
    TracerAux.unregisterFields();
 
@@ -117,7 +115,8 @@ void AuxiliaryState::computeMomAux(const OceanState *State,
    OMEGA_SCOPE(LocPseudoThicknessAux, PseudoThicknessAux);
    OMEGA_SCOPE(LocVorticityAux, VorticityAux);
    OMEGA_SCOPE(LocVelocityDel2Aux, VelocityDel2Aux);
-   OMEGA_SCOPE(LocWindForcingAux, WindForcingAux);
+
+   const auto *LocForcingState = Forcing::getDefault();
 
    OMEGA_SCOPE(MinLayerCell, VCoord->MinLayerCell);
    OMEGA_SCOPE(MaxLayerCell, VCoord->MaxLayerCell);
@@ -173,12 +172,7 @@ void AuxiliaryState::computeMomAux(const OceanState *State,
    const auto &VelocityDivCell = KineticAux.VelocityDivCell;
    const auto &RelVortVertex   = VorticityAux.RelVortVertex;
 
-   Pacer::start("AuxState:edgeAuxState1", 2);
-   parallelFor(
-       "edgeAuxState1", {Mesh->NEdgesAll}, KOKKOS_LAMBDA(int IEdge) {
-          LocWindForcingAux.computeVarsOnEdge(IEdge);
-       });
-   Pacer::stop("AuxState:edgeAuxState1", 2);
+   LocForcingState->computeMomForcingOnEdge();
 
    Pacer::start("AuxState:edgeAuxState2", 2);
    parallelForOuter(
@@ -343,6 +337,8 @@ AuxiliaryState *AuxiliaryState::create(const std::string &Name,
 // Create the default auxiliary state. Assumes that HorzMesh, VertCoord,
 // VertAdv, and Halo have been initialized.
 void AuxiliaryState::init() {
+   Forcing::init();
+
    const HorzMesh *DefMesh           = HorzMesh::getDefault();
    Halo *DefHalo                     = Halo::getDefault();
    VertCoord *DefVCoord              = VertCoord::getDefault();
@@ -416,22 +412,6 @@ void AuxiliaryState::readConfigOptions(Config *OmegaConfig) {
    } else {
       ABORT_ERROR("AuxiliaryState: Unknown FluxThicknessType requested");
    }
-
-   Config WindStressConfig("WindStress");
-   Err += OmegaConfig->get(WindStressConfig);
-
-   std::string WindStressInterpTypeStr;
-   Err += WindStressConfig.get("InterpType", WindStressInterpTypeStr);
-   CHECK_ERROR_ABORT(
-       Err, "AuxiliaryState: InterpType not found in WindStressConfig");
-
-   if (WindStressInterpTypeStr == "Isotropic") {
-      this->WindForcingAux.InterpChoice = InterpCellToEdgeOption::Isotropic;
-   } else if (WindStressInterpTypeStr == "Anisotropic") {
-      this->WindForcingAux.InterpChoice = InterpCellToEdgeOption::Anisotropic;
-   } else {
-      ABORT_ERROR("AuxiliaryState: Unknown InterpType requested");
-   }
 }
 
 //------------------------------------------------------------------------------
@@ -439,11 +419,6 @@ void AuxiliaryState::readConfigOptions(Config *OmegaConfig) {
 // Note that only non-computed auxiliary variables needs to be exchanged
 I4 AuxiliaryState::exchangeHalo() {
    I4 Err = 0;
-
-   Err +=
-       MeshHalo->exchangeFullArrayHalo(WindForcingAux.ZonalStressCell, OnCell);
-   Err +=
-       MeshHalo->exchangeFullArrayHalo(WindForcingAux.MeridStressCell, OnCell);
 
    // Performing halo exchange on individual tracers because full halo exchange
    // on a 2D array assumes the first dimension is the vertical

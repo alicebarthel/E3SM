@@ -14,6 +14,7 @@
 #include "Eos.h"
 #include "Error.h"
 #include "Field.h"
+#include "Forcing.h"
 #include "Halo.h"
 #include "HorzMesh.h"
 #include "IO.h"
@@ -150,6 +151,9 @@ int ocnInit(MPI_Comm Comm ///< [in] ocean MPI communicator
    DefState->exchangeHalo(CurTimeLevel);
    DefState->copyToHost(CurTimeLevel);
 
+   Forcing *DefForcing = Forcing::getDefault();
+   DefForcing->exchangeHalo();
+
    AuxiliaryState *DefAuxState = AuxiliaryState::getDefault();
    DefAuxState->exchangeHalo();
 
@@ -192,6 +196,7 @@ static int initOmegaModulesImpl(MPI_Comm Comm) {
    VertCoord::init();
    Tracers::init();
    VertAdv::init();
+   Forcing::init();
    AuxiliaryState::init();
    Eos::init();
    PressureGrad::init();
