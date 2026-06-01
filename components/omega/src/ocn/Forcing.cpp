@@ -91,23 +91,23 @@ void Forcing::clear() {
 void Forcing::readConfigOptions(Config *OmegaConfig) {
    Error Err;
 
-   Config WindStressConfig("WindStress");
-   Err += OmegaConfig->get(WindStressConfig);
+   Config SrfStressConfig("SrfStress");
+   Err += OmegaConfig->get(SrfStressConfig);
 
-   std::string WindStressInterpTypeStr;
-   Err += WindStressConfig.get("InterpType", WindStressInterpTypeStr);
-   CHECK_ERROR_ABORT(Err, "Forcing: InterpType not found in WindStressConfig");
+   std::string SrfStressInterpTypeStr;
+   Err += SrfStressConfig.get("InterpType", SrfStressInterpTypeStr);
+   CHECK_ERROR_ABORT(Err, "Forcing: InterpType not found in SrfStressConfig");
 
-   if (WindStressInterpTypeStr == "Isotropic") {
+   if (SrfStressInterpTypeStr == "Isotropic") {
       this->MomForcingAux.InterpChoice = InterpCellToEdgeOption::Isotropic;
-   } else if (WindStressInterpTypeStr == "Anisotropic") {
+   } else if (SrfStressInterpTypeStr == "Anisotropic") {
       this->MomForcingAux.InterpChoice = InterpCellToEdgeOption::Anisotropic;
    } else {
       ABORT_ERROR("Forcing: Unknown InterpType requested");
    }
 }
 
-void Forcing::computeMomForcingOnEdge() const {
+void Forcing::computeSrfStressForcingOnEdge() const {
    OMEGA_SCOPE(LocMomForcingAux, MomForcingAux);
 
    Pacer::start("Forcing:edgeAuxState1", 2);

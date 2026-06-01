@@ -42,7 +42,7 @@ class Forcing {
 
    void unregisterFields() const;
 
-   void computeMomForcingOnEdge() const;
+   void computeSrfStressForcingOnEdge() const;
 
    I4 exchangeHalo() const;
 

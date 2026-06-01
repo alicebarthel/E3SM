@@ -172,7 +172,7 @@ void AuxiliaryState::computeMomAux(const OceanState *State,
    const auto &VelocityDivCell = KineticAux.VelocityDivCell;
    const auto &RelVortVertex   = VorticityAux.RelVortVertex;
 
-   LocForcingState->computeMomForcingOnEdge();
+   LocForcingState->computeSrfStressForcingOnEdge();
 
    Pacer::start("AuxState:edgeAuxState2", 2);
    parallelForOuter(

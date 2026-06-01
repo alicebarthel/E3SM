@@ -250,7 +250,7 @@ int initTimeStepperTest(const std::string &mesh) {
    TestTendencies->TracerHorzAdv.Enabled          = false;
    TestTendencies->TracerDiffusion.Enabled        = false;
    TestTendencies->TracerHyperDiff.Enabled        = false;
-   TestTendencies->WindForcing.Enabled            = false;
+   TestTendencies->SrfStressForcing.Enabled       = false;
    TestTendencies->SurfaceTracerRestoring.Enabled = false;
    TestTendencies->BottomDrag.Enabled             = false;
    DefVAdv->ThickVertAdvEnabled                   = false;

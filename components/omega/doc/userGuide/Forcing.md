@@ -17,24 +17,24 @@ Wind forcing behavior is controlled by two configuration blocks:
 
 ```yaml
 Omega:
-  WindStress:
+  SrfStress:
     InterpType: Isotropic
 
   Tendencies:
-    WindForcingTendencyEnable: true
+    SrfStressForcingTendencyEnable: true
 ```
 
-- `WindStress.InterpType`
+- `SrfStress.InterpType`
   - `Isotropic`: isotropic cell-to-edge interpolation for wind stress
   - `Anisotropic`: anisotropic interpolation option
-- `Tendencies.WindForcingTendencyEnable`: switch to enable wind forcing tendency
+- `Tendencies.SrfStressForcingTendencyEnable`: switch to enable wind forcing tendency
 
 ### Required input fields
 
 Wind forcing uses auxiliary wind-stress fields:
 
-- `WindStressZonal`
-- `WindStressMeridional`
+- `SrfStressZonal`
+- `SrfStressMeridional`
 
 These are used to form edge-normal stress (`NormalStressEdge`) that enters
 momentum tendencies.

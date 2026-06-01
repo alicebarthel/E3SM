@@ -13,27 +13,27 @@ pathways in Omega, currently this includes:
 ### Wind forcing data flow
 
 1. External fields provide:
-   - `WindStressZonal`
-   - `WindStressMeridional`
+   - `SrfStressZonal`
+   - `SrfStressMeridional`
 2. Auxiliary-state compute builds `NormalStressEdge` from those fields.
 3. Tendency term applies wind-stress forcing to edge-normal velocity tendency.
 
 ### Wind forcing key classes/components
 
-- `WindForcingAuxVars`
+- `MomForcingAuxVars`
   - Stores wind-stress cell fields and computed `NormalStressEdge`
   - Applies configured interpolation choice (`InterpType`)
 - `AuxiliaryState::computeMomAux`
-  - Calls `WindForcingAuxVars::computeVarsOnEdge`
-- `WindForcingOnEdge` tendency term
+  - Calls `MomForcingAuxVars::computeVarsOnEdge`
+- `SrfStressForcingOnEdge` tendency term
   - Adds contribution proportional to normal stress and inverse layer
     thickness in the surface layer
 
 ### Wind forcing config coupling
 
-- `Omega.WindStress.InterpType`
+- `Omega.SrfStress.InterpType`
   - mapped to `InterpCellToEdgeOption`
-- `Omega.Tendencies.WindForcingTendencyEnable`
+- `Omega.Tendencies.SrfStressForcingTendencyEnable`
   - gates execution of wind forcing tendency kernel
 
 ## Surface tracer restoring design

@@ -9,9 +9,8 @@ namespace OMEGA {
 MomForcingAuxVars::MomForcingAuxVars(const std::string &AuxStateSuffix,
                                      const HorzMesh *Mesh)
     : NormalStressEdge("NormalStressEdge" + AuxStateSuffix, Mesh->NEdgesSize),
-      ZonalStressCell("WindStressZonal" + AuxStateSuffix, Mesh->NCellsSize),
-      MeridStressCell("WindStressMeridional" + AuxStateSuffix,
-                      Mesh->NCellsSize),
+      ZonalStressCell("SrfStressZonal" + AuxStateSuffix, Mesh->NCellsSize),
+      MeridStressCell("SrfStressMeridional" + AuxStateSuffix, Mesh->NCellsSize),
       CellsOnEdge(Mesh->CellsOnEdge), AngleEdge(Mesh->AngleEdge), Interp(Mesh) {
 }
 

@@ -46,24 +46,24 @@ struct TestSetupPlane {
    Real Lx = 1;
    Real Ly = SqrtThree / 2;
 
-   ErrorMeasures ExpectedDivErrors         = {0.00124886886594453264,
-                                              0.00124886886590977139};
-   ErrorMeasures ExpectedPVErrors          = {0.00807347170900282914,
-                                              0.00794755105765788429};
-   ErrorMeasures ExpectedGradErrors        = {0.00125026071878537952,
-                                              0.00134354611117262161};
-   ErrorMeasures ExpectedLaplaceErrors     = {0.00113090174765822192,
-                                              0.00134324628763667899};
-   ErrorMeasures ExpectedTrHAdvErrors      = {0.0029211089892916243,
-                                              0.0024583038518548855};
-   ErrorMeasures ExpectedTrDel2Errors      = {0.00334357193650093847,
-                                              0.00290978146207349032};
-   ErrorMeasures ExpectedTrDel4Errors      = {0.00508833446725232875,
-                                              0.00523080740758275625};
-   ErrorMeasures ExpectedSurfTrRestErrors  = {0, 0};
-   ErrorMeasures ExpectedWindForcingErrors = {0, 0};
-   ErrorMeasures ExpectedBottomDragErrors  = {0.033848740052302935,
-                                              0.01000133508329411};
+   ErrorMeasures ExpectedDivErrors              = {0.00124886886594453264,
+                                                   0.00124886886590977139};
+   ErrorMeasures ExpectedPVErrors               = {0.00807347170900282914,
+                                                   0.00794755105765788429};
+   ErrorMeasures ExpectedGradErrors             = {0.00125026071878537952,
+                                                   0.00134354611117262161};
+   ErrorMeasures ExpectedLaplaceErrors          = {0.00113090174765822192,
+                                                   0.00134324628763667899};
+   ErrorMeasures ExpectedTrHAdvErrors           = {0.0029211089892916243,
+                                                   0.0024583038518548855};
+   ErrorMeasures ExpectedTrDel2Errors           = {0.00334357193650093847,
+                                                   0.00290978146207349032};
+   ErrorMeasures ExpectedTrDel4Errors           = {0.00508833446725232875,
+                                                   0.00523080740758275625};
+   ErrorMeasures ExpectedSurfTrRestErrors       = {0, 0};
+   ErrorMeasures ExpectedSrfStressForcingErrors = {0, 0};
+   ErrorMeasures ExpectedBottomDragErrors       = {0.033848740052302935,
+                                                   0.01000133508329411};
 
    KOKKOS_FUNCTION Real vectorX(Real X, Real Y) const {
       return std::sin(TwoPi * X / Lx) * std::cos(TwoPi * Y / Ly);
@@ -157,13 +157,13 @@ struct TestSetupPlane {
               std::cos(2 * TwoPi * Y / Ly) / Ly / Ly);
    }
 
-   KOKKOS_FUNCTION Real windForcingX(Real X, Real Y) const {
+   KOKKOS_FUNCTION Real srfStressForcingX(Real X, Real Y) const {
       const Real StressU = vectorX(X, Y);
       const Real Thick   = scalarB(X, Y);
       return StressU / (Thick * RhoSw);
    }
 
-   KOKKOS_FUNCTION Real windForcingY(Real X, Real Y) const {
+   KOKKOS_FUNCTION Real srfStressForcingY(Real X, Real Y) const {
       const Real StressV = vectorY(X, Y);
       const Real Thick   = scalarB(X, Y);
       return StressV / (Thick * RhoSw);
@@ -186,24 +186,24 @@ struct TestSetupSphere {
    // TODO: get this from the mesh
    Real Radius = REarth;
 
-   ErrorMeasures ExpectedDivErrors         = {0.013652414501664885,
-                                              0.0036904315983599676};
-   ErrorMeasures ExpectedPVErrors          = {0.0219217796608757037,
-                                              0.0122537418367830303};
-   ErrorMeasures ExpectedGradErrors        = {0.0019094381714837498,
-                                              0.0015218320661105702};
-   ErrorMeasures ExpectedLaplaceErrors     = {0.28193638497826856,
-                                              0.270546491554748};
-   ErrorMeasures ExpectedTrHAdvErrors      = {0.013259410329645643,
-                                              0.004094907022292395};
-   ErrorMeasures ExpectedTrDel2Errors      = {0.04865718541236144,
-                                              0.005105510870642706};
-   ErrorMeasures ExpectedTrDel4Errors      = {0.0008646345116716073,
-                                              0.0007118574326665881};
-   ErrorMeasures ExpectedSurfTrRestErrors  = {0, 0};
-   ErrorMeasures ExpectedWindForcingErrors = {0, 0};
-   ErrorMeasures ExpectedBottomDragErrors  = {0.0015333449035655053,
-                                              0.0014897009917655022};
+   ErrorMeasures ExpectedDivErrors              = {0.013652414501664885,
+                                                   0.0036904315983599676};
+   ErrorMeasures ExpectedPVErrors               = {0.0219217796608757037,
+                                                   0.0122537418367830303};
+   ErrorMeasures ExpectedGradErrors             = {0.0019094381714837498,
+                                                   0.0015218320661105702};
+   ErrorMeasures ExpectedLaplaceErrors          = {0.28193638497826856,
+                                                   0.270546491554748};
+   ErrorMeasures ExpectedTrHAdvErrors           = {0.013259410329645643,
+                                                   0.004094907022292395};
+   ErrorMeasures ExpectedTrDel2Errors           = {0.04865718541236144,
+                                                   0.005105510870642706};
+   ErrorMeasures ExpectedTrDel4Errors           = {0.0008646345116716073,
+                                                   0.0007118574326665881};
+   ErrorMeasures ExpectedSurfTrRestErrors       = {0, 0};
+   ErrorMeasures ExpectedSrfStressForcingErrors = {0, 0};
+   ErrorMeasures ExpectedBottomDragErrors       = {0.0015333449035655053,
+                                                   0.0014897009917655022};
 
    KOKKOS_FUNCTION Real vectorX(Real Lon, Real Lat) const {
       return -Radius * std::pow(std::sin(Lon), 2) * std::pow(std::cos(Lat), 3);
@@ -299,13 +299,13 @@ struct TestSetupSphere {
       return std::sqrt(3. / 2. / Pi) * std::cos(Lat) * std::cos(Lon) / Radius;
    }
 
-   KOKKOS_FUNCTION Real windForcingX(Real Lon, Real Lat) const {
+   KOKKOS_FUNCTION Real srfStressForcingX(Real Lon, Real Lat) const {
       const Real StressU = vectorX(Lon, Lat);
       const Real Thick   = scalarB(Lon, Lat);
       return StressU / (Thick * RhoSw);
    }
 
-   KOKKOS_FUNCTION Real windForcingY(Real Lon, Real Lat) const {
+   KOKKOS_FUNCTION Real srfStressForcingY(Real Lon, Real Lat) const {
       const Real StressV = vectorY(Lon, Lat);
       const Real Thick   = scalarB(Lon, Lat);
       return StressV / (Thick * RhoSw);
@@ -698,7 +698,7 @@ int testVelHyperDiff(int NVertLayers, Real RTol) {
    return Err;
 } // end testVelHyperDiff
 
-int testWindForcing(int NVertLayers) {
+int testSrfStressForcing(int NVertLayers) {
 
    int Err = 0;
    TestSetup Setup;
@@ -707,19 +707,20 @@ int testWindForcing(int NVertLayers) {
    const auto VCoord = VertCoord::getDefault();
 
    // Compute exact result
-   Array2DReal ExactWindForcing("ExactWindForcing", Mesh->NEdgesOwned,
-                                NVertLayers);
+   Array2DReal ExactSrfStressForcing("ExactSrfStressForcing", Mesh->NEdgesOwned,
+                                     NVertLayers);
 
    // Note: this computes wind forcing at every layer
    Err += setVectorEdge(
        KOKKOS_LAMBDA(Real(&VecField)[2], Real X, Real Y) {
-          VecField[0] = Setup.windForcingX(X, Y);
-          VecField[1] = Setup.windForcingY(X, Y);
+          VecField[0] = Setup.srfStressForcingX(X, Y);
+          VecField[1] = Setup.srfStressForcingY(X, Y);
        },
-       ExactWindForcing, EdgeComponent::Normal, Geom, Mesh, ExchangeHalos::No);
+       ExactSrfStressForcing, EdgeComponent::Normal, Geom, Mesh,
+       ExchangeHalos::No);
 
    // Reset wind forcing to zero below the surface
-   deepCopy(Kokkos::subview(ExactWindForcing, Kokkos::ALL,
+   deepCopy(Kokkos::subview(ExactSrfStressForcing, Kokkos::ALL,
                             Kokkos::make_pair(1, NVertLayers)),
             0);
 
@@ -741,29 +742,31 @@ int testWindForcing(int NVertLayers) {
        PseudoThickEdge, Geom, Mesh, OnEdge);
 
    // Compute numerical result
-   Array2DReal NumWindForcing("NumWindForcing", Mesh->NEdgesOwned, NVertLayers);
+   Array2DReal NumSrfStressForcing("NumSrfStressForcing", Mesh->NEdgesOwned,
+                                   NVertLayers);
 
-   WindForcingOnEdge WindForcingOnE(Mesh, VCoord);
+   SrfStressForcingOnEdge SrfStressForcingOnE(Mesh, VCoord);
 
    parallelFor(
        {Mesh->NEdgesOwned, NVertLayers}, KOKKOS_LAMBDA(int IEdge, int KLayer) {
-          WindForcingOnE(NumWindForcing, IEdge, KLayer, NormalStressEdge,
-                         PseudoThickEdge);
+          SrfStressForcingOnE(NumSrfStressForcing, IEdge, KLayer,
+                              NormalStressEdge, PseudoThickEdge);
        });
 
    // Compute errors
-   ErrorMeasures WindForcingErrors;
-   Err += computeErrors(WindForcingErrors, NumWindForcing, ExactWindForcing,
-                        Mesh, OnEdge);
+   ErrorMeasures SrfStressForcingErrors;
+   Err += computeErrors(SrfStressForcingErrors, NumSrfStressForcing,
+                        ExactSrfStressForcing, Mesh, OnEdge);
 
    // Check error values
    const Real RTol = 0;
    const Real ATol = 100 * std::numeric_limits<Real>::epsilon();
-   Err += checkErrors("TendencyTermsTest", "WindForcing", WindForcingErrors,
-                      Setup.ExpectedWindForcingErrors, RTol, ATol);
+   Err += checkErrors("TendencyTermsTest", "SrfStressForcing",
+                      SrfStressForcingErrors,
+                      Setup.ExpectedSrfStressForcingErrors, RTol, ATol);
 
    return Err;
-} // end testWindForcing
+} // end testSrfStressForcing
 
 int testBottomDrag(int NVertLayers, Real RTol) {
 
@@ -1208,7 +1211,7 @@ int tendencyTermsTest(const std::string &MeshFile = DefaultMeshFile) {
 
    Err += testVelHyperDiff(NVertLayers, RTol);
 
-   Err += testWindForcing(NVertLayers);
+   Err += testSrfStressForcing(NVertLayers);
 
    Err += testBottomDrag(NVertLayers, RTol);
 
