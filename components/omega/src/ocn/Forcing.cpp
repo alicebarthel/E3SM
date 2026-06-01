@@ -107,6 +107,8 @@ void Forcing::readConfigOptions(Config *OmegaConfig) {
    }
 }
 
+void Forcing::computeAll() const { computeSrfStressForcingOnEdge(); }
+
 void Forcing::computeSrfStressForcingOnEdge() const {
    OMEGA_SCOPE(LocMomForcingAux, MomForcingAux);
 
