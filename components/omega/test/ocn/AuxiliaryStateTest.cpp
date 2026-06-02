@@ -5,7 +5,6 @@
 #include "Dimension.h"
 #include "Eos.h"
 #include "Field.h"
-#include "Forcing.h"
 #include "GlobalConstants.h"
 #include "Halo.h"
 #include "HorzMesh.h"
@@ -326,7 +325,6 @@ void finalizeAuxStateTest() {
    OceanState::clear();
    VertAdv::clear();
    VertCoord::clear();
-   Forcing::clear();
    HorzMesh::clear();
    Field::clear();
    Dimension::clear();

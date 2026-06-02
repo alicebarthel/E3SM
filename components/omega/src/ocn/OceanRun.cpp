@@ -5,6 +5,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "Forcing.h"
 #include "IOStream.h"
 #include "OceanDriver.h"
 #include "OceanState.h"
@@ -22,6 +23,7 @@ int ocnRun(TimeInstant &CurrTime ///< [inout] current sim time
    // fetch default OceanState and TimeStepper
    OceanState *DefOceanState   = OceanState::getDefault();
    TimeStepper *DefTimeStepper = TimeStepper::getDefault();
+   Forcing *DefForcing         = Forcing::getDefault();
 
    // EndAlarm must be set before calling ocnRun
    OMEGA_REQUIRE(DefTimeStepper->hasEndAlarm(), "ocnRun: no EndAlarm");
@@ -43,6 +45,7 @@ int ocnRun(TimeInstant &CurrTime ///< [inout] current sim time
       ++IStep;
 
       // call forcing routines, anything needed pre-timestep
+      DefForcing->computeAll();
 
       // do forward time step
       // first call to doStep can sometimes take very long

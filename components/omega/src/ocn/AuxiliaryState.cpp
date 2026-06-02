@@ -1,7 +1,6 @@
 #include "AuxiliaryState.h"
 #include "Config.h"
 #include "Field.h"
-#include "Forcing.h"
 #include "Logging.h"
 #include "Pacer.h"
 #include "Tendencies.h"
@@ -116,8 +115,6 @@ void AuxiliaryState::computeMomAux(const OceanState *State,
    OMEGA_SCOPE(LocVorticityAux, VorticityAux);
    OMEGA_SCOPE(LocVelocityDel2Aux, VelocityDel2Aux);
 
-   const auto *LocForcingState = Forcing::getDefault();
-
    OMEGA_SCOPE(MinLayerCell, VCoord->MinLayerCell);
    OMEGA_SCOPE(MaxLayerCell, VCoord->MaxLayerCell);
    OMEGA_SCOPE(MinLayerVertexBot, VCoord->MinLayerVertexBot);
@@ -171,8 +168,6 @@ void AuxiliaryState::computeMomAux(const OceanState *State,
 
    const auto &VelocityDivCell = KineticAux.VelocityDivCell;
    const auto &RelVortVertex   = VorticityAux.RelVortVertex;
-
-   LocForcingState->computeAll();
 
    Pacer::start("AuxState:edgeAuxState2", 2);
    parallelForOuter(
@@ -337,8 +332,6 @@ AuxiliaryState *AuxiliaryState::create(const std::string &Name,
 // Create the default auxiliary state. Assumes that HorzMesh, VertCoord,
 // VertAdv, and Halo have been initialized.
 void AuxiliaryState::init() {
-   Forcing::init();
-
    const HorzMesh *DefMesh           = HorzMesh::getDefault();
    Halo *DefHalo                     = Halo::getDefault();
    VertCoord *DefVCoord              = VertCoord::getDefault();

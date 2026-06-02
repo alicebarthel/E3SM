@@ -3,7 +3,6 @@
 
 #include "Config.h"
 #include "DataTypes.h"
-#include "Forcing.h"
 #include "Halo.h"
 #include "HorzMesh.h"
 #include "OceanState.h"

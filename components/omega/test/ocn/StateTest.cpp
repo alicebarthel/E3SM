@@ -15,7 +15,6 @@
 #include "Dimension.h"
 #include "Error.h"
 #include "Field.h"
-#include "Forcing.h"
 #include "Halo.h"
 #include "HorzMesh.h"
 #include "IO.h"
@@ -408,7 +407,6 @@ int main(int argc, char *argv[]) {
       OceanState::clear();
       Tracers::clear();
       AuxiliaryState::clear();
-      Forcing::clear();
       PressureGrad::clear();
       Tendencies::clear();
       TimeStepper::clear();
