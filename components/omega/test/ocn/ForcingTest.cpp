@@ -137,13 +137,14 @@ int testForcingComputeAll() {
    auto &NormalStress    = DefForcing->MomForcingAux.NormalStressEdge;
    const auto AngleEdge  = Mesh->AngleEdge;
 
+   // First pass: pure zonal stress should project to cos(AngleEdge).
    deepCopy(ZonalStressCell, 1._Real);
    deepCopy(MeridStressCell, 0._Real);
    deepCopy(NormalStress, 0._Real);
 
    DefForcing->computeAll();
 
-   Real MaxErr = 0._Real;
+   Real MaxErrCos = 0._Real;
    parallelReduce(
        {Mesh->NEdgesOwned},
        KOKKOS_LAMBDA(int IEdge, Real &LocalMax) {
@@ -153,18 +154,44 @@ int testForcingComputeAll() {
              LocalMax = AbsErr;
           }
        },
-       Kokkos::Max<Real>(MaxErr));
+       Kokkos::Max<Real>(MaxErrCos));
 
-   Real GlobalMaxErr = 0._Real;
+   Real GlobalMaxErrCos = 0._Real;
    MPI_Datatype MpiReal =
        sizeof(Real) == sizeof(double) ? MPI_DOUBLE : MPI_FLOAT;
-   MPI_Allreduce(&MaxErr, &GlobalMaxErr, 1, MpiReal, MPI_MAX,
+   MPI_Allreduce(&MaxErrCos, &GlobalMaxErrCos, 1, MpiReal, MPI_MAX,
                  MachEnv::getDefault()->getComm());
 
-   const Real Tol = 1e-11;
-   if (GlobalMaxErr > Tol) {
-      LOG_ERROR("ForcingTest: normal stress mismatch, max error {} > tol {}",
-                GlobalMaxErr, Tol);
+   // Second pass: pure meridional stress should project to sin(AngleEdge).
+   deepCopy(ZonalStressCell, 0._Real);
+   deepCopy(MeridStressCell, 1._Real);
+   deepCopy(NormalStress, 0._Real);
+
+   DefForcing->computeAll();
+
+   Real MaxErrSin = 0._Real;
+   parallelReduce(
+       {Mesh->NEdgesOwned},
+       KOKKOS_LAMBDA(int IEdge, Real &LocalMax) {
+          const Real Expected = Kokkos::sin(AngleEdge(IEdge));
+          const Real AbsErr   = Kokkos::abs(NormalStress(IEdge) - Expected);
+          if (AbsErr > LocalMax) {
+             LocalMax = AbsErr;
+          }
+       },
+       Kokkos::Max<Real>(MaxErrSin));
+
+   Real GlobalMaxErrSin = 0._Real;
+   MPI_Allreduce(&MaxErrSin, &GlobalMaxErrSin, 1, MpiReal, MPI_MAX,
+                 MachEnv::getDefault()->getComm());
+
+   const Real Tol       = 1e-11;
+   const Real GlobalErr = Kokkos::max(GlobalMaxErrCos, GlobalMaxErrSin);
+   if (GlobalErr > Tol) {
+      LOG_ERROR(
+          "ForcingTest: normal stress mismatch in cos/sin checks, max error "
+          "{} > tol {}",
+          GlobalErr, Tol);
       Err++;
    }
 
