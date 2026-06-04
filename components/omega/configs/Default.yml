@@ -30,7 +30,7 @@ Omega:
     HorzTracerFluxOrder: 2
     VerticalTracerFluxLimiterEnable: true
     VerticalTracerFluxOrder: 3
-  SrfStress:
+  SfcStress:
     InterpType: Isotropic
   SurfaceRestoring:
     TracersToRestore: [Temperature, Salinity]
@@ -48,7 +48,7 @@ Omega:
     VelHyperDiffTendencyEnable: true
     ViscDel4: 1.2e11
     DivFactor: 1.0
-    SrfStressForcingTendencyEnable: false
+    SfcStressForcingTendencyEnable: false
     SurfaceTracerRestoringEnable: false
     BottomDragTendencyEnable: false
     BottomDragCoeff: 0.0

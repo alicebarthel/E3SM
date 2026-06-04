@@ -1,4 +1,4 @@
-#include "MomForcingAuxVars.h"
+#include "SfcStressForcingAuxVars.h"
 #include "DataTypes.h"
 #include "Field.h"
 
@@ -6,15 +6,15 @@
 
 namespace OMEGA {
 
-MomForcingAuxVars::MomForcingAuxVars(const std::string &AuxStateSuffix,
-                                     const HorzMesh *Mesh)
+SfcStressForcingAuxVars::SfcStressForcingAuxVars(
+    const std::string &AuxStateSuffix, const HorzMesh *Mesh)
     : NormalStressEdge("NormalStressEdge" + AuxStateSuffix, Mesh->NEdgesSize),
-      ZonalStressCell("SrfStressZonal" + AuxStateSuffix, Mesh->NCellsSize),
-      MeridStressCell("SrfStressMeridional" + AuxStateSuffix, Mesh->NCellsSize),
+      ZonalStressCell("SfcStressZonal" + AuxStateSuffix, Mesh->NCellsSize),
+      MeridStressCell("SfcStressMeridional" + AuxStateSuffix, Mesh->NCellsSize),
       CellsOnEdge(Mesh->CellsOnEdge), AngleEdge(Mesh->AngleEdge), Interp(Mesh) {
 }
 
-void MomForcingAuxVars::registerFields(
+void SfcStressForcingAuxVars::registerFields(
     const std::string &MeshName // name of horizontal mesh
 ) const {
 
@@ -60,7 +60,7 @@ void MomForcingAuxVars::registerFields(
    MeridStressCellField->attachData<Array1DReal>(MeridStressCell);
 }
 
-void MomForcingAuxVars::unregisterFields() const {
+void SfcStressForcingAuxVars::unregisterFields() const {
    Field::destroy(ZonalStressCell.label());
    Field::destroy(MeridStressCell.label());
 }

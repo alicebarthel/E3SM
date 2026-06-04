@@ -66,7 +66,7 @@ class Tendencies {
    SSHGradOnEdge SSHGrad;
    VelocityDiffusionOnEdge VelocityDiffusion;
    VelocityHyperDiffOnEdge VelocityHyperDiff;
-   SrfStressForcingOnEdge SrfStressForcing;
+   SfcStressForcingOnEdge SfcStressForcing;
    BottomDragOnEdge BottomDrag;
    TracerHorzAdvOnCell TracerHorzAdv;
    TracerDiffOnCell TracerDiffusion;

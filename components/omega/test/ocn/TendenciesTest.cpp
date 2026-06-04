@@ -232,15 +232,15 @@ int testTendencies() {
       return -1;
    }
 
-   auto &ZonalStressCell  = DefForcing->MomForcingAux.ZonalStressCell;
-   auto &MeridStressCell  = DefForcing->MomForcingAux.MeridStressCell;
-   auto &NormalStressEdge = DefForcing->MomForcingAux.NormalStressEdge;
+   auto &ZonalStressCell  = DefForcing->SfcStressForcingAux.ZonalStressCell;
+   auto &MeridStressCell  = DefForcing->SfcStressForcingAux.MeridStressCell;
+   auto &NormalStressEdge = DefForcing->SfcStressForcingAux.NormalStressEdge;
 
-   const bool OrigSrfStressEnabled = DefTendencies->SrfStressForcing.Enabled;
+   const bool OrigSfcStressEnabled = DefTendencies->SfcStressForcing.Enabled;
    Array2DReal BaselineNormalVelocityTend(
        "BaselineNormalVelocityTend", Mesh->NEdgesSize, VCoord->NVertLayers);
 
-   DefTendencies->SrfStressForcing.Enabled = false;
+   DefTendencies->SfcStressForcing.Enabled = false;
    DefTendencies->computeAllTendencies(State, AuxState, TracerArray,
                                        ThickTimeLevel, VelTimeLevel,
                                        TracerTimeLevel, Time, Interval);
@@ -250,7 +250,7 @@ int testTendencies() {
    deepCopy(DefTendencies->NormalVelocityTend, NAN);
    deepCopy(DefTendencies->TracerTend, NAN);
 
-   DefTendencies->SrfStressForcing.Enabled = true;
+   DefTendencies->SfcStressForcing.Enabled = true;
    deepCopy(ZonalStressCell, 1._Real);
    deepCopy(MeridStressCell, 0.5_Real);
    deepCopy(NormalStressEdge, NAN);
@@ -296,11 +296,11 @@ int testTendencies() {
    if (!Kokkos::isfinite(NormVelTendDelta) ||
        isApprox(NormVelTendDelta, 0._Real, 0._Real, DeltaATol)) {
       Err++;
-      LOG_ERROR("TendenciesTest: SrfStress forcing did not change "
+      LOG_ERROR("TendenciesTest: SfcStress forcing did not change "
                 "NormalVelocityTend");
    }
 
-   DefTendencies->SrfStressForcing.Enabled = OrigSrfStressEnabled;
+   DefTendencies->SfcStressForcing.Enabled = OrigSfcStressEnabled;
 
    // check that everything got computed correctly
    int NCellsOwned = Mesh->NCellsOwned;

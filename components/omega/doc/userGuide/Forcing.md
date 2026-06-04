@@ -17,24 +17,24 @@ Surface stress forcing behavior is controlled by two configuration blocks:
 
 ```yaml
 Omega:
-  SrfStress:
+  SfcStress:
     InterpType: Isotropic
 
   Tendencies:
-    SrfStressForcingTendencyEnable: true
+    SfcStressForcingTendencyEnable: true
 ```
 
-- `SrfStress.InterpType`
+- `SfcStress.InterpType`
   - `Isotropic`: isotropic cell-to-edge interpolation for surface stress
   - `Anisotropic`: anisotropic interpolation option
-- `Tendencies.SrfStressForcingTendencyEnable`: switch to enable surface stress forcing tendency
+- `Tendencies.SfcStressForcingTendencyEnable`: switch to enable surface stress forcing tendency
 
 ### Required input fields
 
 Surface stress forcing uses auxiliary stress fields:
 
-- `SrfStressZonal`
-- `SrfStressMeridional`
+- `SfcStressZonal`
+- `SfcStressMeridional`
 
 These are used to form edge-normal stress (`NormalStressEdge`) that enters
 momentum tendencies.

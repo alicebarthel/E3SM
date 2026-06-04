@@ -220,11 +220,11 @@ void Tendencies::readConfig(Config *OmegaConfig ///< [in] Omega config
    CHECK_ERROR_ABORT(
        Err, "Tendencies: TracerDiffTendencyEnable not found in TendConfig");
 
-   Err += TendConfig.get("SrfStressForcingTendencyEnable",
-                         this->SrfStressForcing.Enabled);
+   Err += TendConfig.get("SfcStressForcingTendencyEnable",
+                         this->SfcStressForcing.Enabled);
    CHECK_ERROR_ABORT(
        Err,
-       "Tendencies: SrfStressForcingTendencyEnable not found in TendConfig");
+       "Tendencies: SfcStressForcingTendencyEnable not found in TendConfig");
 
    Err += TendConfig.get("BottomDragTendencyEnable", this->BottomDrag.Enabled);
    CHECK_ERROR_ABORT(
@@ -380,7 +380,7 @@ Tendencies::Tendencies(const std::string &Name_, ///< [in] Name for tendencies
       PseudoThicknessFluxDiv(Mesh, VCoord), PotentialVortHAdv(Mesh, VCoord),
       KEGrad(Mesh, VCoord), SSHGrad(Mesh, VCoord),
       VelocityDiffusion(Mesh, VCoord), VelocityHyperDiff(Mesh, VCoord),
-      SrfStressForcing(Mesh, VCoord), BottomDrag(Mesh, VCoord),
+      SfcStressForcing(Mesh, VCoord), BottomDrag(Mesh, VCoord),
       TracerDiffusion(Mesh, VCoord), TracerHyperDiff(Mesh, VCoord),
       TracerHorzAdv(Mesh, VCoord), SurfaceTracerRestoring(Mesh),
       CustomThicknessTend(InCustomThicknessTend),
@@ -500,7 +500,7 @@ void Tendencies::computeVelocityTendenciesOnly(
    OMEGA_SCOPE(LocSSHGrad, SSHGrad);
    OMEGA_SCOPE(LocVelocityDiffusion, VelocityDiffusion);
    OMEGA_SCOPE(LocVelocityHyperDiff, VelocityHyperDiff);
-   OMEGA_SCOPE(LocSrfStressForcing, SrfStressForcing);
+   OMEGA_SCOPE(LocSfcStressForcing, SfcStressForcing);
    OMEGA_SCOPE(LocBottomDrag, BottomDrag);
    OMEGA_SCOPE(MinLayerEdgeBot, VCoord->MinLayerEdgeBot);
    OMEGA_SCOPE(MaxLayerEdgeTop, VCoord->MaxLayerEdgeTop);
@@ -622,12 +622,13 @@ void Tendencies::computeVelocityTendenciesOnly(
    Pacer::stop("Tend:computeVelocityVAdvTend", 2);
 
    // Compute wind forcing
-   const auto *ForcingState     = Forcing::getDefault();
-   const auto &NormalStressEdge = ForcingState->MomForcingAux.NormalStressEdge;
+   const auto *ForcingState = Forcing::getDefault();
+   const auto &NormalStressEdge =
+       ForcingState->SfcStressForcingAux.NormalStressEdge;
    const auto &MeanPseudoThickEdge =
        AuxState->PseudoThicknessAux.MeanPseudoThickEdge;
-   if (LocSrfStressForcing.Enabled) {
-      Pacer::start("Tend:srfStressForcing", 2);
+   if (LocSfcStressForcing.Enabled) {
+      Pacer::start("Tend:sfcStressForcing", 2);
       parallelForOuter(
           {Mesh->NEdgesAll}, KOKKOS_LAMBDA(int IEdge, const TeamMember &Team) {
              const int KMin   = MinLayerEdgeBot(IEdge);
@@ -635,11 +636,11 @@ void Tendencies::computeVelocityTendenciesOnly(
              const int KRange = vertRangeChunked(KMin, KMax);
              parallelForInner(
                  Team, KRange, INNER_LAMBDA(int KChunk) {
-                    LocSrfStressForcing(LocNormalVelocityTend, IEdge, KChunk,
+                    LocSfcStressForcing(LocNormalVelocityTend, IEdge, KChunk,
                                         NormalStressEdge, MeanPseudoThickEdge);
                  });
           });
-      Pacer::stop("Tend:srfStressForcing", 2);
+      Pacer::stop("Tend:sfcStressForcing", 2);
    }
 
    // Compute bottom drag

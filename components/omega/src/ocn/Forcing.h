@@ -5,7 +5,7 @@
 #include "DataTypes.h"
 #include "Halo.h"
 #include "HorzMesh.h"
-#include "auxiliaryVars/MomForcingAuxVars.h"
+#include "auxiliaryVars/SfcStressForcingAuxVars.h"
 
 #include <map>
 #include <memory>
@@ -17,7 +17,7 @@ class Forcing {
  public:
    std::string Name;
 
-   MomForcingAuxVars MomForcingAux;
+   SfcStressForcingAuxVars SfcStressForcingAux;
 
    ~Forcing();
 
@@ -44,7 +44,7 @@ class Forcing {
 
    void computeAll() const;
 
-   void computeSrfStressForcingOnEdge() const;
+   void computeSfcStressForcingOnEdge() const;
 
    I4 exchangeHalo() const;
 

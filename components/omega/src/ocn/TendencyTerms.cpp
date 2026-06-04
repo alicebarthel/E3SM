@@ -60,7 +60,7 @@ VelocityHyperDiffOnEdge::VelocityHyperDiffOnEdge(const HorzMesh *Mesh,
       MinLayerEdgeBot(VCoord->MinLayerEdgeBot),
       MaxLayerEdgeTop(VCoord->MaxLayerEdgeTop) {}
 
-SrfStressForcingOnEdge::SrfStressForcingOnEdge(const HorzMesh *Mesh,
+SfcStressForcingOnEdge::SfcStressForcingOnEdge(const HorzMesh *Mesh,
                                                const VertCoord *VCoord)
     : Enabled(false), EdgeMask(VCoord->EdgeMask),
       MinLayerEdgeBot(VCoord->MinLayerEdgeBot) {}

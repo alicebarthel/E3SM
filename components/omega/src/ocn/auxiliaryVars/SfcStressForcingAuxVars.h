@@ -10,14 +10,15 @@
 
 namespace OMEGA {
 
-class MomForcingAuxVars {
+class SfcStressForcingAuxVars {
  public:
    Array1DReal NormalStressEdge;
    Array1DReal ZonalStressCell;
    Array1DReal MeridStressCell;
    InterpCellToEdgeOption InterpChoice;
 
-   MomForcingAuxVars(const std::string &AuxStateSuffix, const HorzMesh *Mesh);
+   SfcStressForcingAuxVars(const std::string &AuxStateSuffix,
+                           const HorzMesh *Mesh);
 
    KOKKOS_FUNCTION void computeVarsOnEdge(int IEdge) const {
       const Real ZonalStressEdge = Interp(IEdge, ZonalStressCell, InterpChoice);

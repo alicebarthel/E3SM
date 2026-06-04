@@ -13,16 +13,18 @@ static std::string stripDefault(const std::string &Name) {
 }
 
 Forcing::Forcing(const std::string &Name, const HorzMesh *Mesh, Halo *MeshHalo)
-    : Name(stripDefault(Name)), MomForcingAux(stripDefault(Name), Mesh),
+    : Name(stripDefault(Name)), SfcStressForcingAux(stripDefault(Name), Mesh),
       Mesh(Mesh), MeshHalo(MeshHalo) {}
 
 Forcing::~Forcing() { unregisterFields(); }
 
 void Forcing::registerFields(const std::string &MeshName) const {
-   MomForcingAux.registerFields(MeshName);
+   SfcStressForcingAux.registerFields(MeshName);
 }
 
-void Forcing::unregisterFields() const { MomForcingAux.unregisterFields(); }
+void Forcing::unregisterFields() const {
+   SfcStressForcingAux.unregisterFields();
+}
 
 Forcing *Forcing::create(const std::string &Name, const HorzMesh *Mesh,
                          Halo *MeshHalo) {
@@ -91,41 +93,44 @@ void Forcing::clear() {
 void Forcing::readConfigOptions(Config *OmegaConfig) {
    Error Err;
 
-   Config SrfStressConfig("SrfStress");
-   Err += OmegaConfig->get(SrfStressConfig);
+   Config SfcStressConfig("SfcStress");
+   Err += OmegaConfig->get(SfcStressConfig);
 
-   std::string SrfStressInterpTypeStr;
-   Err += SrfStressConfig.get("InterpType", SrfStressInterpTypeStr);
-   CHECK_ERROR_ABORT(Err, "Forcing: InterpType not found in SrfStressConfig");
+   std::string SfcStressInterpTypeStr;
+   Err += SfcStressConfig.get("InterpType", SfcStressInterpTypeStr);
+   CHECK_ERROR_ABORT(Err, "Forcing: InterpType not found in SfcStressConfig");
 
-   if (SrfStressInterpTypeStr == "Isotropic") {
-      this->MomForcingAux.InterpChoice = InterpCellToEdgeOption::Isotropic;
-   } else if (SrfStressInterpTypeStr == "Anisotropic") {
-      this->MomForcingAux.InterpChoice = InterpCellToEdgeOption::Anisotropic;
+   if (SfcStressInterpTypeStr == "Isotropic") {
+      this->SfcStressForcingAux.InterpChoice =
+          InterpCellToEdgeOption::Isotropic;
+   } else if (SfcStressInterpTypeStr == "Anisotropic") {
+      this->SfcStressForcingAux.InterpChoice =
+          InterpCellToEdgeOption::Anisotropic;
    } else {
       ABORT_ERROR("Forcing: Unknown InterpType requested");
    }
 }
 
-void Forcing::computeAll() const { computeSrfStressForcingOnEdge(); }
+void Forcing::computeAll() const { computeSfcStressForcingOnEdge(); }
 
-void Forcing::computeSrfStressForcingOnEdge() const {
-   OMEGA_SCOPE(LocMomForcingAux, MomForcingAux);
+void Forcing::computeSfcStressForcingOnEdge() const {
+   OMEGA_SCOPE(LocSfcStressForcingAux, SfcStressForcingAux);
 
    Pacer::start("Forcing:edgeAuxState1", 2);
    parallelFor(
-       "Forcing:edgeAuxState1", {Mesh->NEdgesAll},
-       KOKKOS_LAMBDA(int IEdge) { LocMomForcingAux.computeVarsOnEdge(IEdge); });
+       "Forcing:edgeAuxState1", {Mesh->NEdgesAll}, KOKKOS_LAMBDA(int IEdge) {
+          LocSfcStressForcingAux.computeVarsOnEdge(IEdge);
+       });
    Pacer::stop("Forcing:edgeAuxState1", 2);
 }
 
 I4 Forcing::exchangeHalo() const {
    I4 Err = 0;
 
-   Err +=
-       MeshHalo->exchangeFullArrayHalo(MomForcingAux.ZonalStressCell, OnCell);
-   Err +=
-       MeshHalo->exchangeFullArrayHalo(MomForcingAux.MeridStressCell, OnCell);
+   Err += MeshHalo->exchangeFullArrayHalo(SfcStressForcingAux.ZonalStressCell,
+                                          OnCell);
+   Err += MeshHalo->exchangeFullArrayHalo(SfcStressForcingAux.MeridStressCell,
+                                          OnCell);
 
    return Err;
 }

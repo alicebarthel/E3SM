@@ -1,7 +1,7 @@
 //===-- ocn/ForcingTest.cpp - Forcing Unit Test ---------------*- C++ -*-===//
 //
 /// \file
-/// \brief Scoped tests for the Forcing class (SrfStress + MomForcingAux)
+/// \brief Scoped tests for the Forcing class (SfcStress + SfcStressForcingAux)
 //
 //===----------------------------------------------------------------------===//
 
@@ -92,13 +92,13 @@ int testForcingInitAndConfig() {
    }
 
    Error CfgErr;
-   Config SrfStressConfig("SrfStress");
-   CfgErr = OmegaConfig->get(SrfStressConfig);
-   CHECK_ERROR_ABORT(CfgErr, "ForcingTest: missing Omega.SrfStress config");
+   Config SfcStressConfig("SfcStress");
+   CfgErr = OmegaConfig->get(SfcStressConfig);
+   CHECK_ERROR_ABORT(CfgErr, "ForcingTest: missing Omega.SfcStress config");
 
    std::string InterpType;
-   CfgErr = SrfStressConfig.get("InterpType", InterpType);
-   CHECK_ERROR_ABORT(CfgErr, "ForcingTest: missing SrfStress.InterpType");
+   CfgErr = SfcStressConfig.get("InterpType", InterpType);
+   CHECK_ERROR_ABORT(CfgErr, "ForcingTest: missing SfcStress.InterpType");
 
    InterpCellToEdgeOption ExpectedChoice;
    if (InterpType == "Isotropic") {
@@ -110,7 +110,7 @@ int testForcingInitAndConfig() {
       return 1;
    }
 
-   if (DefForcing->MomForcingAux.InterpChoice != ExpectedChoice) {
+   if (DefForcing->SfcStressForcingAux.InterpChoice != ExpectedChoice) {
       LOG_ERROR("ForcingTest: InterpChoice mismatch after Forcing::init");
       Err++;
    }
@@ -132,9 +132,9 @@ int testForcingComputeAll() {
       return 1;
    }
 
-   auto &ZonalStressCell = DefForcing->MomForcingAux.ZonalStressCell;
-   auto &MeridStressCell = DefForcing->MomForcingAux.MeridStressCell;
-   auto &NormalStress    = DefForcing->MomForcingAux.NormalStressEdge;
+   auto &ZonalStressCell = DefForcing->SfcStressForcingAux.ZonalStressCell;
+   auto &MeridStressCell = DefForcing->SfcStressForcingAux.MeridStressCell;
+   auto &NormalStress    = DefForcing->SfcStressForcingAux.NormalStressEdge;
    const auto AngleEdge  = Mesh->AngleEdge;
 
    // First pass: pure zonal stress should project to cos(AngleEdge).

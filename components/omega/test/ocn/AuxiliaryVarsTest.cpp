@@ -15,8 +15,8 @@
 #include "Pacer.h"
 #include "VertCoord.h"
 #include "auxiliaryVars/KineticAuxVars.h"
-#include "auxiliaryVars/MomForcingAuxVars.h"
 #include "auxiliaryVars/PseudoThicknessAuxVars.h"
+#include "auxiliaryVars/SfcStressForcingAuxVars.h"
 #include "auxiliaryVars/TracerAuxVars.h"
 #include "auxiliaryVars/VelocityDel2AuxVars.h"
 #include "auxiliaryVars/VorticityAuxVars.h"
@@ -81,11 +81,11 @@ struct TestSetupPlane {
       return std::cos(TwoPi * X / Lx) * std::sin(TwoPi * Y / Ly);
    }
 
-   KOKKOS_FUNCTION Real srfStressX(Real X, Real Y) const {
+   KOKKOS_FUNCTION Real sfcStressX(Real X, Real Y) const {
       return std::cos(TwoPi * X / Lx) * std::sin(TwoPi * Y / Ly);
    }
 
-   KOKKOS_FUNCTION Real srfStressY(Real X, Real Y) const {
+   KOKKOS_FUNCTION Real sfcStressY(Real X, Real Y) const {
       return std::sin(TwoPi * X / Lx) * std::cos(TwoPi * Y / Ly);
    }
 
@@ -209,12 +209,12 @@ struct TestSetupSphere {
       return -4 * std::sin(Lon) * std::cos(Lon) * std::pow(std::cos(Lat), 3) *
              std::sin(Lat);
    }
-   KOKKOS_FUNCTION Real srfStressX(Real Lon, Real Lat) const {
+   KOKKOS_FUNCTION Real sfcStressX(Real Lon, Real Lat) const {
       return -4 * std::sin(Lon) * std::cos(Lon) * std::pow(std::cos(Lat), 3) *
              std::sin(Lat);
    }
 
-   KOKKOS_FUNCTION Real srfStressY(Real Lon, Real Lat) const {
+   KOKKOS_FUNCTION Real sfcStressY(Real Lon, Real Lat) const {
       return -std::pow(std::sin(Lon), 2) * std::pow(std::cos(Lat), 3);
    }
 
@@ -396,7 +396,7 @@ int testKineticAuxVars(const Array2DReal &PseudoThicknessCell,
    return Err;
 }
 
-int testMomForcingAuxVars(Real RTol) {
+int testSfcStressForcingAuxVars(Real RTol) {
    int Err = 0;
    TestSetup Setup;
 
@@ -408,29 +408,30 @@ int testMomForcingAuxVars(Real RTol) {
                                      Mesh->NEdgesOwned);
    Err += setVectorEdge(
        KOKKOS_LAMBDA(Real(&VecField)[2], Real X, Real Y) {
-          VecField[0] = Setup.srfStressX(X, Y);
-          VecField[1] = Setup.srfStressY(X, Y);
+          VecField[0] = Setup.sfcStressX(X, Y);
+          VecField[1] = Setup.sfcStressY(X, Y);
        },
        ExactNormalStressEdge, EdgeComponent::Normal, Geom, Mesh,
        ExchangeHalos::No);
 
-   MomForcingAuxVars MomForcingAux("", Mesh);
-   MomForcingAux.InterpChoice = InterpCellToEdgeOption::Anisotropic;
+   SfcStressForcingAuxVars SfcStressForcingAux("", Mesh);
+   SfcStressForcingAux.InterpChoice = InterpCellToEdgeOption::Anisotropic;
 
    // Set inputs
    Err += setScalar(
-       KOKKOS_LAMBDA(Real X, Real Y) { return Setup.srfStressX(X, Y); },
-       MomForcingAux.ZonalStressCell, Geom, Mesh, OnCell);
+       KOKKOS_LAMBDA(Real X, Real Y) { return Setup.sfcStressX(X, Y); },
+       SfcStressForcingAux.ZonalStressCell, Geom, Mesh, OnCell);
 
    Err += setScalar(
-       KOKKOS_LAMBDA(Real X, Real Y) { return Setup.srfStressY(X, Y); },
-       MomForcingAux.MeridStressCell, Geom, Mesh, OnCell);
+       KOKKOS_LAMBDA(Real X, Real Y) { return Setup.sfcStressY(X, Y); },
+       SfcStressForcingAux.MeridStressCell, Geom, Mesh, OnCell);
 
    // Compute numerical result
    parallelFor(
-       {Mesh->NEdgesOwned},
-       KOKKOS_LAMBDA(int IEdge) { MomForcingAux.computeVarsOnEdge(IEdge); });
-   const auto &NumNormalStressEdge = MomForcingAux.NormalStressEdge;
+       {Mesh->NEdgesOwned}, KOKKOS_LAMBDA(int IEdge) {
+          SfcStressForcingAux.computeVarsOnEdge(IEdge);
+       });
+   const auto &NumNormalStressEdge = SfcStressForcingAux.NormalStressEdge;
 
    // Compute error measures and check error values
    ErrorMeasures NormalStressErrors;
@@ -441,7 +442,7 @@ int testMomForcingAuxVars(Real RTol) {
                       Setup.ExpectedNormalStressErrors, RTol);
 
    if (Err == 0) {
-      LOG_INFO("AuxVarsTest: MomForcingAuxVars PASS");
+      LOG_INFO("AuxVarsTest: SfcStressForcingAuxVars PASS");
    }
 
    return Err;
@@ -858,7 +859,7 @@ int auxVarsTest(const std::string &mesh = DefaultMeshFile) {
 
    Err += testTracerAuxVars(PseudoThickCell, NormalVelEdge, RTol);
 
-   Err += testMomForcingAuxVars(RTol);
+   Err += testSfcStressForcingAuxVars(RTol);
 
    if (Err == 0) {
       LOG_INFO("AuxVarsTest: Successful completion");

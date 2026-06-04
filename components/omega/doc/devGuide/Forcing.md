@@ -13,27 +13,27 @@ pathways in Omega, currently this includes:
 ### Surface stress forcing data flow
 
 1. External fields provide:
-   - `SrfStressZonal`
-   - `SrfStressMeridional`
+   - `SfcStressZonal`
+   - `SfcStressMeridional`
 2. Auxiliary-state compute builds `NormalStressEdge` from those fields.
 3. Tendency term applies surface stress forcing to edge-normal velocity tendency.
 
 ### Surface stress forcing key classes/components
 
-- `MomForcingAuxVars`
+- `SfcStressForcingAuxVars`
   - Stores surface stress cell fields and computed `NormalStressEdge`
   - Applies configured interpolation choice (`InterpType`)
 - `AuxiliaryState::computeMomAux`
-  - Calls `MomForcingAuxVars::computeVarsOnEdge`
-- `SrfStressForcingOnEdge` tendency term
+  - Calls `SfcStressForcingAuxVars::computeVarsOnEdge`
+- `SfcStressForcingOnEdge` tendency term
   - Adds contribution proportional to normal stress and inverse layer
     thickness in the surface layer
 
 ### Surface stress forcing config coupling
 
-- `Omega.SrfStress.InterpType`
+- `Omega.SfcStress.InterpType`
   - mapped to `InterpCellToEdgeOption`
-- `Omega.Tendencies.SrfStressForcingTendencyEnable`
+- `Omega.Tendencies.SfcStressForcingTendencyEnable`
   - gates execution of surface stress forcing tendency kernel
 
 ## Surface tracer restoring design

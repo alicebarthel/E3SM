@@ -302,12 +302,12 @@ class VelocityHyperDiffOnEdge {
 };
 
 /// Wind forcing
-class SrfStressForcingOnEdge {
+class SfcStressForcingOnEdge {
  public:
    bool Enabled = false;
 
    /// constructor declaration
-   SrfStressForcingOnEdge(const HorzMesh *Mesh, const VertCoord *VCoord);
+   SfcStressForcingOnEdge(const HorzMesh *Mesh, const VertCoord *VCoord);
 
    /// The functor takes the edge index, vertical chunk index, and arrays for
    /// normal wind stress and edge pseudo-thickness, outputs tendency array

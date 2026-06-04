@@ -61,7 +61,7 @@ struct TestSetupPlane {
    ErrorMeasures ExpectedTrDel4Errors           = {0.00508833446725232875,
                                                    0.00523080740758275625};
    ErrorMeasures ExpectedSurfTrRestErrors       = {0, 0};
-   ErrorMeasures ExpectedSrfStressForcingErrors = {0, 0};
+   ErrorMeasures ExpectedSfcStressForcingErrors = {0, 0};
    ErrorMeasures ExpectedBottomDragErrors       = {0.033848740052302935,
                                                    0.01000133508329411};
 
@@ -157,13 +157,13 @@ struct TestSetupPlane {
               std::cos(2 * TwoPi * Y / Ly) / Ly / Ly);
    }
 
-   KOKKOS_FUNCTION Real srfStressForcingX(Real X, Real Y) const {
+   KOKKOS_FUNCTION Real sfcStressForcingX(Real X, Real Y) const {
       const Real StressU = vectorX(X, Y);
       const Real Thick   = scalarB(X, Y);
       return StressU / (Thick * RhoSw);
    }
 
-   KOKKOS_FUNCTION Real srfStressForcingY(Real X, Real Y) const {
+   KOKKOS_FUNCTION Real sfcStressForcingY(Real X, Real Y) const {
       const Real StressV = vectorY(X, Y);
       const Real Thick   = scalarB(X, Y);
       return StressV / (Thick * RhoSw);
@@ -201,7 +201,7 @@ struct TestSetupSphere {
    ErrorMeasures ExpectedTrDel4Errors           = {0.0008646345116716073,
                                                    0.0007118574326665881};
    ErrorMeasures ExpectedSurfTrRestErrors       = {0, 0};
-   ErrorMeasures ExpectedSrfStressForcingErrors = {0, 0};
+   ErrorMeasures ExpectedSfcStressForcingErrors = {0, 0};
    ErrorMeasures ExpectedBottomDragErrors       = {0.0015333449035655053,
                                                    0.0014897009917655022};
 
@@ -299,13 +299,13 @@ struct TestSetupSphere {
       return std::sqrt(3. / 2. / Pi) * std::cos(Lat) * std::cos(Lon) / Radius;
    }
 
-   KOKKOS_FUNCTION Real srfStressForcingX(Real Lon, Real Lat) const {
+   KOKKOS_FUNCTION Real sfcStressForcingX(Real Lon, Real Lat) const {
       const Real StressU = vectorX(Lon, Lat);
       const Real Thick   = scalarB(Lon, Lat);
       return StressU / (Thick * RhoSw);
    }
 
-   KOKKOS_FUNCTION Real srfStressForcingY(Real Lon, Real Lat) const {
+   KOKKOS_FUNCTION Real sfcStressForcingY(Real Lon, Real Lat) const {
       const Real StressV = vectorY(Lon, Lat);
       const Real Thick   = scalarB(Lon, Lat);
       return StressV / (Thick * RhoSw);
@@ -698,7 +698,7 @@ int testVelHyperDiff(int NVertLayers, Real RTol) {
    return Err;
 } // end testVelHyperDiff
 
-int testSrfStressForcing(int NVertLayers) {
+int testSfcStressForcing(int NVertLayers) {
 
    int Err = 0;
    TestSetup Setup;
@@ -707,20 +707,20 @@ int testSrfStressForcing(int NVertLayers) {
    const auto VCoord = VertCoord::getDefault();
 
    // Compute exact result
-   Array2DReal ExactSrfStressForcing("ExactSrfStressForcing", Mesh->NEdgesOwned,
+   Array2DReal ExactSfcStressForcing("ExactSfcStressForcing", Mesh->NEdgesOwned,
                                      NVertLayers);
 
    // Note: this computes wind forcing at every layer
    Err += setVectorEdge(
        KOKKOS_LAMBDA(Real(&VecField)[2], Real X, Real Y) {
-          VecField[0] = Setup.srfStressForcingX(X, Y);
-          VecField[1] = Setup.srfStressForcingY(X, Y);
+          VecField[0] = Setup.sfcStressForcingX(X, Y);
+          VecField[1] = Setup.sfcStressForcingY(X, Y);
        },
-       ExactSrfStressForcing, EdgeComponent::Normal, Geom, Mesh,
+       ExactSfcStressForcing, EdgeComponent::Normal, Geom, Mesh,
        ExchangeHalos::No);
 
    // Reset wind forcing to zero below the surface
-   deepCopy(Kokkos::subview(ExactSrfStressForcing, Kokkos::ALL,
+   deepCopy(Kokkos::subview(ExactSfcStressForcing, Kokkos::ALL,
                             Kokkos::make_pair(1, NVertLayers)),
             0);
 
@@ -742,31 +742,31 @@ int testSrfStressForcing(int NVertLayers) {
        PseudoThickEdge, Geom, Mesh, OnEdge);
 
    // Compute numerical result
-   Array2DReal NumSrfStressForcing("NumSrfStressForcing", Mesh->NEdgesOwned,
+   Array2DReal NumSfcStressForcing("NumSfcStressForcing", Mesh->NEdgesOwned,
                                    NVertLayers);
 
-   SrfStressForcingOnEdge SrfStressForcingOnE(Mesh, VCoord);
+   SfcStressForcingOnEdge SfcStressForcingOnE(Mesh, VCoord);
 
    parallelFor(
        {Mesh->NEdgesOwned, NVertLayers}, KOKKOS_LAMBDA(int IEdge, int KLayer) {
-          SrfStressForcingOnE(NumSrfStressForcing, IEdge, KLayer,
+          SfcStressForcingOnE(NumSfcStressForcing, IEdge, KLayer,
                               NormalStressEdge, PseudoThickEdge);
        });
 
    // Compute errors
-   ErrorMeasures SrfStressForcingErrors;
-   Err += computeErrors(SrfStressForcingErrors, NumSrfStressForcing,
-                        ExactSrfStressForcing, Mesh, OnEdge);
+   ErrorMeasures SfcStressForcingErrors;
+   Err += computeErrors(SfcStressForcingErrors, NumSfcStressForcing,
+                        ExactSfcStressForcing, Mesh, OnEdge);
 
    // Check error values
    const Real RTol = 0;
    const Real ATol = 100 * std::numeric_limits<Real>::epsilon();
-   Err += checkErrors("TendencyTermsTest", "SrfStressForcing",
-                      SrfStressForcingErrors,
-                      Setup.ExpectedSrfStressForcingErrors, RTol, ATol);
+   Err += checkErrors("TendencyTermsTest", "SfcStressForcing",
+                      SfcStressForcingErrors,
+                      Setup.ExpectedSfcStressForcingErrors, RTol, ATol);
 
    return Err;
-} // end testSrfStressForcing
+} // end testSfcStressForcing
 
 int testBottomDrag(int NVertLayers, Real RTol) {
 
@@ -1211,7 +1211,7 @@ int tendencyTermsTest(const std::string &MeshFile = DefaultMeshFile) {
 
    Err += testVelHyperDiff(NVertLayers, RTol);
 
-   Err += testSrfStressForcing(NVertLayers);
+   Err += testSfcStressForcing(NVertLayers);
 
    Err += testBottomDrag(NVertLayers, RTol);
 
