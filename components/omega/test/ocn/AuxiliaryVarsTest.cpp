@@ -16,7 +16,6 @@
 #include "VertCoord.h"
 #include "auxiliaryVars/KineticAuxVars.h"
 #include "auxiliaryVars/PseudoThicknessAuxVars.h"
-#include "auxiliaryVars/SfcStressForcingAuxVars.h"
 #include "auxiliaryVars/TracerAuxVars.h"
 #include "auxiliaryVars/VelocityDel2AuxVars.h"
 #include "auxiliaryVars/VorticityAuxVars.h"
@@ -391,58 +390,6 @@ int testKineticAuxVars(const Array2DReal &PseudoThicknessCell,
 
    if (Err == 0) {
       LOG_INFO("AuxVarsTest: KineticAuxVars PASS");
-   }
-
-   return Err;
-}
-
-int testSfcStressForcingAuxVars(Real RTol) {
-   int Err = 0;
-   TestSetup Setup;
-
-   const auto Mesh = HorzMesh::getDefault();
-
-   // Compute exact result
-
-   Array1DReal ExactNormalStressEdge("ExactNormalStressEdge",
-                                     Mesh->NEdgesOwned);
-   Err += setVectorEdge(
-       KOKKOS_LAMBDA(Real(&VecField)[2], Real X, Real Y) {
-          VecField[0] = Setup.sfcStressX(X, Y);
-          VecField[1] = Setup.sfcStressY(X, Y);
-       },
-       ExactNormalStressEdge, EdgeComponent::Normal, Geom, Mesh,
-       ExchangeHalos::No);
-
-   SfcStressForcingAuxVars SfcStressForcingAux("", Mesh);
-   SfcStressForcingAux.InterpChoice = InterpCellToEdgeOption::Anisotropic;
-
-   // Set inputs
-   Err += setScalar(
-       KOKKOS_LAMBDA(Real X, Real Y) { return Setup.sfcStressX(X, Y); },
-       SfcStressForcingAux.ZonalStressCell, Geom, Mesh, OnCell);
-
-   Err += setScalar(
-       KOKKOS_LAMBDA(Real X, Real Y) { return Setup.sfcStressY(X, Y); },
-       SfcStressForcingAux.MeridStressCell, Geom, Mesh, OnCell);
-
-   // Compute numerical result
-   parallelFor(
-       {Mesh->NEdgesOwned}, KOKKOS_LAMBDA(int IEdge) {
-          SfcStressForcingAux.computeVarsOnEdge(IEdge);
-       });
-   const auto &NumNormalStressEdge = SfcStressForcingAux.NormalStressEdge;
-
-   // Compute error measures and check error values
-   ErrorMeasures NormalStressErrors;
-   Err += computeErrors(NormalStressErrors, NumNormalStressEdge,
-                        ExactNormalStressEdge, Mesh, OnEdge);
-
-   Err += checkErrors("AuxVarsTest", "NormalStress", NormalStressErrors,
-                      Setup.ExpectedNormalStressErrors, RTol);
-
-   if (Err == 0) {
-      LOG_INFO("AuxVarsTest: SfcStressForcingAuxVars PASS");
    }
 
    return Err;
@@ -858,8 +805,6 @@ int auxVarsTest(const std::string &mesh = DefaultMeshFile) {
    Err += testVelocityDel2AuxVars(RTol);
 
    Err += testTracerAuxVars(PseudoThickCell, NormalVelEdge, RTol);
-
-   Err += testSfcStressForcingAuxVars(RTol);
 
    if (Err == 0) {
       LOG_INFO("AuxVarsTest: Successful completion");

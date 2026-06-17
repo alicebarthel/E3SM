@@ -4,7 +4,7 @@
 
 This page documents the user-facing configuration and behavior for current forcing in Omega:
 
-- Surface stress forcing
+- Surface stress forcing (e.g. wind stress)
 - Surface tracer restoring
 
 ## Surface stress forcing
@@ -31,13 +31,13 @@ Omega:
 
 ### Required input fields
 
-Surface stress forcing uses auxiliary stress fields:
+Surface stress forcing uses surface stress input fields:
 
 - `SfcStressZonal`
 - `SfcStressMeridional`
 
-These are used to form edge-normal stress (`NormalStressEdge`) that enters
-momentum tendencies.
+These are stored in forcing variables and used to form edge-normal stress
+(`NormalStressEdge`) that enters momentum tendencies.
 
 ## Surface tracer restoring
 

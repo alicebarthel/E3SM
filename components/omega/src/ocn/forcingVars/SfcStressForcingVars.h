@@ -1,5 +1,5 @@
-#ifndef OMEGA_AUX_MOM_H
-#define OMEGA_AUX_MOM_H
+#ifndef OMEGA_STRESS_H
+#define OMEGA_STRESS_H
 
 #include "DataTypes.h"
 #include "HorzMesh.h"
@@ -10,15 +10,14 @@
 
 namespace OMEGA {
 
-class SfcStressForcingAuxVars {
+class SfcStressForcingVars {
  public:
    Array1DReal NormalStressEdge;
    Array1DReal ZonalStressCell;
    Array1DReal MeridStressCell;
    InterpCellToEdgeOption InterpChoice;
 
-   SfcStressForcingAuxVars(const std::string &AuxStateSuffix,
-                           const HorzMesh *Mesh);
+   SfcStressForcingVars(const std::string &Suffix, const HorzMesh *Mesh);
 
    KOKKOS_FUNCTION void computeVarsOnEdge(int IEdge) const {
       const Real ZonalStressEdge = Interp(IEdge, ZonalStressCell, InterpChoice);

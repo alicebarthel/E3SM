@@ -5,7 +5,7 @@
 This page describes design and implementation details for forcing-related
 pathways in Omega, currently this includes:
 
-- Surface stress forcing
+- Surface stress forcing (e.g. wind stress)
 - Surface tracer restoring
 
 ## Surface stress forcing design
@@ -15,16 +15,17 @@ pathways in Omega, currently this includes:
 1. External fields provide:
    - `SfcStressZonal`
    - `SfcStressMeridional`
-2. Auxiliary-state compute builds `NormalStressEdge` from those fields.
+2. Forcing compute builds `NormalStressEdge` from those fields.
 3. Tendency term applies surface stress forcing to edge-normal velocity tendency.
 
 ### Surface stress forcing key classes/components
 
-- `SfcStressForcingAuxVars`
+- `SfcStressForcingVars`
   - Stores surface stress cell fields and computed `NormalStressEdge`
   - Applies configured interpolation choice (`InterpType`)
-- `AuxiliaryState::computeMomAux`
-  - Calls `SfcStressForcingAuxVars::computeVarsOnEdge`
+- `Forcing`
+  - Calls `SfcStressForcingVars::computeVarsOnEdge` from
+    `computeSfcStressForcingOnEdge`
 - `SfcStressForcingOnEdge` tendency term
   - Adds contribution proportional to normal stress and inverse layer
     thickness in the surface layer

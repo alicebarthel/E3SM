@@ -232,9 +232,9 @@ int testTendencies() {
       return -1;
    }
 
-   auto &ZonalStressCell  = DefForcing->SfcStressForcingAux.ZonalStressCell;
-   auto &MeridStressCell  = DefForcing->SfcStressForcingAux.MeridStressCell;
-   auto &NormalStressEdge = DefForcing->SfcStressForcingAux.NormalStressEdge;
+   auto &ZonalStressCell  = DefForcing->SfcStressForcing.ZonalStressCell;
+   auto &MeridStressCell  = DefForcing->SfcStressForcing.MeridStressCell;
+   auto &NormalStressEdge = DefForcing->SfcStressForcing.NormalStressEdge;
 
    const bool OrigSfcStressEnabled = DefTendencies->SfcStressForcing.Enabled;
    Array2DReal BaselineNormalVelocityTend(

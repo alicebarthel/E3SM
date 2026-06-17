@@ -1,3 +1,14 @@
+//===-- ocn/Forcing.cpp - Forcing ------------------*- C++ -*-===//
+//
+// The Forcing class manages the external forcing (from data or coupled
+//  components). For now, it only includes ocean surface stress forcing
+// but will include surface restoring and surface thermodynamical forcing.
+// For now, it contains
+// surface stress data on cells and provides methods to compute
+// edge-normal stress components, manage halo exchanges, and handle IO.
+//
+//===--------------------------------------------------------------===//
+
 #include "Forcing.h"
 #include "Field.h"
 #include "Logging.h"
@@ -5,6 +16,7 @@
 
 namespace OMEGA {
 
+// Static member initialization
 Forcing *Forcing::DefaultForcing = nullptr;
 std::map<std::string, std::unique_ptr<Forcing>> Forcing::AllForcing;
 
@@ -12,20 +24,24 @@ static std::string stripDefault(const std::string &Name) {
    return Name != "Default" ? Name : "";
 }
 
+// Constructor. Initializes surface stress forcing variables and stores
+// mesh/halo.
 Forcing::Forcing(const std::string &Name, const HorzMesh *Mesh, Halo *MeshHalo)
-    : Name(stripDefault(Name)), SfcStressForcingAux(stripDefault(Name), Mesh),
+    : Name(stripDefault(Name)), SfcStressForcing(stripDefault(Name), Mesh),
       Mesh(Mesh), MeshHalo(MeshHalo) {}
 
+// Destructor. Unregisters fields from IO streams.
 Forcing::~Forcing() { unregisterFields(); }
 
+// Register surface stress fields with IO streams for a given mesh.
 void Forcing::registerFields(const std::string &MeshName) const {
-   SfcStressForcingAux.registerFields(MeshName);
+   SfcStressForcing.registerFields(MeshName);
 }
 
-void Forcing::unregisterFields() const {
-   SfcStressForcingAux.unregisterFields();
-}
+// Unregister surface stress fields from IO streams.
+void Forcing::unregisterFields() const { SfcStressForcing.unregisterFields(); }
 
+// Create and register a non-default forcing instance.
 Forcing *Forcing::create(const std::string &Name, const HorzMesh *Mesh,
                          Halo *MeshHalo) {
    if (AllForcing.find(Name) != AllForcing.end()) {
@@ -41,6 +57,7 @@ Forcing *Forcing::create(const std::string &Name, const HorzMesh *Mesh,
    return NewForcing;
 }
 
+// Initialize the default forcing instance and read configuration.
 void Forcing::init() {
    if (DefaultForcing != nullptr) {
       return;
@@ -63,8 +80,10 @@ void Forcing::init() {
    DefaultForcing->readConfigOptions(OmegaConfig);
 }
 
+// Return the default forcing instance.
 Forcing *Forcing::getDefault() { return DefaultForcing; }
 
+// Return a forcing instance by name, or null if not found.
 Forcing *Forcing::get(const std::string &Name) {
    auto it = AllForcing.find(Name);
    if (it != AllForcing.end()) {
@@ -76,12 +95,15 @@ Forcing *Forcing::get(const std::string &Name) {
    return nullptr;
 }
 
+// Return true if a forcing instance with the given name exists.
 bool Forcing::exists(const std::string &Name) {
    return AllForcing.find(Name) != AllForcing.end();
 }
 
+// Remove a forcing instance by name from the registry.
 void Forcing::erase(const std::string &Name) { AllForcing.erase(Name); }
 
+// Clear all forcing instances and destroy the field group.
 void Forcing::clear() {
    AllForcing.clear();
    DefaultForcing = nullptr;
@@ -90,6 +112,7 @@ void Forcing::clear() {
    }
 }
 
+// Read SfcStress configuration and set interpolation method.
 void Forcing::readConfigOptions(Config *OmegaConfig) {
    Error Err;
 
@@ -101,35 +124,36 @@ void Forcing::readConfigOptions(Config *OmegaConfig) {
    CHECK_ERROR_ABORT(Err, "Forcing: InterpType not found in SfcStressConfig");
 
    if (SfcStressInterpTypeStr == "Isotropic") {
-      this->SfcStressForcingAux.InterpChoice =
-          InterpCellToEdgeOption::Isotropic;
+      this->SfcStressForcing.InterpChoice = InterpCellToEdgeOption::Isotropic;
    } else if (SfcStressInterpTypeStr == "Anisotropic") {
-      this->SfcStressForcingAux.InterpChoice =
-          InterpCellToEdgeOption::Anisotropic;
+      this->SfcStressForcing.InterpChoice = InterpCellToEdgeOption::Anisotropic;
    } else {
       ABORT_ERROR("Forcing: Unknown InterpType requested");
    }
 }
 
+// Compute all forcing variables (dispatches to specific computations).
 void Forcing::computeAll() const { computeSfcStressForcingOnEdge(); }
 
+// Compute edge-normal stress from cell-center zonal and meridional components.
 void Forcing::computeSfcStressForcingOnEdge() const {
-   OMEGA_SCOPE(LocSfcStressForcingAux, SfcStressForcingAux);
+   OMEGA_SCOPE(LocSfcStressForcing, SfcStressForcing);
 
-   Pacer::start("Forcing:edgeAuxState1", 2);
+   Pacer::start("Forcing:edge1", 2);
    parallelFor(
-       "Forcing:edgeAuxState1", {Mesh->NEdgesAll}, KOKKOS_LAMBDA(int IEdge) {
-          LocSfcStressForcingAux.computeVarsOnEdge(IEdge);
+       "Forcing:edge1", {Mesh->NEdgesAll}, KOKKOS_LAMBDA(int IEdge) {
+          LocSfcStressForcing.computeVarsOnEdge(IEdge);
        });
-   Pacer::stop("Forcing:edgeAuxState1", 2);
+   Pacer::stop("Forcing:edge1", 2);
 }
 
+// Exchange halo for surface stress cell fields.
 I4 Forcing::exchangeHalo() const {
    I4 Err = 0;
 
-   Err += MeshHalo->exchangeFullArrayHalo(SfcStressForcingAux.ZonalStressCell,
+   Err += MeshHalo->exchangeFullArrayHalo(SfcStressForcing.ZonalStressCell,
                                           OnCell);
-   Err += MeshHalo->exchangeFullArrayHalo(SfcStressForcingAux.MeridStressCell,
+   Err += MeshHalo->exchangeFullArrayHalo(SfcStressForcing.MeridStressCell,
                                           OnCell);
 
    return Err;

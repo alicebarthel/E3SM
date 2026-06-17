@@ -621,10 +621,10 @@ void Tendencies::computeVelocityTendenciesOnly(
                                  FluxPseudoThickEdge);
    Pacer::stop("Tend:computeVelocityVAdvTend", 2);
 
-   // Compute wind forcing
+   // Compute surface stress forcing
    const auto *ForcingState = Forcing::getDefault();
    const auto &NormalStressEdge =
-       ForcingState->SfcStressForcingAux.NormalStressEdge;
+       ForcingState->SfcStressForcing.NormalStressEdge;
    const auto &MeanPseudoThickEdge =
        AuxState->PseudoThicknessAux.MeanPseudoThickEdge;
    if (LocSfcStressForcing.Enabled) {

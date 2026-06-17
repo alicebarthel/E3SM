@@ -301,7 +301,7 @@ class VelocityHyperDiffOnEdge {
    Array1DI4 MaxLayerEdgeTop;
 };
 
-/// Wind forcing
+/// Surface stress forcing (eg. wind)
 class SfcStressForcingOnEdge {
  public:
    bool Enabled = false;
@@ -310,7 +310,7 @@ class SfcStressForcingOnEdge {
    SfcStressForcingOnEdge(const HorzMesh *Mesh, const VertCoord *VCoord);
 
    /// The functor takes the edge index, vertical chunk index, and arrays for
-   /// normal wind stress and edge pseudo-thickness, outputs tendency array
+   /// normal surface stress and edge pseudo-thickness, outputs tendency array
    KOKKOS_FUNCTION void operator()(const Array2DReal &Tend, I4 IEdge, I4 KChunk,
                                    const Array1DReal &NormalStressEdge,
                                    const Array2DReal &PseudoThickEdge) const {

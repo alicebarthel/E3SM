@@ -1,7 +1,7 @@
 //===-- ocn/ForcingTest.cpp - Forcing Unit Test ---------------*- C++ -*-===//
 //
 /// \file
-/// \brief Scoped tests for the Forcing class (SfcStress + SfcStressForcingAux)
+/// \brief Scoped tests for the Forcing class (SfcStress + SfcStressForcing)
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,14 +12,17 @@
 #include "Dimension.h"
 #include "Error.h"
 #include "Field.h"
+#include "GlobalConstants.h"
 #include "Halo.h"
 #include "HorzMesh.h"
 #include "IO.h"
 #include "IOStream.h"
 #include "Logging.h"
 #include "MachEnv.h"
+#include "OceanTestCommon.h"
 #include "Pacer.h"
 #include "TimeStepper.h"
+#include "forcingVars/SfcStressForcingVars.h"
 #include "mpi.h"
 
 #include <limits>
@@ -30,6 +33,36 @@ using namespace OMEGA;
 namespace {
 
 const std::string DefaultMeshFile = "OmegaMesh.nc";
+
+struct TestSetupPlane {
+   Real Lx = 1;
+   Real Ly = SqrtThree / 2;
+
+   ErrorMeasures ExpectedNormalStressErrors = {0.0033910709836867704,
+                                               0.0039954090464502795};
+
+   KOKKOS_FUNCTION Real sfcStressX(Real X, Real Y) const {
+      return std::cos(TwoPi * X / Lx) * std::sin(TwoPi * Y / Ly);
+   }
+
+   KOKKOS_FUNCTION Real sfcStressY(Real X, Real Y) const {
+      return std::sin(TwoPi * X / Lx) * std::cos(TwoPi * Y / Ly);
+   }
+};
+
+struct TestSetupSphere {
+   ErrorMeasures ExpectedNormalStressErrors = {0.0038588958862868362,
+                                               0.003813760171030077};
+
+   KOKKOS_FUNCTION Real sfcStressX(Real Lon, Real Lat) const {
+      return -4 * std::sin(Lon) * std::cos(Lon) * std::pow(std::cos(Lat), 3) *
+             std::sin(Lat);
+   }
+
+   KOKKOS_FUNCTION Real sfcStressY(Real Lon, Real Lat) const {
+      return -std::pow(std::sin(Lon), 2) * std::pow(std::cos(Lat), 3);
+   }
+};
 
 int initForcingTest(const std::string &MeshFile) {
    int Err = 0;
@@ -77,6 +110,7 @@ void finalizeForcingTest() {
 }
 
 int testForcingInitAndConfig() {
+   // Verify Forcing::init consumes Omega.SfcStress config and maps InterpType.
    int Err = 0;
 
    Forcing *DefForcing = Forcing::getDefault();
@@ -110,7 +144,7 @@ int testForcingInitAndConfig() {
       return 1;
    }
 
-   if (DefForcing->SfcStressForcingAux.InterpChoice != ExpectedChoice) {
+   if (DefForcing->SfcStressForcing.InterpChoice != ExpectedChoice) {
       LOG_ERROR("ForcingTest: InterpChoice mismatch after Forcing::init");
       Err++;
    }
@@ -123,6 +157,8 @@ int testForcingInitAndConfig() {
 }
 
 int testForcingComputeAll() {
+   // Verify edge-normal stress is the expected projection of zonal/meridional
+   // stress components on edge orientation.
    int Err = 0;
 
    const HorzMesh *Mesh = HorzMesh::getDefault();
@@ -132,9 +168,9 @@ int testForcingComputeAll() {
       return 1;
    }
 
-   auto &ZonalStressCell = DefForcing->SfcStressForcingAux.ZonalStressCell;
-   auto &MeridStressCell = DefForcing->SfcStressForcingAux.MeridStressCell;
-   auto &NormalStress    = DefForcing->SfcStressForcingAux.NormalStressEdge;
+   auto &ZonalStressCell = DefForcing->SfcStressForcing.ZonalStressCell;
+   auto &MeridStressCell = DefForcing->SfcStressForcing.MeridStressCell;
+   auto &NormalStress    = DefForcing->SfcStressForcing.NormalStressEdge;
    const auto AngleEdge  = Mesh->AngleEdge;
 
    // First pass: pure zonal stress should project to cos(AngleEdge).
@@ -187,6 +223,7 @@ int testForcingComputeAll() {
 
    const Real Tol       = 1e-11;
    const Real GlobalErr = Kokkos::max(GlobalMaxErrCos, GlobalMaxErrSin);
+   // Expected outcome: both projection passes remain below strict tolerance.
    if (GlobalErr > Tol) {
       LOG_ERROR(
           "ForcingTest: normal stress mismatch in cos/sin checks, max error "
@@ -202,7 +239,87 @@ int testForcingComputeAll() {
    return Err;
 }
 
+int testSfcStressForcingVars(Real RTol) {
+   // Verify SfcStressForcingVars directly against analytic exact stress on
+   // planar and spherical meshes.
+   int Err = 0;
+
+   const auto *Mesh = HorzMesh::getDefault();
+   if (Mesh == nullptr) {
+      LOG_ERROR("ForcingTest: missing mesh for SfcStress vars test");
+      return 1;
+   }
+
+   Geometry Geom = Mesh->OnSphere ? Geometry::Spherical : Geometry::Planar;
+
+   Array1DReal ExactNormalStressEdge("ExactNormalStressEdge",
+                                     Mesh->NEdgesOwned);
+   SfcStressForcingVars SfcStressForcing("", Mesh);
+   SfcStressForcing.InterpChoice = InterpCellToEdgeOption::Anisotropic;
+
+   ErrorMeasures ExpectedNormalStressErrors;
+
+   if (Mesh->OnSphere) {
+      TestSetupSphere Setup;
+      ExpectedNormalStressErrors = Setup.ExpectedNormalStressErrors;
+
+      Err += setVectorEdge(
+          KOKKOS_LAMBDA(Real(&VecField)[2], Real X, Real Y) {
+             VecField[0] = Setup.sfcStressX(X, Y);
+             VecField[1] = Setup.sfcStressY(X, Y);
+          },
+          ExactNormalStressEdge, EdgeComponent::Normal, Geom, Mesh,
+          ExchangeHalos::No);
+
+      Err += setScalar(
+          KOKKOS_LAMBDA(Real X, Real Y) { return Setup.sfcStressX(X, Y); },
+          SfcStressForcing.ZonalStressCell, Geom, Mesh, OnCell);
+
+      Err += setScalar(
+          KOKKOS_LAMBDA(Real X, Real Y) { return Setup.sfcStressY(X, Y); },
+          SfcStressForcing.MeridStressCell, Geom, Mesh, OnCell);
+   } else {
+      TestSetupPlane Setup;
+      ExpectedNormalStressErrors = Setup.ExpectedNormalStressErrors;
+
+      Err += setVectorEdge(
+          KOKKOS_LAMBDA(Real(&VecField)[2], Real X, Real Y) {
+             VecField[0] = Setup.sfcStressX(X, Y);
+             VecField[1] = Setup.sfcStressY(X, Y);
+          },
+          ExactNormalStressEdge, EdgeComponent::Normal, Geom, Mesh,
+          ExchangeHalos::No);
+
+      Err += setScalar(
+          KOKKOS_LAMBDA(Real X, Real Y) { return Setup.sfcStressX(X, Y); },
+          SfcStressForcing.ZonalStressCell, Geom, Mesh, OnCell);
+
+      Err += setScalar(
+          KOKKOS_LAMBDA(Real X, Real Y) { return Setup.sfcStressY(X, Y); },
+          SfcStressForcing.MeridStressCell, Geom, Mesh, OnCell);
+   }
+
+   parallelFor(
+       {Mesh->NEdgesOwned},
+       KOKKOS_LAMBDA(int IEdge) { SfcStressForcing.computeVarsOnEdge(IEdge); });
+
+   ErrorMeasures NormalStressErrors;
+   Err += computeErrors(NormalStressErrors, SfcStressForcing.NormalStressEdge,
+                        ExactNormalStressEdge, Mesh, OnEdge);
+
+   // Expected outcome: normal-stress error metrics stay within RTol envelope.
+   Err += checkErrors("ForcingTest", "NormalStress", NormalStressErrors,
+                      ExpectedNormalStressErrors, RTol);
+
+   if (Err == 0) {
+      LOG_INFO("ForcingTest: SfcStressForcingVars PASS");
+   }
+
+   return Err;
+}
+
 int testForcingAPISmoke() {
+   // Verify named Forcing lifecycle semantics: create/get/exists/erase.
    int Err = 0;
 
    const std::string Name = "UnitTestForcing";
@@ -242,11 +359,15 @@ int testForcingAPISmoke() {
 }
 
 int forcingTest() {
-   int Err = 0;
+   // Execute Forcing checks in order: init/config, compute projection,
+   // direct vars analytic check, then API lifecycle smoke test.
+   int Err         = 0;
+   const Real RTol = sizeof(Real) == 4 ? 1e-2 : 2e-4;
 
    Err += initForcingTest(DefaultMeshFile);
    Err += testForcingInitAndConfig();
    Err += testForcingComputeAll();
+   Err += testSfcStressForcingVars(RTol);
    Err += testForcingAPISmoke();
 
    if (Err == 0) {
