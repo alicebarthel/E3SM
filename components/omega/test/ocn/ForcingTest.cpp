@@ -39,11 +39,11 @@ struct TestSetupPlane {
 
    ErrorMeasures ExpectedNormalStressErrors = {0.0033910709836867704,
                                                0.0039954090464502795};
-   KOKKOS_FUNCTION Real windStressX(Real X, Real Y) const {
+   KOKKOS_FUNCTION Real sfcStressX(Real X, Real Y) const {
       return std::cos(TwoPi * X / Lx) * std::sin(TwoPi * Y / Ly);
    }
 
-   KOKKOS_FUNCTION Real windStressY(Real X, Real Y) const {
+   KOKKOS_FUNCTION Real sfcStressY(Real X, Real Y) const {
       return std::sin(TwoPi * X / Lx) * std::cos(TwoPi * Y / Ly);
    }
 };
@@ -51,12 +51,12 @@ struct TestSetupPlane {
 struct TestSetupSphere {
    ErrorMeasures ExpectedNormalStressErrors = {0.0038588958862868362,
                                                0.003813760171030077};
-   KOKKOS_FUNCTION Real windStressX(Real Lon, Real Lat) const {
+   KOKKOS_FUNCTION Real sfcStressX(Real Lon, Real Lat) const {
       return -4 * std::sin(Lon) * std::cos(Lon) * std::pow(std::cos(Lat), 3) *
              std::sin(Lat);
    }
 
-   KOKKOS_FUNCTION Real windStressY(Real Lon, Real Lat) const {
+   KOKKOS_FUNCTION Real sfcStressY(Real Lon, Real Lat) const {
       return -std::pow(std::sin(Lon), 2) * std::pow(std::cos(Lat), 3);
    }
 };
@@ -83,8 +83,8 @@ int testSfcStressForcingVars(Real RTol) {
                                      Mesh->NEdgesOwned);
    Err += setVectorEdge(
        KOKKOS_LAMBDA(Real(&VecField)[2], Real X, Real Y) {
-          VecField[0] = Setup.windStressX(X, Y);
-          VecField[1] = Setup.windStressY(X, Y);
+          VecField[0] = Setup.sfcStressX(X, Y);
+          VecField[1] = Setup.sfcStressY(X, Y);
        },
        ExactNormalStressEdge, EdgeComponent::Normal, Geom, Mesh,
        ExchangeHalos::No);
@@ -94,11 +94,11 @@ int testSfcStressForcingVars(Real RTol) {
 
    // Set inputs
    Err += setScalar(
-       KOKKOS_LAMBDA(Real X, Real Y) { return Setup.windStressX(X, Y); },
+       KOKKOS_LAMBDA(Real X, Real Y) { return Setup.sfcStressX(X, Y); },
        SfcStressForcing.ZonalStressCell, Geom, Mesh, OnCell);
 
    Err += setScalar(
-       KOKKOS_LAMBDA(Real X, Real Y) { return Setup.windStressY(X, Y); },
+       KOKKOS_LAMBDA(Real X, Real Y) { return Setup.sfcStressY(X, Y); },
        SfcStressForcing.MeridStressCell, Geom, Mesh, OnCell);
 
    // Compute numerical result
