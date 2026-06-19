@@ -340,10 +340,27 @@ target_compile_definitions(
 ################
 
 add_omega_test(
-    FORCING_TEST
-    testForcing.exe
-    ocn/ForcingTest.cpp
-    "-n;1"
+  FORCING_PLANE_TEST
+  testForcingPlane.exe
+  ocn/ForcingTest.cpp
+  "-n;1"
+)
+target_compile_definitions(
+  testForcingPlane.exe
+  PRIVATE
+  FORCING_TEST_PLANE
+)
+
+add_omega_test(
+  FORCING_SPHERE_TEST
+  testForcingSphere.exe
+  ocn/ForcingTest.cpp
+  "-n;1"
+)
+target_compile_definitions(
+  testForcingSphere.exe
+  PRIVATE
+  FORCING_TEST_SPHERE
 )
 
 #################

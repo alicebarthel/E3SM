@@ -32,20 +32,18 @@ using namespace OMEGA;
 
 namespace {
 
-const std::string DefaultMeshFile = "OmegaMesh.nc";
-
 struct TestSetupPlane {
+
    Real Lx = 1;
    Real Ly = SqrtThree / 2;
 
    ErrorMeasures ExpectedNormalStressErrors = {0.0033910709836867704,
                                                0.0039954090464502795};
-
-   KOKKOS_FUNCTION Real sfcStressX(Real X, Real Y) const {
+   KOKKOS_FUNCTION Real windStressX(Real X, Real Y) const {
       return std::cos(TwoPi * X / Lx) * std::sin(TwoPi * Y / Ly);
    }
 
-   KOKKOS_FUNCTION Real sfcStressY(Real X, Real Y) const {
+   KOKKOS_FUNCTION Real windStressY(Real X, Real Y) const {
       return std::sin(TwoPi * X / Lx) * std::cos(TwoPi * Y / Ly);
    }
 };
@@ -53,16 +51,76 @@ struct TestSetupPlane {
 struct TestSetupSphere {
    ErrorMeasures ExpectedNormalStressErrors = {0.0038588958862868362,
                                                0.003813760171030077};
-
-   KOKKOS_FUNCTION Real sfcStressX(Real Lon, Real Lat) const {
+   KOKKOS_FUNCTION Real windStressX(Real Lon, Real Lat) const {
       return -4 * std::sin(Lon) * std::cos(Lon) * std::pow(std::cos(Lat), 3) *
              std::sin(Lat);
    }
 
-   KOKKOS_FUNCTION Real sfcStressY(Real Lon, Real Lat) const {
+   KOKKOS_FUNCTION Real windStressY(Real Lon, Real Lat) const {
       return -std::pow(std::sin(Lon), 2) * std::pow(std::cos(Lat), 3);
    }
 };
+
+#ifdef FORCING_TEST_PLANE
+constexpr Geometry Geom          = Geometry::Planar;
+constexpr char DefaultMeshFile[] = "OmegaPlanarMesh.nc";
+using TestSetup                  = TestSetupPlane;
+#else
+constexpr Geometry Geom          = Geometry::Spherical;
+constexpr char DefaultMeshFile[] = "OmegaSphereMesh.nc";
+using TestSetup                  = TestSetupSphere;
+#endif
+
+int testSfcStressForcingVars(Real RTol) {
+   int Err = 0;
+   TestSetup Setup;
+
+   const auto Mesh = HorzMesh::getDefault();
+
+   // Compute exact result
+
+   Array1DReal ExactNormalStressEdge("ExactNormalStressEdge",
+                                     Mesh->NEdgesOwned);
+   Err += setVectorEdge(
+       KOKKOS_LAMBDA(Real(&VecField)[2], Real X, Real Y) {
+          VecField[0] = Setup.windStressX(X, Y);
+          VecField[1] = Setup.windStressY(X, Y);
+       },
+       ExactNormalStressEdge, EdgeComponent::Normal, Geom, Mesh,
+       ExchangeHalos::No);
+
+   SfcStressForcingVars SfcStressForcing("", Mesh);
+   SfcStressForcing.InterpChoice = InterpCellToEdgeOption::Anisotropic;
+
+   // Set inputs
+   Err += setScalar(
+       KOKKOS_LAMBDA(Real X, Real Y) { return Setup.windStressX(X, Y); },
+       SfcStressForcing.ZonalStressCell, Geom, Mesh, OnCell);
+
+   Err += setScalar(
+       KOKKOS_LAMBDA(Real X, Real Y) { return Setup.windStressY(X, Y); },
+       SfcStressForcing.MeridStressCell, Geom, Mesh, OnCell);
+
+   // Compute numerical result
+   parallelFor(
+       {Mesh->NEdgesOwned},
+       KOKKOS_LAMBDA(int IEdge) { SfcStressForcing.computeVarsOnEdge(IEdge); });
+   const auto &NumNormalStressEdge = SfcStressForcing.NormalStressEdge;
+
+   // Compute error measures and check error values
+   ErrorMeasures NormalStressErrors;
+   Err += computeErrors(NormalStressErrors, NumNormalStressEdge,
+                        ExactNormalStressEdge, Mesh, OnEdge);
+
+   Err += checkErrors("ForcingVarsTest", "NormalStress", NormalStressErrors,
+                      Setup.ExpectedNormalStressErrors, RTol);
+
+   if (Err == 0) {
+      LOG_INFO("ForcingVarsTest: testSfcStressForcingVars PASS");
+   }
+
+   return Err;
+}
 
 int initForcingTest(const std::string &MeshFile) {
    int Err = 0;
@@ -234,85 +292,6 @@ int testForcingComputeAll() {
 
    if (Err == 0) {
       LOG_INFO("ForcingTest: computeAll PASS");
-   }
-
-   return Err;
-}
-
-int testSfcStressForcingVars(Real RTol) {
-   // Verify SfcStressForcingVars directly against analytic exact stress on
-   // planar and spherical meshes.
-   int Err = 0;
-
-   const auto *Mesh = HorzMesh::getDefault();
-   if (Mesh == nullptr) {
-      LOG_ERROR("ForcingTest: missing mesh for SfcStress vars test");
-      return 1;
-   }
-
-   Geometry Geom = Mesh->OnSphere ? Geometry::Spherical : Geometry::Planar;
-
-   Array1DReal ExactNormalStressEdge("ExactNormalStressEdge",
-                                     Mesh->NEdgesOwned);
-   SfcStressForcingVars SfcStressForcing("", Mesh);
-   SfcStressForcing.InterpChoice = InterpCellToEdgeOption::Anisotropic;
-
-   ErrorMeasures ExpectedNormalStressErrors;
-
-   if (Mesh->OnSphere) {
-      TestSetupSphere Setup;
-      ExpectedNormalStressErrors = Setup.ExpectedNormalStressErrors;
-
-      Err += setVectorEdge(
-          KOKKOS_LAMBDA(Real(&VecField)[2], Real X, Real Y) {
-             VecField[0] = Setup.sfcStressX(X, Y);
-             VecField[1] = Setup.sfcStressY(X, Y);
-          },
-          ExactNormalStressEdge, EdgeComponent::Normal, Geom, Mesh,
-          ExchangeHalos::No);
-
-      Err += setScalar(
-          KOKKOS_LAMBDA(Real X, Real Y) { return Setup.sfcStressX(X, Y); },
-          SfcStressForcing.ZonalStressCell, Geom, Mesh, OnCell);
-
-      Err += setScalar(
-          KOKKOS_LAMBDA(Real X, Real Y) { return Setup.sfcStressY(X, Y); },
-          SfcStressForcing.MeridStressCell, Geom, Mesh, OnCell);
-   } else {
-      TestSetupPlane Setup;
-      ExpectedNormalStressErrors = Setup.ExpectedNormalStressErrors;
-
-      Err += setVectorEdge(
-          KOKKOS_LAMBDA(Real(&VecField)[2], Real X, Real Y) {
-             VecField[0] = Setup.sfcStressX(X, Y);
-             VecField[1] = Setup.sfcStressY(X, Y);
-          },
-          ExactNormalStressEdge, EdgeComponent::Normal, Geom, Mesh,
-          ExchangeHalos::No);
-
-      Err += setScalar(
-          KOKKOS_LAMBDA(Real X, Real Y) { return Setup.sfcStressX(X, Y); },
-          SfcStressForcing.ZonalStressCell, Geom, Mesh, OnCell);
-
-      Err += setScalar(
-          KOKKOS_LAMBDA(Real X, Real Y) { return Setup.sfcStressY(X, Y); },
-          SfcStressForcing.MeridStressCell, Geom, Mesh, OnCell);
-   }
-
-   parallelFor(
-       {Mesh->NEdgesOwned},
-       KOKKOS_LAMBDA(int IEdge) { SfcStressForcing.computeVarsOnEdge(IEdge); });
-
-   ErrorMeasures NormalStressErrors;
-   Err += computeErrors(NormalStressErrors, SfcStressForcing.NormalStressEdge,
-                        ExactNormalStressEdge, Mesh, OnEdge);
-
-   // Expected outcome: normal-stress error metrics stay within RTol envelope.
-   Err += checkErrors("ForcingTest", "NormalStress", NormalStressErrors,
-                      ExpectedNormalStressErrors, RTol);
-
-   if (Err == 0) {
-      LOG_INFO("ForcingTest: SfcStressForcingVars PASS");
    }
 
    return Err;
