@@ -710,7 +710,7 @@ int testSfcStressForcing(int NVertLayers) {
    Array2DReal ExactSfcStressForcing("ExactSfcStressForcing", Mesh->NEdgesOwned,
                                      NVertLayers);
 
-   // Note: this computes wind forcing at every layer
+   // Note: this computes surface stress forcing at every layer
    Err += setVectorEdge(
        KOKKOS_LAMBDA(Real(&VecField)[2], Real X, Real Y) {
           VecField[0] = Setup.sfcStressForcingX(X, Y);
@@ -719,7 +719,7 @@ int testSfcStressForcing(int NVertLayers) {
        ExactSfcStressForcing, EdgeComponent::Normal, Geom, Mesh,
        ExchangeHalos::No);
 
-   // Reset wind forcing to zero below the surface
+   // Reset surface stress forcing to zero below the surface
    deepCopy(Kokkos::subview(ExactSfcStressForcing, Kokkos::ALL,
                             Kokkos::make_pair(1, NVertLayers)),
             0);

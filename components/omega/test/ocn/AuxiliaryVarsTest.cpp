@@ -65,9 +65,6 @@ struct TestSetupPlane {
    ErrorMeasures ExpectedDel2TracerErrors = {0.0033346711042859123,
                                              0.0029202923731303323};
 
-   ErrorMeasures ExpectedNormalStressErrors = {0.0033910709836867704,
-                                               0.0039954090464502795};
-
    KOKKOS_FUNCTION Real pseudoThickness(Real X, Real Y) const {
       return 2 + std::cos(TwoPi * X / Lx) * std::cos(TwoPi * Y / Ly);
    }
@@ -78,14 +75,6 @@ struct TestSetupPlane {
 
    KOKKOS_FUNCTION Real velocityY(Real X, Real Y) const {
       return std::cos(TwoPi * X / Lx) * std::sin(TwoPi * Y / Ly);
-   }
-
-   KOKKOS_FUNCTION Real sfcStressX(Real X, Real Y) const {
-      return std::cos(TwoPi * X / Lx) * std::sin(TwoPi * Y / Ly);
-   }
-
-   KOKKOS_FUNCTION Real sfcStressY(Real X, Real Y) const {
-      return std::sin(TwoPi * X / Lx) * std::cos(TwoPi * Y / Ly);
    }
 
    KOKKOS_FUNCTION Real divergence(Real X, Real Y) const {
@@ -193,9 +182,6 @@ struct TestSetupSphere {
    ErrorMeasures ExpectedDel2TracerErrors = {0.0081206665417422382,
                                              0.004969575978774801};
 
-   ErrorMeasures ExpectedNormalStressErrors = {0.0038588958862868362,
-                                               0.003813760171030077};
-
    KOKKOS_FUNCTION Real pseudoThickness(Real Lon, Real Lat) const {
       return (2 + std::cos(Lon) * std::pow(std::cos(Lat), 4));
    }
@@ -207,14 +193,6 @@ struct TestSetupSphere {
    KOKKOS_FUNCTION Real velocityY(Real Lon, Real Lat) const {
       return -4 * std::sin(Lon) * std::cos(Lon) * std::pow(std::cos(Lat), 3) *
              std::sin(Lat);
-   }
-   KOKKOS_FUNCTION Real sfcStressX(Real Lon, Real Lat) const {
-      return -4 * std::sin(Lon) * std::cos(Lon) * std::pow(std::cos(Lat), 3) *
-             std::sin(Lat);
-   }
-
-   KOKKOS_FUNCTION Real sfcStressY(Real Lon, Real Lat) const {
-      return -std::pow(std::sin(Lon), 2) * std::pow(std::cos(Lat), 3);
    }
 
    KOKKOS_FUNCTION Real relativeVorticity(Real Lon, Real Lat) const {
