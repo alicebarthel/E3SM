@@ -266,6 +266,10 @@ void Tendencies::readConfig(Config *OmegaConfig ///< [in] Omega config
    CHECK_ERROR_ABORT(
        Err, "Tendencies: PressureGradTendencyEnable not found in TendConfig");
 
+   Err += TendConfig.get("FrazilTendencyEnable", this->FrazilTerm.Enabled);
+   CHECK_ERROR_ABORT(
+       Err, "Tendencies: FrazilTendencyEnable not found in TendConfig");
+
    Err += TendConfig.get("SurfaceTracerRestoringEnable",
                          this->SurfaceTracerRestoring.Enabled);
    CHECK_ERROR_ABORT(
@@ -420,7 +424,7 @@ Tendencies::Tendencies(const std::string &Name_, ///< [in] Name for tendencies
       SfcStressForcing(Mesh, VCoord), BottomDrag(Mesh, VCoord),
       TracerDiffusion(Mesh, VCoord), TracerHyperDiff(Mesh, VCoord),
       TracerHorzAdv(Mesh, VCoord), SurfaceTracerRestoring(Mesh),
-      CustomThicknessTend(InCustomThicknessTend),
+      FrazilTerm(Mesh, VCoord), CustomThicknessTend(InCustomThicknessTend),
       CustomVelocityTend(InCustomVelocityTend), EqState(EqState), PGrad(PGrad),
       VMix(VMix) {
 
@@ -848,6 +852,15 @@ void Tendencies::computeTracerTendenciesOnly(
                                        TracersMonthlySurfClimo, TracerArray);
           });
       Pacer::stop("Tend:surfaceTracerRestoring", 2);
+   }
+
+   if (FrazilTerm.Enabled) {
+      Pacer::start("Tend:frazil", 2);
+      const auto &PressureMid     = VCoord->PressureMid;
+      Array2DReal PseudoThickness = State->getPseudoThickness(ThickTimeLevel);
+      FrazilTerm(PseudoThicknessTend, TracerTend, TracerArray, PressureMid,
+                 PseudoThickness);
+      Pacer::stop("Tend:frazil", 2);
    }
 
    Pacer::stop("Tend:computeTracerTendenciesOnly", 1);
