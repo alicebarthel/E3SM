@@ -42,6 +42,26 @@ void Frazil::init() {
    }
 
    if (!DefaultFrazil) {
+      Error Err;
+      bool FrazilTendencyEnable = false;
+      Config *OmegaConfig       = Config::getOmegaConfig();
+      Config TendConfig("Tendencies");
+
+      Err += OmegaConfig->get(TendConfig);
+      CHECK_ERROR_ABORT(Err,
+                        "Frazil::init: Tendencies group not found in Config");
+
+      Err += TendConfig.get("FrazilTendencyEnable", FrazilTendencyEnable);
+      CHECK_ERROR_ABORT(
+          Err, "Frazil::init: FrazilTendencyEnable not found in Tendencies");
+
+      if (!FrazilTendencyEnable) {
+         LOG_INFO("Frazil::init: Frazil tendency disabled; skipping default "
+                  "frazil object creation");
+         LOG_INFO("All frazil is off - frazil parameters will be ignored");
+         return;
+      }
+
       DefaultFrazil = create("Default");
    }
 }
@@ -101,9 +121,11 @@ Frazil *Frazil::create(const std::string &Name) {
    if ((FrazilTypeStr == "Basic") or (FrazilTypeStr == "basic") or
        (FrazilTypeStr == "BasicFrazil")) {
       NewFrazil->frazilChoice = FrazilType::BasicFrazil;
+      ABORT_ERROR("Frazil::create: BasicFrazil not supported yet");
    } else if ((FrazilTypeStr == "Simple") or (FrazilTypeStr == "simple") or
               (FrazilTypeStr == "SimpleFrazil")) {
       NewFrazil->frazilChoice = FrazilType::SimpleFrazil;
+      ABORT_ERROR("Frazil::create: SimpleFrazil not supported yet");
    } else if ((FrazilTypeStr == "teos") or (FrazilTypeStr == "Teos") or
               (FrazilTypeStr == "TEOS") or (FrazilTypeStr == "Teos10") or
               (FrazilTypeStr == "teos10") or (FrazilTypeStr == "TEOS10")) {
@@ -120,21 +142,13 @@ Frazil *Frazil::create(const std::string &Name) {
    Err += FrazilConfig.get("Phi", NewFrazil->computeFrazilFormation.Phi);
    CHECK_ERROR_ABORT(Err, "Frazil::create: Phi not found in Frazil config");
 
-   Error CheckColumnErr =
-       FrazilConfig.get("ConservationCheck", NewFrazil->conservationCheck);
-   if (!CheckColumnErr.isSuccess()) {
-      NewFrazil->conservationCheck = false;
-   }
+   Err += FrazilConfig.get("ConservationCheck", NewFrazil->conservationCheck);
+   CHECK_ERROR_ABORT(
+       Err, "Frazil::create: ConservationCheck not found in Frazil config");
 
-   Error EnabledErr = FrazilConfig.get("Enable", NewFrazil->Enabled);
-   if (!EnabledErr.isSuccess()) {
-      NewFrazil->Enabled = true;
-   }
-
-   Error DepthLimitErr = FrazilConfig.get("DepthLimit", NewFrazil->depthLimit);
-   if (!DepthLimitErr.isSuccess()) {
-      NewFrazil->depthLimit = -1.0_Real;
-   }
+   Err += FrazilConfig.get("DepthLimit", NewFrazil->depthLimit);
+   CHECK_ERROR_ABORT(Err,
+                     "Frazil::create: DepthLimit not found in Frazil config");
 
    if (Name == "Default") {
       DefaultFrazil = NewFrazil;

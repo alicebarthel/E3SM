@@ -133,31 +133,31 @@ void FrazilOnCell::operator()(const Array2DReal &PseudoThicknessTend,
                               const Array3DReal &TracerArray,
                               const Array2DReal &PressureMid,
                               const Array2DReal &PseudoThickness) const {
-   auto *DefaultFrazil = Frazil::getDefault();
-   if (!Enabled || !DefaultFrazil || !DefaultFrazil->Enabled) {
+   auto *Frazil = Frazil::getDefault();
+   if (!Enabled || !Frazil) {
       return;
    }
 
-   deepCopy(DefaultFrazil->FrazilTTend, 0.0_Real);
-   deepCopy(DefaultFrazil->FrazilSTend, 0.0_Real);
-   deepCopy(DefaultFrazil->FrazilHTend, 0.0_Real);
-   deepCopy(DefaultFrazil->AccMIce, 0.0_Real);
-   deepCopy(DefaultFrazil->AccEIce, 0.0_Real);
-   deepCopy(DefaultFrazil->AccMLiq, 0.0_Real);
-   deepCopy(DefaultFrazil->AccELiq, 0.0_Real);
-   deepCopy(DefaultFrazil->AccMSalt, 0.0_Real);
+   deepCopy(Frazil->FrazilTTend, 0.0_Real);
+   deepCopy(Frazil->FrazilSTend, 0.0_Real);
+   deepCopy(Frazil->FrazilHTend, 0.0_Real);
+   deepCopy(Frazil->AccMIce, 0.0_Real);
+   deepCopy(Frazil->AccEIce, 0.0_Real);
+   deepCopy(Frazil->AccMLiq, 0.0_Real);
+   deepCopy(Frazil->AccELiq, 0.0_Real);
+   deepCopy(Frazil->AccMSalt, 0.0_Real);
 
    const auto ConservTemp =
        Kokkos::subview(TracerArray, TempTracerIndex, Kokkos::ALL, Kokkos::ALL);
    const auto AbsSalinity =
        Kokkos::subview(TracerArray, SaltTracerIndex, Kokkos::ALL, Kokkos::ALL);
 
-   DefaultFrazil->computeFrazil(ConservTemp, AbsSalinity, PressureMid,
-                                PseudoThickness);
+   Frazil->computeFrazil(ConservTemp, AbsSalinity, PressureMid,
+                         PseudoThickness);
 
-   const auto FrazilHTend = DefaultFrazil->FrazilHTend;
-   const auto FrazilTTend = DefaultFrazil->FrazilTTend;
-   const auto FrazilSTend = DefaultFrazil->FrazilSTend;
+   const auto FrazilHTend = Frazil->FrazilHTend;
+   const auto FrazilTTend = Frazil->FrazilTTend;
+   const auto FrazilSTend = Frazil->FrazilSTend;
    const I4 TempIndex     = TempTracerIndex;
    const I4 SaltIndex     = SaltTracerIndex;
 

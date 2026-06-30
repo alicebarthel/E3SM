@@ -78,7 +78,6 @@ Omega:
       DRhoDS: 0.8
       RhoT0S0: 1000.0
   Frazil:
-    Enable: true
     FrazilType: teos
     MassLimit: 0.1
     Phi: 0.75
