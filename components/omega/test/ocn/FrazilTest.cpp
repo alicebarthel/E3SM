@@ -21,6 +21,7 @@
 #include "OceanTestCommon.h"
 #include "OmegaKokkos.h"
 #include "Pacer.h"
+#include "TimeMgr.h"
 #include "VertCoord.h"
 #include "mpi.h"
 
@@ -39,11 +40,18 @@ void initFrazilTest(const std::string &mesh) {
    Config("Omega");
    Config::readAll("omega.yml");
 
+   Calendar::init("No Leap");
+   TimeInstant StartTime(0, 1, 1, 0, 0, 0.0);
+   TimeInterval TimeStep(1, TimeUnits::Hours);
+   Clock ModelClockTmp(StartTime, TimeStep);
+   Clock *ModelClock = &ModelClockTmp;
+
    IO::init(DefComm);
-   IOStream::init();
    Decomp::init(mesh);
+   Field::init(ModelClock);
+   IOStream::init(ModelClock);
    Halo::init();
-   HorzMesh::init();
+   HorzMesh::init(ModelClock);
    VertCoord::init(false);
    Frazil::init();
 }
@@ -56,9 +64,15 @@ void finalizeFrazilTest() {
    Decomp::clear();
    Field::clear();
    Dimension::clear();
+   IOStream::finalize();
    MachEnv::removeAll();
 }
 
+// this test only excercises the frazil formation functor (no melt)
+// in a cold case: the frazil terms should be
+// - strictly positive for ice, liquid, and salt mass
+//- strictly negative for ice and liquid energy
+// - positive for T tendency and negative for S, H tendencies
 void testFrazilFormationCold() {
    const auto Mesh   = HorzMesh::getDefault();
    const auto VCoord = VertCoord::getDefault();
@@ -89,44 +103,54 @@ void testFrazilFormationCold() {
                           AccELiq, AccEIce, HTend, TTend, STend);
 
    if (AccMIce <= 0.0_Real) {
-      ABORT_ERROR("FrazilTestCold: accumulated ice mass is non-positive: {}",
-                  AccMIce);
+      ABORT_ERROR(
+          "FrazilFormationTestCold: accumulated ice mass is non-positive: {}",
+          AccMIce);
    }
    if (AccMLiq <= 0.0_Real) {
-      ABORT_ERROR("FrazilTestCold: accumulated liquid mass is non-positive: {}",
+      ABORT_ERROR("FrazilFormationTestCold: accumulated liquid mass is "
+                  "non-positive: {}",
                   AccMLiq);
    }
    if (AccMSalt <= 0.0_Real) {
-      ABORT_ERROR("FrazilTestCold: accumulated salt mass is non-positive: {}",
-                  AccMSalt);
-   }
-
-   if (isApprox(AccELiq, 0.0_Real, RTol)) {
       ABORT_ERROR(
-          "FrazilTestCold: accumulated liquid energy is effectively zero: {}",
-          AccELiq);
+          "FrazilFormationTestCold: accumulated salt mass is non-positive: {}",
+          AccMSalt);
    }
-   if (isApprox(AccEIce, 0.0_Real, RTol)) {
+
+   if (AccELiq >= 0.0_Real) {
+      ABORT_ERROR("FrazilFormationTestCold: accumulated liquid energy is "
+                  "positive (exp. negative): {}",
+                  AccELiq);
+   }
+   if (AccEIce >= 0.0_Real) {
+      ABORT_ERROR("FrazilFormationTestCold: accumulated ice energy is positive "
+                  "(exp. negative): {}",
+                  AccEIce);
+   }
+   if (HTend >= 0.0_Real) {
       ABORT_ERROR(
-          "FrazilTestCold: accumulated ice energy is effectively zero: {}",
-          AccEIce);
+          "FrazilFormationTestCold: HTend is positive (exp. negative): {}",
+          HTend);
    }
-   if (isApprox(HTend, 0.0_Real, RTol)) {
-      ABORT_ERROR("FrazilTestCold: HTend is effectively zero: {}", HTend);
+   if (TTend <= 0.0_Real) {
+      ABORT_ERROR(
+          "FrazilFormationTestCold: TTend is negative (exp. positive): {}",
+          TTend);
    }
-
-   if (isApprox(TTend, 0.0_Real, RTol)) {
-      ABORT_ERROR("FrazilTestCold: TTend is zero: {}", TTend);
+   if (STend >= 0.0_Real) {
+      ABORT_ERROR(
+          "FrazilFormationTestCold: STend is positive (exp. negative): {}",
+          STend);
    }
-
-   if (isApprox(STend, 0.0_Real, RTol)) {
-      ABORT_ERROR("FrazilTestCold: STend is effectively zero: {}", STend);
-   }
-   LOG_INFO("FrazilTestCold: AccMIce = {}, AccMLiq = {}, AccMSalt = {}, "
-            "AccELiq = {}, AccEIce = {}, HTend = {}, TTend = {}, STend = {}",
-            AccMIce, AccMLiq, AccMSalt, AccELiq, AccEIce, HTend, TTend, STend);
+   LOG_INFO(
+       "FrazilFormationTestCold: AccMIce = {}, AccMLiq = {}, AccMSalt = {}, "
+       "AccELiq = {}, AccEIce = {}, HTend = {}, TTend = {}, STend = {}",
+       AccMIce, AccMLiq, AccMSalt, AccELiq, AccEIce, HTend, TTend, STend);
 }
 
+// this test only excercises the frazil formation functor (no melt)
+// in a warm case: the frazil FORMATION terms should all be zero
 void testFrazilFormationWarm() {
    const auto Mesh   = HorzMesh::getDefault();
    const auto VCoord = VertCoord::getDefault();
@@ -198,6 +222,10 @@ void testFrazilFormationWarm() {
        AccMIce, AccMLiq, AccMSalt, AccELiq, AccEIce, HTend, TTend, STend);
 }
 
+// this test exercises the frazil formation and melt functors
+// in a column of water with both cold and warm layers.
+// It turns to frazil column conservation check.
+// In dev, there is extra verbose logging in the frazil code (TBRemoved).
 void testComputeFrazilColumn() {
    const auto Mesh   = HorzMesh::getDefault();
    const auto VCoord = VertCoord::getDefault();
@@ -311,6 +339,9 @@ void testComputeFrazilColumn() {
        ICell);
 }
 
+// this test exercises the frazil formation and melt functors
+// with a depth limit set. Layers deeper than the depth limit
+// should have zero frazil tendencies.
 void testComputeFrazilDepthLimit() {
    const auto Mesh   = HorzMesh::getDefault();
    const auto VCoord = VertCoord::getDefault();
@@ -320,7 +351,7 @@ void testComputeFrazilDepthLimit() {
       ABORT_ERROR("FrazilTestColumn: default frazil object is null");
    }
 
-   const Real RTol    = 1e-10_Real;
+   const Real RTol    = 1e-12_Real;
    const Real SACold  = 35.0_Real;
    const Real PRef    = 100.0_Real;
    const Real HRef    = 10.0_Real;
@@ -353,8 +384,8 @@ void testComputeFrazilDepthLimit() {
    const I4 ICell = 0;
    const I4 KMin  = MinLayerCellH(ICell);
    const I4 KMax  = MaxLayerCellH(ICell);
-   if ((KMax - KMin + 1) < 4) {
-      ABORT_ERROR("FrazilTestColumn: cell {} has fewer than 4 active layers",
+   if ((KMax - KMin + 1) < 10) {
+      ABORT_ERROR("FrazilTestColumn: cell {} has fewer than 10 active layers",
                   ICell);
    }
 
@@ -382,8 +413,20 @@ void testComputeFrazilDepthLimit() {
 
    const bool SavedConservationCheck = TestFrazil->conservationCheck;
    const bool SavedDepthLimit        = TestFrazil->depthLimit;
-   TestFrazil->conservationCheck     = true;
-   TestFrazil->depthLimit            = 500.0_Real;
+   const Real TestDepthLimit         = 35.0_Real; // this needs to be positive
+   // if TestDepthLimit is negative, test will fail:
+   // - the code assume depthlimit < 0 mean no limit (i.e. full depth frazil)
+   // - the test below will exclude all layers and fail because Tend !=0.
+
+   // Populate GeomZMid explicitly for the test column.
+   auto GeomZMidH = createHostMirrorCopy(VCoord->GeomZMid);
+   for (I4 K = KMin; K <= KMax; ++K) {
+      GeomZMidH(ICell, K) = -10.0_Real * (K - KMin + 1);
+   }
+   deepCopy(VCoord->GeomZMid, GeomZMidH);
+
+   TestFrazil->conservationCheck = true;
+   TestFrazil->depthLimit        = TestDepthLimit;
    TestFrazil->computeFrazil(CT, SA, P, H);
    TestFrazil->conservationCheck = SavedConservationCheck;
    TestFrazil->depthLimit        = SavedDepthLimit;
@@ -391,6 +434,33 @@ void testComputeFrazilDepthLimit() {
    auto HTendH = createHostMirrorCopy(TestFrazil->FrazilHTend);
    auto TTendH = createHostMirrorCopy(TestFrazil->FrazilTTend);
    auto STendH = createHostMirrorCopy(TestFrazil->FrazilSTend);
+
+   bool FoundExcludedLayer = false;
+   for (I4 K = KMin; K <= KMax; ++K) {
+      const Real Depth    = GeomZMidH(ICell, K);
+      const Real AbsDepth = Depth < 0.0_Real ? -Depth : Depth;
+
+      if (AbsDepth > TestDepthLimit) {
+         FoundExcludedLayer = true;
+         if (!isApprox(HTendH(ICell, K), 0.0_Real, RTol) ||
+             !isApprox(TTendH(ICell, K), 0.0_Real, RTol) ||
+             !isApprox(STendH(ICell, K), 0.0_Real, RTol)) {
+            ABORT_ERROR("FrazilDepthLimitTest: excluded layer K={} has "
+                        "non-zero tendencies (HTend={}, TTend={}, STend={})",
+                        K, HTendH(ICell, K), TTendH(ICell, K),
+                        STendH(ICell, K));
+         }
+      }
+   }
+   if (!FoundExcludedLayer) {
+      ABORT_ERROR("FrazilDepthLimitTest: no layers were excluded for ICell={} "
+                  "with depthLimit={}",
+                  ICell, TestDepthLimit);
+   }
+
+   LOG_INFO("FrazilDepthLimitTest: depthLimit={} exclusion check passed for "
+            "ICell={}",
+            TestDepthLimit, ICell);
 }
 
 void frazilTest(const std::string &MeshFile = "OmegaMesh.nc") {
