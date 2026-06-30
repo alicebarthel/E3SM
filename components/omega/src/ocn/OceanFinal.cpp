@@ -10,6 +10,7 @@
 #include "Eos.h"
 #include "Field.h"
 #include "Forcing.h"
+#include "Frazil.h"
 #include "Halo.h"
 #include "HorzMesh.h"
 #include "IO.h"
@@ -48,6 +49,7 @@ int ocnFinalize(const TimeInstant &CurrTime ///< [in] current sim time
    AuxiliaryState::clear();
    Forcing::clear();
    OceanState::clear();
+   Frazil::clear();
    VertAdv::clear();
    VertCoord::clear();
    Dimension::clear();
@@ -61,7 +63,6 @@ int ocnFinalize(const TimeInstant &CurrTime ///< [in] current sim time
    // destroy singletons that use raw new/delete
    Eos::destroyInstance();
    VertMix::destroyInstance();
-
    return RetVal;
 } // end ocnFinalize
 
