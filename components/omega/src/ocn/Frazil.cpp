@@ -11,6 +11,21 @@
 
 namespace OMEGA {
 
+namespace {
+
+KOKKOS_INLINE_FUNCTION bool isApprox(const Real X, const Real Y,
+                                     const Real RTol, const Real ATol = 0) {
+   if (Kokkos::isnan(X) || Kokkos::isnan(Y) || Kokkos::isinf(X) ||
+       Kokkos::isinf(Y)) {
+      return false;
+   }
+
+   return Kokkos::abs(X - Y) <=
+          Kokkos::max(ATol, RTol * Kokkos::max(Kokkos::abs(X), Kokkos::abs(Y)));
+}
+
+} // namespace
+
 Frazil *Frazil::DefaultFrazil = nullptr;
 std::map<std::string, std::unique_ptr<Frazil>> Frazil::AllFrazil;
 
@@ -97,13 +112,29 @@ Frazil *Frazil::create(const std::string &Name) {
       ABORT_ERROR("Frazil::create: Unknown FrazilType requested");
    }
 
-   Err += FrazilConfig.get("massLimit",
+   Err += FrazilConfig.get("MassLimit",
                            NewFrazil->computeFrazilFormation.MassLimit);
    CHECK_ERROR_ABORT(Err,
-                     "Frazil::create: massLimit not found in Frazil config");
+                     "Frazil::create: MassLimit not found in Frazil config");
 
-   Err += FrazilConfig.get("phi", NewFrazil->computeFrazilFormation.Phi);
-   CHECK_ERROR_ABORT(Err, "Frazil::create: phi not found in Frazil config");
+   Err += FrazilConfig.get("Phi", NewFrazil->computeFrazilFormation.Phi);
+   CHECK_ERROR_ABORT(Err, "Frazil::create: Phi not found in Frazil config");
+
+   Error CheckColumnErr =
+       FrazilConfig.get("ConservationCheck", NewFrazil->conservationCheck);
+   if (!CheckColumnErr.isSuccess()) {
+      NewFrazil->conservationCheck = false;
+   }
+
+   Error EnabledErr = FrazilConfig.get("Enable", NewFrazil->Enabled);
+   if (!EnabledErr.isSuccess()) {
+      NewFrazil->Enabled = true;
+   }
+
+   Error DepthLimitErr = FrazilConfig.get("DepthLimit", NewFrazil->depthLimit);
+   if (!DepthLimitErr.isSuccess()) {
+      NewFrazil->depthLimit = -1.0_Real;
+   }
 
    if (Name == "Default") {
       DefaultFrazil = NewFrazil;
@@ -137,10 +168,74 @@ void Frazil::clear() {
    DefaultFrazil = nullptr;
 }
 
+void Frazil::checkColumnConservation() const {
+   auto MinLayerCellH = createHostMirrorCopy(VCoordPtr->MinLayerCell);
+   auto MaxLayerCellH = createHostMirrorCopy(VCoordPtr->MaxLayerCell);
+   auto FrazilHTendH  = createHostMirrorCopy(FrazilHTend);
+   auto FrazilTTendH  = createHostMirrorCopy(FrazilTTend);
+   auto FrazilSTendH  = createHostMirrorCopy(FrazilSTend);
+   auto AccMIceH      = createHostMirrorCopy(AccMIce);
+   auto AccMLiqH      = createHostMirrorCopy(AccMLiq);
+   auto AccMSaltH     = createHostMirrorCopy(AccMSalt);
+   auto AccELiqH      = createHostMirrorCopy(AccELiq);
+   auto AccEIceH      = createHostMirrorCopy(AccEIce);
+
+   constexpr Real RTol = 1.0e-10_Real;
+
+   for (I4 ICell = 0; ICell < NCellsAll; ++ICell) {
+      const I4 KMin = MinLayerCellH(ICell);
+      const I4 KMax = MaxLayerCellH(ICell);
+
+      Real MassTend   = 0.0_Real;
+      Real EnergyTend = 0.0_Real;
+      Real SaltTend   = 0.0_Real;
+
+      for (I4 K = KMin; K <= KMax; ++K) {
+         MassTend += FrazilHTendH(ICell, K);
+         EnergyTend += FrazilTTendH(ICell, K);
+         SaltTend += FrazilSTendH(ICell, K);
+      }
+
+      const Real MassTotal   = AccMIceH(ICell) + AccMLiqH(ICell);
+      const Real EnergyTotal = AccELiqH(ICell) + AccEIceH(ICell);
+      const Real SaltTotal   = AccMSaltH(ICell);
+      if (ICell == 0) {
+         LOG_INFO("Frazil column conservation check: cell {} MassTend={} "
+                  "MassTotal={} "
+                  "EnergyTend={} EnergyTotal={} SaltTend={} SaltTotal={}",
+                  ICell, MassTend * RhoSw, MassTotal,
+                  EnergyTend * Cp0Sw * RhoSw, EnergyTotal,
+                  SaltTend * RhoSw * PPt2Salt, SaltTotal);
+         LOG_INFO("Frazil column conservation check: cell {} EpsMass={} "
+                  "EpsE={} EpsS={} ",
+                  ICell, MassTend * RhoSw + MassTotal,
+                  EnergyTend * Cp0Sw * RhoSw + EnergyTotal,
+                  SaltTend * RhoSw * PPt2Salt + SaltTotal);
+      }
+
+      if (!isApprox(-MassTend * RhoSw, MassTotal, RTol)) {
+         ABORT_ERROR(
+             "Frazil column mass check failed: cell {} tendency={} total={}",
+             ICell, -MassTend * RhoSw, MassTotal);
+      }
+      if (!isApprox(-EnergyTend * Cp0Sw * RhoSw, EnergyTotal, RTol)) {
+         ABORT_ERROR(
+             "Frazil column energy check failed: cell {} tendency={} total={}",
+             ICell, -EnergyTend * Cp0Sw * RhoSw, EnergyTotal);
+      }
+      if (!isApprox(-SaltTend * RhoSw * PPt2Salt, SaltTotal, RTol)) {
+         ABORT_ERROR(
+             "Frazil column salt check failed: cell {} tendency={} total={}",
+             ICell, -SaltTend * RhoSw * PPt2Salt, SaltTotal);
+      }
+   }
+}
+
 void Frazil::computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
                            const Array2DReal &P, const Array2DReal &LayerH) {
    OMEGA_SCOPE(MinLayerCell, VCoordPtr->MinLayerCell);
    OMEGA_SCOPE(MaxLayerCell, VCoordPtr->MaxLayerCell);
+   OMEGA_SCOPE(LocGeomZMid, VCoordPtr->GeomZMid);
 
    OMEGA_SCOPE(LocComputeFrazilFormation, computeFrazilFormation);
    OMEGA_SCOPE(LocComputeFrazilMelt, computeFrazilMelt);
@@ -158,8 +253,29 @@ void Frazil::computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
           const I4 KMin = MinLayerCell(ICell);
           const I4 KMax = MaxLayerCell(ICell);
 
+          I4 Klim          = KMax;
+          bool HasKlim     = true;
+          const bool Limit = (depthLimit >= 0.0_Real);
+          if (Limit) {
+             HasKlim = false;
+             for (I4 K = KMax; K >= KMin; --K) {
+                if (Kokkos::abs(LocGeomZMid(ICell, K)) <= depthLimit) {
+                   Klim    = K;
+                   HasKlim = true;
+                   break;
+                }
+             }
+          }
+
           // Explicit accumulation order: bottom layer to top layer.
           for (I4 K = KMax; K >= KMin; --K) {
+             if (!HasKlim || K > Klim) {
+                LocFrazilHTend(ICell, K) = 0.0_Real;
+                LocFrazilTTend(ICell, K) = 0.0_Real;
+                LocFrazilSTend(ICell, K) = 0.0_Real;
+                continue;
+             }
+
              const Real SAIn = SA(ICell, K);
              const Real CTIn = CT(ICell, K);
              const Real PIn  = P(ICell, K);
@@ -184,11 +300,16 @@ void Frazil::computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
              }
 
              // temporary log -- TBRemoved
-             LOG_INFO("computeFrazil cell={} K={} (cold={}) AccMIce={} "
-                      "AccMLiq={} AccMSalt={} AccELiq={} AccEIce={}",
-                      ICell, K, (CTIn < Tfrz), LocAccMIce(ICell),
-                      LocAccMLiq(ICell), LocAccMSalt(ICell), LocAccELiq(ICell),
-                      LocAccEIce(ICell));
+             if (ICell == 0) {
+                LOG_INFO("computeFrazil cell={} K={} (cold={}) AccMIce={} "
+                         "AccMLiq={} AccMSalt={} AccELiq={} AccEIce={}",
+                         ICell, K, (CTIn < Tfrz), LocAccMIce(ICell),
+                         LocAccMLiq(ICell), LocAccMSalt(ICell),
+                         LocAccELiq(ICell), LocAccEIce(ICell));
+                LOG_INFO("                                       HTend= {} "
+                         "TTend= {} STend= {}",
+                         HTend, TTend, STend);
+             }
 
              LocFrazilHTend(ICell, K) = HTend; // not scaled by dt
              LocFrazilTTend(ICell, K) = TTend;
@@ -201,6 +322,10 @@ void Frazil::computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
           LocAccELiq(ICell)  = LocAccELiq(ICell) * RhoSw;
           LocAccEIce(ICell)  = LocAccEIce(ICell) * RhoSw;
        });
+
+   if (conservationCheck) {
+      checkColumnConservation();
+   }
 }
 
 } // namespace OMEGA

@@ -157,36 +157,45 @@ void testFrazilFormationWarm() {
                           AccELiq, AccEIce, HTend, TTend, STend);
 
    if (!isApprox(AccMIce, 0.0_Real, RTol)) {
-      ABORT_ERROR("FrazilTest warm: expected zero AccMIce, got {}", AccMIce);
+      ABORT_ERROR("FrazilFormationTest warm: expected zero AccMIce, got {}",
+                  AccMIce);
    }
 
    if (!isApprox(AccMSalt, 0.0_Real, RTol)) {
-      ABORT_ERROR("FrazilTest warm: expected zero AccMSalt, got {}", AccMSalt);
+      ABORT_ERROR("FrazilFormationTest warm: expected zero AccMSalt, got {}",
+                  AccMSalt);
    }
    if (!isApprox(AccMLiq, 0.0_Real, RTol)) {
-      ABORT_ERROR("FrazilTest warm: expected zero AccMLiq, got {}", AccMLiq);
+      ABORT_ERROR("FrazilFormationTest warm: expected zero AccMLiq, got {}",
+                  AccMLiq);
    }
 
    if (!isApprox(AccELiq, 0.0_Real, RTol)) {
-      ABORT_ERROR("FrazilTest warm: expected zero AccELiq, got {}", AccELiq);
+      ABORT_ERROR("FrazilFormationTest warm: expected zero AccELiq, got {}",
+                  AccELiq);
    }
    if (!isApprox(AccEIce, 0.0_Real, RTol)) {
-      ABORT_ERROR("FrazilTest warm: expected zero AccEIce, got {}", AccEIce);
+      ABORT_ERROR("FrazilFormationTest warm: expected zero AccEIce, got {}",
+                  AccEIce);
    }
    if (!isApprox(HTend, 0.0_Real, RTol)) {
-      ABORT_ERROR("FrazilTest warm: expected zero HTend, got {}", HTend);
+      ABORT_ERROR("FrazilFormationTest warm: expected zero HTend, got {}",
+                  HTend);
    }
 
    if (!isApprox(TTend, 0.0_Real, RTol)) {
-      ABORT_ERROR("FrazilTest warm: expected zero TTend, got {}", TTend);
+      ABORT_ERROR("FrazilFormationTest warm: expected zero TTend, got {}",
+                  TTend);
    }
 
    if (!isApprox(STend, 0.0_Real, RTol)) {
-      ABORT_ERROR("FrazilTest warm: expected zero STend, got {}", STend);
+      ABORT_ERROR("FrazilFormationTest warm: expected zero STend, got {}",
+                  STend);
    }
-   LOG_INFO("FrazilTestWarm: AccMIce = {}, AccMLiq = {}, AccMSalt = {}, "
-            "AccELiq = {}, AccEIce = {}, HTend = {}, TTend = {}, STend = {}",
-            AccMIce, AccMLiq, AccMSalt, AccELiq, AccEIce, HTend, TTend, STend);
+   LOG_INFO(
+       "FrazilFormationTestWarm: AccMIce = {}, AccMLiq = {}, AccMSalt = {}, "
+       "AccELiq = {}, AccEIce = {}, HTend = {}, TTend = {}, STend = {}",
+       AccMIce, AccMLiq, AccMSalt, AccELiq, AccEIce, HTend, TTend, STend);
 }
 
 void testComputeFrazilColumn() {
@@ -198,12 +207,13 @@ void testComputeFrazilColumn() {
       ABORT_ERROR("FrazilTestColumn: default frazil object is null");
    }
 
-   const Real RTol   = 1e-10_Real;
-   const Real SACold = 35.0_Real;
-   const Real PRef   = 100.0_Real;
-   const Real HRef   = 10.0_Real;
-   const Real CTCold = -2.0_Real;
-   const Real CTWarm = 10.0_Real;
+   const Real RTol    = 1e-10_Real;
+   const Real SACold  = 35.0_Real;
+   const Real PRef    = 100.0_Real;
+   const Real HRef    = 10.0_Real;
+   const Real CTCold  = -2.0_Real;
+   const Real CTWarm  = 0.0_Real;
+   const Real CTWarm2 = -1.9_Real;
 
    Array2DReal SA("SA", Mesh->NCellsSize, NVertLayers);
    Array2DReal CT("CT", Mesh->NCellsSize, NVertLayers);
@@ -235,19 +245,32 @@ void testComputeFrazilColumn() {
                   ICell);
    }
 
-   const I4 KBottom0 = KMax;
-   const I4 KBottom1 = KMax - 1;
-   const I4 KWarm    = KMax - 2;
-   const I4 KTopCold = KMax - 3;
+   const I4 KBottom0  = KMax;
+   const I4 KBottom1  = KMax - 1;
+   const I4 KWarm     = KMax - 2;
+   const I4 KTopCold  = KMax - 3;
+   const I4 KCold2    = KMin + 3;
+   const I4 KCold3    = KMin + 2;
+   const I4 KWarm2    = KMin + 1;
+   const I4 KTopCold2 = KMin;
 
-   auto CTH             = createHostMirrorCopy(CT);
-   CTH(ICell, KBottom0) = CTCold;
-   CTH(ICell, KBottom1) = CTCold;
-   CTH(ICell, KWarm)    = CTWarm;
-   CTH(ICell, KTopCold) = CTCold;
+   auto CTH               = createHostMirrorCopy(CT);
+   CTH(ICell, KBottom0)   = CTCold;
+   CTH(ICell, KBottom1)   = CTCold;
+   CTH(ICell, KWarm)      = CTWarm;
+   CTH(ICell, KTopCold)   = CTCold;
+   CTH(ICell, KCold2 + 2) = CTCold;
+   CTH(ICell, KCold2 + 1) = CTCold - .5_Real;
+   CTH(ICell, KCold2)     = CTCold;
+   CTH(ICell, KCold3)     = CTCold;
+   CTH(ICell, KWarm2)     = CTWarm2;
+   CTH(ICell, KTopCold2)  = CTCold;
    deepCopy(CT, CTH);
 
+   const bool SavedConservationCheck = TestFrazil->conservationCheck;
+   TestFrazil->conservationCheck     = true;
    TestFrazil->computeFrazil(CT, SA, P, H);
+   TestFrazil->conservationCheck = SavedConservationCheck;
 
    auto HTendH = createHostMirrorCopy(TestFrazil->FrazilHTend);
    auto TTendH = createHostMirrorCopy(TestFrazil->FrazilTTend);
@@ -288,11 +311,94 @@ void testComputeFrazilColumn() {
        ICell);
 }
 
+void testComputeFrazilDepthLimit() {
+   const auto Mesh   = HorzMesh::getDefault();
+   const auto VCoord = VertCoord::getDefault();
+   auto *TestFrazil  = Frazil::getDefault();
+
+   if (!TestFrazil) {
+      ABORT_ERROR("FrazilTestColumn: default frazil object is null");
+   }
+
+   const Real RTol    = 1e-10_Real;
+   const Real SACold  = 35.0_Real;
+   const Real PRef    = 100.0_Real;
+   const Real HRef    = 10.0_Real;
+   const Real CTCold  = -2.0_Real;
+   const Real CTWarm  = 0.0_Real;
+   const Real CTWarm2 = -1.9_Real;
+
+   Array2DReal SA("SA", Mesh->NCellsSize, NVertLayers);
+   Array2DReal CT("CT", Mesh->NCellsSize, NVertLayers);
+   Array2DReal P("P", Mesh->NCellsSize, NVertLayers);
+   Array2DReal H("H", Mesh->NCellsSize, NVertLayers);
+
+   deepCopy(SA, SACold);
+   deepCopy(CT, CTWarm);
+   deepCopy(P, PRef);
+   deepCopy(H, HRef);
+
+   deepCopy(TestFrazil->AccMIce, 0.0_Real);
+   deepCopy(TestFrazil->AccMLiq, 0.0_Real);
+   deepCopy(TestFrazil->AccMSalt, 0.0_Real);
+   deepCopy(TestFrazil->AccELiq, 0.0_Real);
+   deepCopy(TestFrazil->AccEIce, 0.0_Real);
+   deepCopy(TestFrazil->FrazilHTend, 0.0_Real);
+   deepCopy(TestFrazil->FrazilTTend, 0.0_Real);
+   deepCopy(TestFrazil->FrazilSTend, 0.0_Real);
+
+   auto MinLayerCellH = createHostMirrorCopy(VCoord->MinLayerCell);
+   auto MaxLayerCellH = createHostMirrorCopy(VCoord->MaxLayerCell);
+
+   const I4 ICell = 0;
+   const I4 KMin  = MinLayerCellH(ICell);
+   const I4 KMax  = MaxLayerCellH(ICell);
+   if ((KMax - KMin + 1) < 4) {
+      ABORT_ERROR("FrazilTestColumn: cell {} has fewer than 4 active layers",
+                  ICell);
+   }
+
+   const I4 KBottom0  = KMax;
+   const I4 KBottom1  = KMax - 1;
+   const I4 KWarm     = KMax - 2;
+   const I4 KTopCold  = KMax - 3;
+   const I4 KCold2    = KMin + 3;
+   const I4 KCold3    = KMin + 2;
+   const I4 KWarm2    = KMin + 1;
+   const I4 KTopCold2 = KMin;
+
+   auto CTH               = createHostMirrorCopy(CT);
+   CTH(ICell, KBottom0)   = CTCold;
+   CTH(ICell, KBottom1)   = CTCold;
+   CTH(ICell, KWarm)      = CTWarm;
+   CTH(ICell, KTopCold)   = CTCold;
+   CTH(ICell, KCold2 + 2) = CTCold;
+   CTH(ICell, KCold2 + 1) = CTCold - .5_Real;
+   CTH(ICell, KCold2)     = CTCold;
+   CTH(ICell, KCold3)     = CTCold;
+   CTH(ICell, KWarm2)     = CTWarm2;
+   CTH(ICell, KTopCold2)  = CTCold;
+   deepCopy(CT, CTH);
+
+   const bool SavedConservationCheck = TestFrazil->conservationCheck;
+   const bool SavedDepthLimit        = TestFrazil->depthLimit;
+   TestFrazil->conservationCheck     = true;
+   TestFrazil->depthLimit            = 500.0_Real;
+   TestFrazil->computeFrazil(CT, SA, P, H);
+   TestFrazil->conservationCheck = SavedConservationCheck;
+   TestFrazil->depthLimit        = SavedDepthLimit;
+
+   auto HTendH = createHostMirrorCopy(TestFrazil->FrazilHTend);
+   auto TTendH = createHostMirrorCopy(TestFrazil->FrazilTTend);
+   auto STendH = createHostMirrorCopy(TestFrazil->FrazilSTend);
+}
+
 void frazilTest(const std::string &MeshFile = "OmegaMesh.nc") {
    initFrazilTest(MeshFile);
    testFrazilFormationCold();
    testFrazilFormationWarm();
    testComputeFrazilColumn();
+   testComputeFrazilDepthLimit();
    finalizeFrazilTest();
 }
 
