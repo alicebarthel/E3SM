@@ -216,7 +216,6 @@ class Frazil {
    Array1DReal AccMLiq;
    Array1DReal AccELiq;
    Array1DReal AccMSalt;
-   bool Enabled = true;
 
    void computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
                       const Array2DReal &P, const Array2DReal &H);
