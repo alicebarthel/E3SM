@@ -12,6 +12,7 @@
 #include "AuxiliaryState.h"
 #include "DataTypes.h"
 #include "Eos.h"
+#include "Error.h"
 #include "HorzMesh.h"
 #include "HorzOperators.h"
 #include "OceanState.h"
@@ -133,6 +134,73 @@ TracerHyperDiffOnCell::TracerHyperDiffOnCell(const HorzMesh *Mesh,
 
 SurfaceTracerRestoringOnCell::SurfaceTracerRestoringOnCell(
     const HorzMesh *Mesh) {}
+
+FrazilOnCell::FrazilOnCell(const HorzMesh *Mesh, const VertCoord *VCoord)
+    : NCellsAll(Mesh->NCellsAll), TempTracerIndex(-1), SaltTracerIndex(-1),
+      MinLayerCell(VCoord->MinLayerCell), MaxLayerCell(VCoord->MaxLayerCell) {
+   Tracers::getIndex(TempTracerIndex, "Temperature");
+   Tracers::getIndex(SaltTracerIndex, "Salinity");
+
+   OMEGA_REQUIRE(TempTracerIndex >= 0,
+                 "FrazilOnCell: Temperature tracer index is undefined");
+   OMEGA_REQUIRE(SaltTracerIndex >= 0,
+                 "FrazilOnCell: Salinity tracer index is undefined");
+}
+
+void FrazilOnCell::operator()(const Array2DReal &PseudoThicknessTend,
+                              const Array3DReal &TracerTend,
+                              const Array3DReal &TracerArray,
+                              const Array2DReal &PressureMid,
+                              const Array2DReal &PseudoThickness) const {
+   auto *DefaultFrazil = Frazil::getDefault();
+   if (!Enabled || !DefaultFrazil || !DefaultFrazil->Enabled) {
+      return;
+   }
+
+   deepCopy(DefaultFrazil->FrazilTTend, 0.0_Real);
+   deepCopy(DefaultFrazil->FrazilSTend, 0.0_Real);
+   deepCopy(DefaultFrazil->FrazilHTend, 0.0_Real);
+   deepCopy(DefaultFrazil->AccMIce, 0.0_Real);
+   deepCopy(DefaultFrazil->AccEIce, 0.0_Real);
+   deepCopy(DefaultFrazil->AccMLiq, 0.0_Real);
+   deepCopy(DefaultFrazil->AccELiq, 0.0_Real);
+   deepCopy(DefaultFrazil->AccMSalt, 0.0_Real);
+
+   const auto ConservTemp =
+       Kokkos::subview(TracerArray, TempTracerIndex, Kokkos::ALL, Kokkos::ALL);
+   const auto AbsSalinity =
+       Kokkos::subview(TracerArray, SaltTracerIndex, Kokkos::ALL, Kokkos::ALL);
+
+   DefaultFrazil->computeFrazil(ConservTemp, AbsSalinity, PressureMid,
+                                PseudoThickness);
+
+   const auto FrazilHTend = DefaultFrazil->FrazilHTend;
+   const auto FrazilTTend = DefaultFrazil->FrazilTTend;
+   const auto FrazilSTend = DefaultFrazil->FrazilSTend;
+   const I4 TempIndex     = TempTracerIndex;
+   const I4 SaltIndex     = SaltTracerIndex;
+
+   OMEGA_SCOPE(LocPseudoThicknessTend, PseudoThicknessTend);
+   OMEGA_SCOPE(LocTracerTend, TracerTend);
+   OMEGA_SCOPE(LocFrazilHTend, FrazilHTend);
+   OMEGA_SCOPE(LocFrazilTTend, FrazilTTend);
+   OMEGA_SCOPE(LocFrazilSTend, FrazilSTend);
+   OMEGA_SCOPE(LocMinLayerCell, MinLayerCell);
+   OMEGA_SCOPE(LocMaxLayerCell, MaxLayerCell);
+
+   parallelForOuter(
+       {NCellsAll}, KOKKOS_LAMBDA(int ICell, const TeamMember &Team) {
+          const int KMin = LocMinLayerCell(ICell);
+          const int KMax = LocMaxLayerCell(ICell);
+
+          parallelForInner(
+              Team, Range{KMin, KMax}, INNER_LAMBDA(int K) {
+                 LocPseudoThicknessTend(ICell, K) += LocFrazilHTend(ICell, K);
+                 LocTracerTend(TempIndex, ICell, K) += LocFrazilTTend(ICell, K);
+                 LocTracerTend(SaltIndex, ICell, K) += LocFrazilSTend(ICell, K);
+              });
+       });
+}
 
 void TracerHorzAdvOnCell::init() {
    const HorzMesh *Mesh    = this->HorzontalMesh;
