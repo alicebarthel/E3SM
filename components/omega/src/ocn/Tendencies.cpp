@@ -354,6 +354,10 @@ void Tendencies::readConfig(Config *OmegaConfig ///< [in] Omega config
    CHECK_ERROR_ABORT(
        Err, "Tendencies: PressureGradTendencyEnable not found in TendConfig");
 
+   Err += TendConfig.get("FrazilTendencyEnable", this->FrazilTerm.Enabled);
+   CHECK_ERROR_ABORT(
+       Err, "Tendencies: FrazilTendencyEnable not found in TendConfig");
+
    Err += TendConfig.get("SurfaceTracerRestoringEnable",
                          this->SurfaceTracerRestoring.Enabled);
    CHECK_ERROR_ABORT(
@@ -580,7 +584,8 @@ Tendencies::Tendencies(const std::string &Name_, ///< [in] Name for tendencies
                        EqState),
       TracerDiffusion(Mesh, VCoord), KPPNonLocalTracerFlux(Mesh, VCoord),
       TracerHyperDiff(Mesh, VCoord), TracerHorzAdv(Mesh, VCoord, VAdv_),
-      SurfaceTracerRestoring(Mesh), CustomThicknessTend(InCustomThicknessTend),
+      SurfaceTracerRestoring(Mesh), FrazilTerm(Mesh, VCoord),
+      CustomThicknessTend(InCustomThicknessTend),
       CustomVelocityTend(InCustomVelocityTend), EqState(EqState), PGrad(PGrad),
       VMix(VMix) {
 
@@ -1263,6 +1268,15 @@ void Tendencies::computeTracerTendenciesOnly(
                  EvaporationFlux, SeaIceSaltFlux);
           });
       Pacer::stop("Tend:sfcTracerForcing", 2);
+
+   // compute frazil tendency
+   if (FrazilTerm.Enabled) {
+      Pacer::start("Tend:frazil", 2);
+      const auto &PressureMid     = VCoord->PressureMid;
+      Array2DReal PseudoThickness = State->getPseudoThickness(ThickTimeLevel);
+      FrazilTerm(PseudoThicknessTend, TracerTend, TracerArray, PressureMid,
+                 PseudoThickness);
+      Pacer::stop("Tend:frazil", 2);
    }
 
    // Compute KPP non-local tracer tendency

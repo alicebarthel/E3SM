@@ -88,6 +88,7 @@ class Tendencies {
    KPPNonLocalTracerFluxOnCell KPPNonLocalTracerFlux;
    TracerHyperDiffOnCell TracerHyperDiff;
    SurfaceTracerRestoringOnCell SurfaceTracerRestoring;
+   FrazilOnCell FrazilTerm;
 
    /// Mode-split configuration of the velocity tendency
    ///  - Coriolis treatment in the vorticity flux term
