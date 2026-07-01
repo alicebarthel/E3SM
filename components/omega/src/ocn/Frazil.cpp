@@ -293,21 +293,22 @@ void Frazil::computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
              const Real SAIn = SA(ICell, K);
              const Real CTIn = CT(ICell, K);
              const Real PIn  = P(ICell, K);
+             const Real PDb  = PIn * Pa2Db;
              const Real H    = LayerH(ICell, K);
 
-             const Real Tfrz = gsw_ct_freezing_poly(SAIn, PIn, 0.0_Real);
+             const Real Tfrz = gsw_ct_freezing_poly(SAIn, PDb, 0.0_Real);
 
              Real HTend = 0.0_Real;
              Real TTend = 0.0_Real;
              Real STend = 0.0_Real;
 
              if (CTIn < Tfrz) {
-                LocComputeFrazilFormation(SAIn, CTIn, PIn, H, LocAccMIce(ICell),
+                LocComputeFrazilFormation(SAIn, CTIn, PDb, H, LocAccMIce(ICell),
                                           LocAccMLiq(ICell), LocAccMSalt(ICell),
                                           LocAccELiq(ICell), LocAccEIce(ICell),
                                           HTend, TTend, STend);
              } else {
-                LocComputeFrazilMelt(SAIn, CTIn, PIn, H, LocAccMIce(ICell),
+                LocComputeFrazilMelt(SAIn, CTIn, PDb, H, LocAccMIce(ICell),
                                      LocAccMLiq(ICell), LocAccMSalt(ICell),
                                      LocAccELiq(ICell), LocAccEIce(ICell),
                                      HTend, TTend, STend);
@@ -315,6 +316,9 @@ void Frazil::computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
 
              // temporary log -- TBRemoved
              if (ICell == 0) {
+                LOG_INFO("computeFrazil cell = {}, SAIn = {}, CTIn = {}, PIn = "
+                         "{}, H = {}, Tfrz = {}",
+                         ICell, SAIn, CTIn, PIn, H, Tfrz);
                 LOG_INFO("computeFrazil cell={} K={} (cold={}) AccMIce={} "
                          "AccMLiq={} AccMSalt={} AccELiq={} AccEIce={}",
                          ICell, K, (CTIn < Tfrz), LocAccMIce(ICell),
