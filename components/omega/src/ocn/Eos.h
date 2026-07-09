@@ -354,8 +354,8 @@ class Teos10Eos {
 
    /// Calculates freezing Conservative Temperature using TEOS-10 polynomial
    /// (polynomial error in [-5e-4, 6e-4] K, from GSW package)
-   KOKKOS_FUNCTION Real calcCtFreezing(const Real Sa, const Real P,
-                                       const Real SaturationFract) const {
+   KOKKOS_FUNCTION static Real calcCtFreezing(const Real Sa, const Real P,
+                                              const Real SaturationFract) {
       constexpr Real Sso = 35.16504;
       constexpr Real C0  = 0.017947064327968736;
       constexpr Real C1  = -6.076099099929818;
@@ -755,6 +755,20 @@ class Eos {
 
    /// Convert potential temperature to Conservative Temperature
    Real calcCtFromPt(const Real &Sa, const Real &Pt) const;
+
+   /// Calculate Conservative Temperature at freezing point.
+   /// P is expected in dbar to match TEOS polynomial convention.
+   KOKKOS_FUNCTION static Real calcCtFreezing(const Real Sa, const Real P,
+                                              const Real SaturationFract,
+                                              const EosType Choice) {
+      if (Choice == EosType::Teos10Eos) {
+         return Teos10Eos::calcCtFreezing(Sa, P, SaturationFract);
+      }
+
+      Kokkos::abort("Eos::calcCtFreezing: CtFreezing not implemented for "
+                    "non-TEOS-10 EOS");
+      return 0.0_Real;
+   }
 
    /// Initialize EOS from config and mesh
    static void init();

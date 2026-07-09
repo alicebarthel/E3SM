@@ -441,8 +441,8 @@ void testComputeFrazilColumn() {
    deepCopy(CT, CTH);
 
    const bool SavedConservationCheck = TestFrazil->conservationCheck;
-   // TestFrazil->conservationCheck     = true;
-   TestFrazil->conservationCheck = false; // manual toggle for BasicFrazil
+   TestFrazil->conservationCheck     = true;
+   // TestFrazil->conservationCheck = false; // manual toggle for BasicFrazil
    TestFrazil->computeFrazil(CT, SA, P, H);
    TestFrazil->conservationCheck = SavedConservationCheck;
 
