@@ -23,7 +23,7 @@
 namespace OMEGA {
 
 enum class FrazilType {
-   BasicFrazil,  ///< Placeholder basic frazil option
+   BasicFrazil,  ///< MPAS-O style basic frazil option
    SimpleFrazil, ///< Placeholder simple frazil option
    TeosFrazil    ///< Placeholder TEOS frazil option
 };
@@ -164,8 +164,10 @@ class FrazilFormation {
       wIh   = static_cast<Real>(wIh_d);
 
       const Real OneMinusPhi = Kokkos::max(1.0e-12_Real, 1.0_Real - Phi);
-      solidMass              = h * Kokkos::min(wIh, OneMinusPhi * MassLimit);
-      liquidMass             = (Phi / OneMinusPhi) * solidMass;
+      // anything called mass below is in pseudo-thickness units (m) and needs
+      // to be scaled by RhoSw for coupling
+      solidMass      = h * Kokkos::min(wIh, OneMinusPhi * MassLimit);
+      liquidMass     = (Phi / OneMinusPhi) * solidMass;
       solidEnthalpy  = solidMass * gsw_pot_enthalpy_from_pt_ice_poly(PTnew_d);
       liquidEnthalpy = liquidMass * Cp0Sw * CTnew;
 
@@ -235,6 +237,8 @@ class Frazil {
    Frazil &operator=(Frazil &&)      = delete;
 
    FrazilType frazilChoice;
+   BasicFrazilFormation computeBasicFrazilFormation;
+   BasicFrazilMelt computeBasicFrazilMelt;
    FrazilFormation computeFrazilFormation;
    FrazilMelt computeFrazilMelt;
    Real massLimit;
