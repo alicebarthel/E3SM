@@ -35,6 +35,12 @@ FrazilFormation::FrazilFormation() {}
 /// Constructor for FrazilMelt
 FrazilMelt::FrazilMelt() {}
 
+/// Constructor for BasicFrazilFormation
+BasicFrazilFormation::BasicFrazilFormation() {}
+
+/// Constructor for BasicFrazilMelt
+BasicFrazilMelt::BasicFrazilMelt() {}
+
 void Frazil::init() {
 
    if (!HorzMesh::getDefault() or !VertCoord::getDefault()) {
@@ -253,6 +259,8 @@ void Frazil::computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
 
    OMEGA_SCOPE(LocComputeFrazilFormation, computeFrazilFormation);
    OMEGA_SCOPE(LocComputeFrazilMelt, computeFrazilMelt);
+   OMEGA_SCOPE(LocComputeBasicFrazilFormation, computeBasicFrazilFormation);
+   OMEGA_SCOPE(LocComputeBasicFrazilMelt, computeBasicFrazilMelt);
    OMEGA_SCOPE(LocFrazilTTend, FrazilTTend);
    OMEGA_SCOPE(LocFrazilSTend, FrazilSTend);
    OMEGA_SCOPE(LocFrazilHTend, FrazilHTend);
@@ -264,12 +272,14 @@ void Frazil::computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
 
    parallelFor(
        {NCellsAll}, KOKKOS_LAMBDA(I4 ICell) {
-          const I4 KMin = MinLayerCell(ICell);
-          const I4 KMax = MaxLayerCell(ICell);
+          const I4 KMin             = MinLayerCell(ICell);
+          const I4 KMax             = MaxLayerCell(ICell);
+          const bool UseBasicManual = false; // for testing only, remove later
 
           I4 Klim          = KMax;
           bool HasKlim     = true;
           const bool Limit = (depthLimit >= 0.0_Real);
+
           if (Limit) {
              HasKlim = false;
              for (I4 K = KMax; K >= KMin; --K) {
@@ -303,22 +313,46 @@ void Frazil::computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
              Real STend = 0.0_Real;
 
              if (CTIn < Tfrz) {
-                LocComputeFrazilFormation(SAIn, CTIn, PDb, H, LocAccMIce(ICell),
-                                          LocAccMLiq(ICell), LocAccMSalt(ICell),
-                                          LocAccELiq(ICell), LocAccEIce(ICell),
-                                          HTend, TTend, STend);
+                if (UseBasicManual) {
+                   LocComputeBasicFrazilFormation(
+                       SAIn, CTIn, PDb, H, LocAccMIce(ICell),
+                       LocAccMSalt(ICell), LocAccEIce(ICell), HTend, TTend,
+                       STend, Tfrz);
+                } else {
+                   LocComputeFrazilFormation(
+                       SAIn, CTIn, PDb, H, LocAccMIce(ICell), LocAccMLiq(ICell),
+                       LocAccMSalt(ICell), LocAccELiq(ICell), LocAccEIce(ICell),
+                       HTend, TTend, STend);
+                }
+
              } else {
-                LocComputeFrazilMelt(SAIn, CTIn, PDb, H, LocAccMIce(ICell),
-                                     LocAccMLiq(ICell), LocAccMSalt(ICell),
-                                     LocAccELiq(ICell), LocAccEIce(ICell),
-                                     HTend, TTend, STend);
+                if (LocAccMIce(ICell) > 0.0_Real) {
+                   if (UseBasicManual) {
+                      LocComputeBasicFrazilMelt(
+                          SAIn, CTIn, PDb, H, LocAccMIce(ICell),
+                          LocAccMSalt(ICell), LocAccEIce(ICell), HTend, TTend,
+                          STend, Tfrz);
+                   } else {
+                      LocComputeFrazilMelt(SAIn, CTIn, PDb, H,
+                                           LocAccMIce(ICell), LocAccMLiq(ICell),
+                                           LocAccMSalt(ICell),
+                                           LocAccELiq(ICell), LocAccEIce(ICell),
+                                           HTend, TTend, STend);
+                   }
+                }
+                // else {
+                //  temporary kernel logging - TBRemoved
+                //     LOG_INFO(
+                //         "warm layer but no ice to melt");
+                //      }
              }
 
              // temporary log -- TBRemoved
              if (ICell == 0) {
-                LOG_INFO("computeFrazil cell = {}, SAIn = {}, CTIn = {}, PIn = "
-                         "{}, H = {}, Tfrz = {}",
-                         ICell, SAIn, CTIn, PIn, H, Tfrz);
+                // LOG_INFO("computeFrazil cell = {}, SAIn = {}, CTIn = {}, PIn
+                // = "
+                //          "{}, H = {}, Tfrz = {}",
+                //          ICell, SAIn, CTIn, PIn, H, Tfrz);
                 LOG_INFO("computeFrazil cell={} K={} (cold={}) AccMIce={} "
                          "AccMLiq={} AccMSalt={} AccELiq={} AccEIce={}",
                          ICell, K, (CTIn < Tfrz), LocAccMIce(ICell),
