@@ -83,7 +83,7 @@ Omega:
       DRhoDS: 0.8
       RhoT0S0: 1000.0
   Frazil:
-    FrazilType: teos
+    FrazilType: basic
     MassLimit: 0.1
     Phi: 0.75
     DepthLimit: -1.0
