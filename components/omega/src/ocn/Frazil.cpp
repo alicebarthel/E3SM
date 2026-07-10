@@ -71,9 +71,10 @@ void Frazil::init() {
 }
 
 Frazil::Frazil(const HorzMesh *Mesh, const VertCoord *VCoord)
-    : frazilChoice(FrazilType::TeosFrazil), NCellsAll(Mesh->NCellsAll),
+    : frazilChoice(FrazilType::TeosFrazil), computeFrazilFormation(),
+      computeFrazilMelt(), NCellsAll(Mesh->NCellsAll),
       NChunks((VCoord->NVertLayers + VecLength - 1) / VecLength), MeshPtr(Mesh),
-      VCoordPtr(VCoord), computeFrazilFormation(), computeFrazilMelt() {
+      VCoordPtr(VCoord) {
 
    FrazilTTend =
        Array2DReal("FrazilTTend", Mesh->NCellsSize, VCoord->NVertLayers);
