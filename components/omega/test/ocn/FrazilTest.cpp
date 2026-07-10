@@ -88,6 +88,8 @@ void testFrazilFormationCold() {
    (void)Mesh;
 
    FrazilFormation ComputeFrazilFormation;
+   ComputeFrazilFormation.phi       = 0.75_Real;
+   ComputeFrazilFormation.massLimit = 0.1_Real;
 
    Real AccMIce  = 0.0_Real;
    Real AccMLiq  = 0.0_Real;
@@ -166,6 +168,8 @@ void testFrazilFormationWarm() {
    (void)Mesh;
 
    FrazilFormation ComputeFrazilFormation;
+   ComputeFrazilFormation.phi       = 0.75_Real;
+   ComputeFrazilFormation.massLimit = 0.1_Real;
 
    Real AccMIce  = 0.0_Real;
    Real AccMLiq  = 0.0_Real;
