@@ -1,7 +1,7 @@
 //===-- ocn/Frazil.cpp - Frazil Ice Formation -----------------*- C++ -*-===//
 //
 // The Frazil class manages frazil tendencies and accumulators.
-// This initial scaffold wires allocation and configuration only.
+// This initial implementation only has a teos-10 configuration.
 //
 //===----------------------------------------------------------------------===//
 
@@ -71,8 +71,7 @@ void Frazil::init() {
 }
 
 Frazil::Frazil(const HorzMesh *Mesh, const VertCoord *VCoord)
-    : frazilChoice(FrazilType::TeosFrazil), massLimit(0.1_Real), phi(0.75_Real),
-      NCellsAll(Mesh->NCellsAll),
+    : frazilChoice(FrazilType::TeosFrazil), NCellsAll(Mesh->NCellsAll),
       NChunks((VCoord->NVertLayers + VecLength - 1) / VecLength), MeshPtr(Mesh),
       VCoordPtr(VCoord), computeFrazilFormation(), computeFrazilMelt() {
 
@@ -139,11 +138,12 @@ Frazil *Frazil::create(const std::string &Name) {
    }
 
    Err += FrazilConfig.get("MassLimit",
-                           NewFrazil->computeFrazilFormation.MassLimit);
+                           NewFrazil->computeFrazilFormation.massLimit);
+   Err += FrazilConfig.get("MassLimit", NewFrazil->computeFrazilMelt.massLimit);
    CHECK_ERROR_ABORT(Err,
                      "Frazil::create: MassLimit not found in Frazil config");
 
-   Err += FrazilConfig.get("Phi", NewFrazil->computeFrazilFormation.Phi);
+   Err += FrazilConfig.get("Phi", NewFrazil->computeFrazilFormation.phi);
    CHECK_ERROR_ABORT(Err, "Frazil::create: Phi not found in Frazil config");
 
    Err += FrazilConfig.get("ConservationCheck", NewFrazil->conservationCheck);
@@ -269,8 +269,6 @@ void Frazil::computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
 
    OMEGA_SCOPE(LocComputeFrazilFormation, computeFrazilFormation);
    OMEGA_SCOPE(LocComputeFrazilMelt, computeFrazilMelt);
-   OMEGA_SCOPE(LocComputeBasicFrazilFormation, computeBasicFrazilFormation);
-   OMEGA_SCOPE(LocComputeBasicFrazilMelt, computeBasicFrazilMelt);
    OMEGA_SCOPE(LocFrazilTTend, FrazilTTend);
    OMEGA_SCOPE(LocFrazilSTend, FrazilSTend);
    OMEGA_SCOPE(LocFrazilHTend, FrazilHTend);
@@ -282,98 +280,105 @@ void Frazil::computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
 
    parallelFor(
        {NCellsAll}, KOKKOS_LAMBDA(I4 ICell) {
-      const I4 KMin = MinLayerCell(ICell);
-      const I4 KMax = MaxLayerCell(ICell);
+          const I4 KMin = MinLayerCell(ICell);
+          const I4 KMax = MaxLayerCell(ICell);
 
-      I4 Klim          = KMax;
-      bool HasKlim     = true;
-      const bool Limit = (depthLimit >= 0.0_Real);
+          I4 Klim          = KMax;
+          bool HasKlim     = true;
+          const bool Limit = (depthLimit >= 0.0_Real);
 
-      if (Limit) {
-         HasKlim = false;
-         for (I4 K = KMax; K >= KMin; --K) {
-            if (Kokkos::abs(LocGeomZMid(ICell, K)) <= depthLimit) {
-               Klim    = K;
-               HasKlim = true;
-               break;
-            }
-         }
-      }
+          if (Limit) {
+             HasKlim = false;
+             for (I4 K = KMax; K >= KMin; --K) {
+                if (Kokkos::abs(LocGeomZMid(ICell, K)) <= depthLimit) {
+                   Klim    = K;
+                   HasKlim = true;
+                   break;
+                }
+             }
+          }
 
-      // Explicit accumulation order: bottom layer to top layer.
-      for (I4 K = KMax; K >= KMin; --K) {
-         if (!HasKlim || K > Klim) {
-            LocFrazilHTend(ICell, K) = 0.0_Real;
-            LocFrazilTTend(ICell, K) = 0.0_Real;
-            LocFrazilSTend(ICell, K) = 0.0_Real;
-            continue;
-         }
-
-         const Real SAIn = SA(ICell, K);
-         const Real CTIn = CT(ICell, K);
-         const Real PIn  = P(ICell, K);
-         const Real PDb  = PIn * Pa2Db;
-         const Real H    = LayerH(ICell, K);
-
-         const Real Tfrz =
-             Eos::calcCtFreezing(SAIn, PDb, 0.0_Real, LocEosChoice);
-
-         Real HTend = 0.0_Real;
-         Real TTend = 0.0_Real;
-         Real STend = 0.0_Real;
-
-         if (CTIn < Tfrz) {
-            LocComputeFrazilFormation(SAIn, CTIn, PDb, H, LocAccMIce(ICell),
-                                      LocAccMLiq(ICell), LocAccMSalt(ICell),
-                                      LocAccELiq(ICell), LocAccEIce(ICell),
-                                      HTend, TTend, STend);
-         }
-      }
-      else {
-         if (LocAccMIce(ICell) > 0.0_Real) {
-            LocComputeFrazilMelt(SAIn, CTIn, PDb, H, LocAccMIce(ICell),
-                                 LocAccMLiq(ICell), LocAccMSalt(ICell),
-                                 LocAccELiq(ICell), LocAccEIce(ICell), HTend,
-                                 TTend, STend);
-         }
-      }
-      // else {
-      //  temporary kernel logging - TBRemoved
-      //     LOG_INFO(
-      //         "warm layer but no ice to melt");
-      //      }
+          // Explicit accumulation order: bottom layer to top layer.
+          for (I4 K = KMax; K >= KMin; --K) {
+             if (!HasKlim || K > Klim) {
+                LocFrazilHTend(ICell, K) = 0.0_Real;
+                LocFrazilTTend(ICell, K) = 0.0_Real;
+                LocFrazilSTend(ICell, K) = 0.0_Real;
+                continue;
              }
 
-             // temporary log -- TBRemoved
-             //  if  (ICell == 0) {
-             // LOG_INFO("computeFrazil cell = {}, SAIn = {}, CTIn = {}, PIn = "
-             //          "{}, H = {}, Tfrz = {}",
-             //          ICell, SAIn, CTIn, PIn, H, Tfrz);
-             // LOG_INFO("computeFrazil cell={} K={} (cold={}) AccMIce={} "
-             //          "AccMLiq={} AccMSalt={} AccELiq={} AccEIce={}",
-             //          ICell, K, (CTIn < Tfrz), LocAccMIce(ICell),
-             //          LocAccMLiq(ICell), LocAccMSalt(ICell),
-             //          LocAccELiq(ICell), LocAccEIce(ICell));
-             // LOG_INFO("                                     HTend= {} "
-             //          "TTend= {} STend= {}",
-             //          HTend, TTend, STend);
+             const Real SAIn = SA(ICell, K);
+             const Real CTIn = CT(ICell, K);
+             const Real PIn  = P(ICell, K);
+             const Real PDb  = PIn * Pa2Db;
+             const Real H    = LayerH(ICell, K);
+
+             const Real Tfrz =
+                 Eos::calcCtFreezing(SAIn, PDb, 0.0_Real, LocEosChoice);
+
+             Real HTend = 0.0_Real;
+             Real TTend = 0.0_Real;
+             Real STend = 0.0_Real;
+
+             if (CTIn < Tfrz) {
+                LocComputeFrazilFormation(SAIn, CTIn, PDb, H, LocAccMIce(ICell),
+                                          LocAccMLiq(ICell), LocAccMSalt(ICell),
+                                          LocAccELiq(ICell), LocAccEIce(ICell),
+                                          HTend, TTend, STend);
+             }
+
+             else {
+                if (LocAccMIce(ICell) > 0.0_Real) {
+                   LocComputeFrazilMelt(SAIn, CTIn, PDb, H, LocAccMIce(ICell),
+                                        LocAccMLiq(ICell), LocAccMSalt(ICell),
+                                        LocAccELiq(ICell), LocAccEIce(ICell),
+                                        HTend, TTend, STend);
+                }
+                //    else {
+                //       temporary kernel logging - TBRemoved
+                //        LOG_INFO("warm layer but no ice to melt");
+                //    }
+             }
+
+             //  // temporary kernel logging -- TBRemoved
+             //  if (ICell == 0) {
+             //     const Real Hf  = H + HTend;
+             //     const Real SAf = (H * SAIn + STend) / Hf;
+             //     const Real Tf  = (H * CTIn + TTend) / Hf;
+             //     // LOG_INFO("computeFrazil cell = {}, SAIn = {}, CTIn = {},
+             //     PIn
+             //     // = "
+             //     //          "{}, H = {}, Tfrz = {}",
+             //     //          ICell, SAIn, CTIn, PIn, H, Tfrz);
+             //     LOG_INFO("computeFrazil cell={} K={} (cold={}) AccMIce={} "
+             //              "AccMLiq={} AccMSalt={} AccELiq={} AccEIce={}",
+             //              ICell, K, (CTIn < Tfrz), LocAccMIce(ICell),
+             //              LocAccMLiq(ICell), LocAccMSalt(ICell),
+             //              LocAccELiq(ICell), LocAccEIce(ICell));
+             //     LOG_INFO("                                     HTend= {} "
+             //              "TTend= {} STend= {}",
+             //              HTend, TTend, STend);
+             //     LOG_INFO("                                    "
+             //              "H= {}-->{}, T= {}-->{}, S= {}-->{}",
+             //              H, Hf, CTIn, Tf, SAIn, SAf);
              //  }
 
              LocFrazilHTend(ICell, K) = HTend; // not scaled by dt
              LocFrazilTTend(ICell, K) = TTend;
              LocFrazilSTend(ICell, K) = STend;
-}
-// Convert to coupler units
-LocAccMIce(ICell)  = LocAccMIce(ICell) * RhoSw;
-LocAccMLiq(ICell)  = LocAccMLiq(ICell) * RhoSw;
-LocAccMSalt(ICell) = LocAccMSalt(ICell) * RhoSw * PPt2Salt;
-LocAccELiq(ICell)  = LocAccELiq(ICell) * RhoSw;
-LocAccEIce(ICell)  = LocAccEIce(ICell) * RhoSw;
-});
+          }
 
-if (conservationCheck) {
-   checkColumnConservation();
-}
-}
+          // Convert to coupler units
+          LocAccMIce(ICell)  = LocAccMIce(ICell) * RhoSw;
+          LocAccMLiq(ICell)  = LocAccMLiq(ICell) * RhoSw;
+          LocAccMSalt(ICell) = LocAccMSalt(ICell) * RhoSw * PPt2Salt;
+          LocAccELiq(ICell)  = LocAccELiq(ICell) * RhoSw;
+          LocAccEIce(ICell)  = LocAccEIce(ICell) * RhoSw;
+       }); // end parallelFor
+
+   if (conservationCheck) {
+      checkColumnConservation();
+   }
+} // end of computeFrazil
 
 } // namespace OMEGA

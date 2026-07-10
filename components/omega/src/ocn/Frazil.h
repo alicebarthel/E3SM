@@ -2,8 +2,9 @@
 #define OMEGA_FRAZIL_H
 //===-- ocn/Frazil.h - Frazil Ice Formation -------------------*- C++ -*-===//
 //
-// This header defines a scaffold for frazil-related tendencies and
-// accumulators. Physics implementations are intentionally left empty.
+// The Frazil class manages frazil tendencies and accumulators.
+// This initial implementation only has a teos-10 configuration.
+// but carries scaffolding for other implementations.
 //
 //===----------------------------------------------------------------------===//
 
@@ -33,10 +34,14 @@ class FrazilMelt {
    /// constructor declaration
    FrazilMelt();
 
-   //   The functor takes the full arrays of specific volume (inout),
-   //   the indices ICell and KChunk, and the ocean tracers (conservative)
-   //   temperature, and (absolute) salinity as inputs, and outputs the
-   //   specific volume according to the Roquet et al. 2015 75 term expansion.
+   // masslimit parameter (set in config)
+   Real massLimit;
+
+   //   The functor for FrazilMelt takes as inputs:
+   //   the local ocean layer state (SA, CT, P, h),
+   //   the accumulated frazil solid and liquid mass, energy, and salt
+   //   and outputs the frazil tendencies (HTend, TTend, STend) and updated
+   //   accumulators.
    KOKKOS_FUNCTION void operator()(const Real SA, const Real CT, const Real P,
                                    const Real h, Real &AccMIce, Real &AccMLiq,
                                    Real &AccMSalt, Real &AccELiq, Real &AccEIce,
@@ -45,36 +50,45 @@ class FrazilMelt {
 
       constexpr Real Eps = 1.0e-12_Real;
 
-      if (AccMIce <= Eps) { // potential leak if we dont redistribute
+      // this check on AccMIce and E should be done in the calling function, but
+      // is here for safety we can do a better implementation of the checks
+      if (AccMIce <= Eps ||
+          AccEIce >= Eps) { // potential leak if we dont redistribute
          AccMIce = 0.0_Real;
+         AccEIce = 0.0_Real;
          HTend   = 0.0_Real;
          TTend   = 0.0_Real;
          STend   = 0.0_Real;
          return;
       }
 
-      const Real safeAccMLiq       = Kokkos::max(AccMLiq, Eps);
-      const Real safeAccMIce       = Kokkos::max(AccMIce, Eps);
-      const Real frazilIceFraction = Kokkos::min(
-          1.0_Real,
-          Kokkos::max(0.0_Real, AccMIce / (safeAccMLiq + safeAccMIce)));
-      const Real brineSalinity  = AccMSalt / safeAccMLiq;
-      const Real brineEnthalpy  = AccELiq / safeAccMLiq;
-      const Real potEnthalpyIce = AccEIce / safeAccMIce;
+      if (AccMLiq <= Eps ||
+          AccELiq >= Eps) { // potential leak if we dont redistribute
+         AccMLiq = 0.0_Real;
+         AccELiq = 0.0_Real;
+         HTend   = 0.0_Real;
+         TTend   = 0.0_Real;
+         STend   = 0.0_Real;
+         return;
+      }
 
-      const Real layerMass     = h + AccMIce;
-      const Real safeLayerMass = Kokkos::max(layerMass, Eps);
+      // 1. we start by adding the solid ice to the ocean layer (no brine yet)
+      const Real potEnthalpyIce = AccEIce / AccMIce;
+      const Real newLayerMass =
+          Kokkos::max(h + AccMIce, Eps); // max unnecessary but for safety
+      const Real newLayerIceFraction = AccMIce / newLayerMass;
 
-      const Real layerIceFraction =
-          Kokkos::min(1.0_Real, Kokkos::max(0.0_Real, AccMIce / safeLayerMass));
+      // 2. we calculate the (mass- and energy-conserving) ocean layer evolution
+      // ... how much (pure) ice does this layer melt?
 
-      // typecasting for now but will be simplified
-      const double SA_d    = static_cast<double>(SA);
-      const double CT_d    = static_cast<double>(CT);
-      const double P_d     = static_cast<double>(P);
-      const double wIhIn_d = static_cast<double>(layerIceFraction);
-      const double pt0Ice_d =
-          gsw_pt_from_pot_enthalpy_ice(static_cast<double>(potEnthalpyIce));
+      // typecasting for now but will be simplified once gsw functions are
+      // ported
+      const double SA_d     = static_cast<double>(SA);
+      const double CT_d     = static_cast<double>(CT);
+      const double P_d      = static_cast<double>(P);
+      const double wIhIn_d  = static_cast<double>(newLayerIceFraction);
+      const double pt0Ice_d = gsw_pt_from_pot_enthalpy_ice_poly(
+          static_cast<double>(potEnthalpyIce));
       const double tIce_d = gsw_t_from_pt0_ice(pt0Ice_d, P_d);
       double SAnew_d      = SA_d;
       double CTnew_d      = CT_d;
@@ -83,38 +97,32 @@ class FrazilMelt {
       gsw_melting_ice_into_seawater(SA_d, CT_d, P_d, wIhIn_d, tIce_d, &SAnew_d,
                                     &CTnew_d, &wIhOut_d);
 
-      const Real wIhOut = Kokkos::min(
-          1.0_Real, Kokkos::max(0.0_Real, static_cast<Real>(wIhOut_d)));
+      const Real wIhOut = static_cast<Real>(
+          wIhOut_d); // by def 0<= wIhOut <= 1 ;  To-do: check function behavior
 
-      const Real finalSolidMass =
-          Kokkos::min(AccMIce, Kokkos::max(0.0_Real, wIhOut * safeLayerMass));
-      const Real solidMass = Kokkos::max(0.0_Real, AccMIce - finalSolidMass);
+      // 3. we calculate the mass fraction of the frazil (pure) ice that was
+      // melted - limited by a total mass limit of 0.1h
+      const Real solidMassMelted = Kokkos::max(
+          0.0_Real,
+          AccMIce - wIhOut * newLayerMass); // original - left-over solid ice,
+      const Real frazilFractionMelted = Kokkos::min(
+          solidMassMelted / AccMIce,
+          h * massLimit / (AccMIce + AccMLiq)); // total added mass < 0.1h
 
-      if (solidMass <= Eps) {
-         return;
-      }
+      // the frazil fraction based on the solid ice also sets the (proportional)
+      // contributions from the frazil brine
+      HTend = +(frazilFractionMelted * (AccMLiq + AccMIce));
+      TTend = +(frazilFractionMelted * (AccELiq + AccEIce)) / Cp0Sw;
+      STend = +(frazilFractionMelted * AccMSalt);
 
-      const Real liquidMass =
-          Kokkos::min(AccMLiq, solidMass * (1.0_Real - frazilIceFraction) /
-                                   Kokkos::max(frazilIceFraction, Eps));
-      const Real solidEnthalpy  = solidMass * potEnthalpyIce;
-      const Real liquidEnthalpy = liquidMass * brineEnthalpy;
+      const Real frazilFractionLeft =
+          Kokkos::max(0.0_Real, 1.0_Real - frazilFractionMelted);
 
-      HTend = +(solidMass + liquidMass);
-      TTend = +(liquidEnthalpy + solidEnthalpy) / Cp0Sw;
-      STend = +(liquidMass * brineSalinity);
-
-      AccMIce  = Kokkos::max(0.0_Real, AccMIce - solidMass);
-      AccMLiq  = Kokkos::max(0.0_Real, AccMLiq - liquidMass);
-      AccMSalt = Kokkos::max(0.0_Real, AccMSalt - liquidMass * brineSalinity);
-      AccELiq -= liquidEnthalpy;
-      AccEIce -= solidEnthalpy;
-      if (AccMIce <= Eps) {
-         AccEIce = 0.0_Real;
-      }
-      if (AccMLiq <= Eps) {
-         AccELiq = 0.0_Real;
-      }
+      AccMIce  = frazilFractionLeft * AccMIce;
+      AccMLiq  = frazilFractionLeft * AccMLiq;
+      AccMSalt = frazilFractionLeft * AccMSalt;
+      AccELiq  = frazilFractionLeft * AccELiq;
+      AccEIce  = frazilFractionLeft * AccEIce;
    }
 };
 
@@ -123,15 +131,15 @@ class FrazilFormation {
    /// constructor declaration
    FrazilFormation();
 
-   /// Parameters for FrazilFormation (overwritten by config file if set there)
-   Real Phi = 0.75_Real; ///< liquid mass fraction of frazil for export
-   Real MassLimit =
-       0.1_Real; ///<  layer mass fraction limit for thickness tendency
+   /// Parameters for FrazilFormation (set by yaml file)
+   Real phi;       ///< liquid mass fraction of new frazil (0 < Phi < 1)
+   Real massLimit; ///< layer mass fraction limit for thickness tendency
 
-   //   The functor takes the full arrays of specific volume (inout),
-   //   the indices ICell and KChunk, and the ocean tracers (conservative)
-   //   temperature, and (absolute) salinity as inputs, and outputs the
-   //   specific volume according to the Roquet et al. 2015 75 term expansion.
+   //   The functor for FrazilFormation takes as inputs:
+   //   the local ocean layer state (SA, CT, P, h),
+   //   the accumulated frazil solid and liquid mass, energy, and salt
+   //   and outputs the frazil tendencies (HTend, TTend, STend) and updated
+   //   accumulators.
    KOKKOS_FUNCTION void operator()(const Real SA, const Real CT, const Real P,
                                    const Real h, Real &AccMIce, Real &AccMLiq,
                                    Real &AccMSalt, Real &AccELiq, Real &AccEIce,
@@ -163,20 +171,16 @@ class FrazilFormation {
       CTnew = static_cast<Real>(CTnew_d);
       wIh   = static_cast<Real>(wIh_d);
 
-      const Real OneMinusPhi = Kokkos::max(1.0e-12_Real, 1.0_Real - Phi);
+      const Real oneMinusPhi = Kokkos::max(1.0e-12_Real, 1.0_Real - phi);
       // anything called mass below is in pseudo-thickness units (m) and needs
       // to be scaled by RhoSw for coupling
-      solidMass      = h * Kokkos::min(wIh, OneMinusPhi * MassLimit);
-      liquidMass     = (Phi / OneMinusPhi) * solidMass;
+      solidMass      = h * Kokkos::min(wIh, oneMinusPhi * massLimit);
+      liquidMass     = (phi / oneMinusPhi) * solidMass;
       solidEnthalpy  = solidMass * gsw_pot_enthalpy_from_pt_ice_poly(PTnew_d);
       liquidEnthalpy = liquidMass * Cp0Sw * CTnew;
-
       // per timestep (not scaled by dt here)
       HTend = -(solidMass + liquidMass);
-      // TTend = (h - solidMass - liquidMass) * CTnew - h * CT;
-      // STend = (h - solidMass - liquidMass) * SAnew - h * SA;
-      TTend = -(liquidEnthalpy + solidEnthalpy) /
-              Cp0Sw; // convert back to CT tendency
+      TTend = -(liquidEnthalpy + solidEnthalpy) / Cp0Sw;
       STend = -(liquidMass * SAnew);
 
       // Local unit of mass is pseudo thickness (m)
@@ -237,12 +241,8 @@ class Frazil {
    Frazil &operator=(Frazil &&)      = delete;
 
    FrazilType frazilChoice;
-   BasicFrazilFormation computeBasicFrazilFormation;
-   BasicFrazilMelt computeBasicFrazilMelt;
    FrazilFormation computeFrazilFormation;
    FrazilMelt computeFrazilMelt;
-   Real massLimit;
-   Real phi;
    I4 NCellsAll;
    I4 NChunks;
 
