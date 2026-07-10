@@ -352,6 +352,10 @@ class Frazil {
 
    void computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
                       const Array2DReal &P, const Array2DReal &H);
+   void computeFrazilBasicImpl(const Array2DReal &CT, const Array2DReal &SA,
+                               const Array2DReal &P, const Array2DReal &LayerH);
+   void computeFrazilTeosImpl(const Array2DReal &CT, const Array2DReal &SA,
+                              const Array2DReal &P, const Array2DReal &LayerH);
    bool conservationCheck = false;
    Real depthLimit        = -1.0_Real;
 
