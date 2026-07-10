@@ -461,7 +461,7 @@ int testTendencies() {
          LOG_ERROR("TendenciesTest: Frazil did not change Salinity tracer "
                    "tendency");
       }
-
+      // add a log info if no errors?
       DefTendencies->FrazilTerm.Enabled = OrigFrazilEnabled;
    }
 
