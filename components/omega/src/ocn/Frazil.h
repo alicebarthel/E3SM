@@ -34,7 +34,7 @@ class BasicFrazilFormation {
 
    Real FractionalThicknessLimit = 0.1_Real;
    Real FrazilIceSalinity        = IceRefSal;
-   Real LatFrazil = 333700._Real; // Internal for now; can move to config later.
+   Real LatFrazil = LatIce; // Internal for now; can move to config later.
    // Real RhoFrazilIce = RhoIce; // Internal for now; can move to config later.
    // Real RhoFrazilIce = 1000.0_Real; // adjusted to mpas-o default value
    Real FrazilPorosity =
@@ -69,7 +69,8 @@ class BasicFrazilFormation {
       // previous port: Real newFrzEnergy = - newFrzThickness * LatFrazil *
       // RhoFrazilIce; // (<0; enthalpy of ice)
 
-      const Real FrazilIceSalinity = FrazilPorosity * SA;
+      // MANUAL TOGGLE: uncomment line below to use porosity
+      // const Real FrazilIceSalinity = FrazilPorosity * SA;
 
       const Real frazilSalinity = Kokkos::min(FrazilIceSalinity, SA);
       const Real newSaltContent =
@@ -103,7 +104,7 @@ class BasicFrazilMelt {
 
    Real FractionalThicknessLimit = 0.1_Real;
    Real FrazilIceSalinity        = IceRefSal;
-   Real LatFrazil = 333700._Real; // Internal for now; can move to config later.
+   Real LatFrazil = LatIce; // Internal for now; can move to config later.
    // Real RhoFrazilIce = RhoIce; // Internal for now; can move to config later.
 
    KOKKOS_FUNCTION void operator()(const Real SA, const Real CT, const Real PDb,

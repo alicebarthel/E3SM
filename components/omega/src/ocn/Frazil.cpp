@@ -285,6 +285,8 @@ void Frazil::computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
    OMEGA_SCOPE(LocAccMLiq, AccMLiq);
    OMEGA_SCOPE(LocAccELiq, AccELiq);
    OMEGA_SCOPE(LocAccMSalt, AccMSalt);
+   OMEGA_SCOPE(LocIceRefSal, IceRefSal);
+   OMEGA_SCOPE(LocLatIce, LatIce);
 
    parallelFor(
        {NCellsAll}, KOKKOS_LAMBDA(I4 ICell) {
@@ -365,7 +367,7 @@ void Frazil::computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
              }
 
              // temporary log -- TBRemoved
-             //  if  (ICell == 0) {
+             // if  (ICell == 0) {
              // LOG_INFO("computeFrazil cell = {}, SAIn = {}, CTIn = {}, PIn = "
              //          "{}, H = {}, Tfrz = {}",
              //          ICell, SAIn, CTIn, PIn, H, Tfrz);
@@ -377,11 +379,32 @@ void Frazil::computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
              // LOG_INFO("                                     HTend= {} "
              //          "TTend= {} STend= {}",
              //          HTend, TTend, STend);
-             //  }
+             //}
 
              LocFrazilHTend(ICell, K) = HTend; // not scaled by dt
              LocFrazilTTend(ICell, K) = TTend;
              LocFrazilSTend(ICell, K) = STend;
+          } // end of vertical loop
+
+          if (UseBasicManual) {
+             // temporary log -- TBRemoved
+             if (ICell == 0) {
+                LOG_INFO(
+                    "Frazil::computeFrazil: (basic={}), cell={} AccMIce={} "
+                    "AccMSaltCalc={} AccMSaltCpl={} "
+                    "AccEIceCalc={} AccEIceCpl={}",
+                    UseBasicManual, ICell, LocAccMIce(ICell),
+                    LocAccMSalt(ICell), LocAccMIce(ICell) * LocIceRefSal,
+                    LocAccEIce(ICell), -LocAccMIce(ICell) * LocLatIce);
+             }
+             // Redistribute excess salt at the surface. No treatment of low
+             // salinity frazil for now.
+             LocFrazilSTend(ICell, KMin) +=
+                 Kokkos::max(0.0_Real, LocAccMIce(ICell) * LocIceRefSal -
+                                           LocAccMSalt(ICell));
+             // hijack total terms before the coupling
+             LocAccMSalt(ICell) = LocAccMIce(ICell) * LocIceRefSal;
+             LocAccEIce(ICell)  = -LocAccMIce(ICell) * LocLatIce;
           }
           // Convert to coupler units
           LocAccMIce(ICell)  = LocAccMIce(ICell) * RhoSw;
@@ -389,7 +412,7 @@ void Frazil::computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
           LocAccMSalt(ICell) = LocAccMSalt(ICell) * RhoSw * PPt2Salt;
           LocAccELiq(ICell)  = LocAccELiq(ICell) * RhoSw;
           LocAccEIce(ICell)  = LocAccEIce(ICell) * RhoSw;
-       });
+       }); // end of NCells loop
 
    if (conservationCheck) {
       checkColumnConservation();
