@@ -149,12 +149,12 @@ Frazil *Frazil::create(const std::string &Name) {
    CHECK_ERROR_ABORT(Err,
                      "Frazil::create: MassLimit not found in Frazil config");
 
-   NewFrazil->computeBasicFrazilFormation.FractionalThicknessLimit =
-       NewFrazil->computeFrazilFormation.MassLimit;
-   NewFrazil->computeBasicFrazilMelt.FractionalThicknessLimit =
-       NewFrazil->computeFrazilFormation.MassLimit;
+   NewFrazil->computeBasicFrazilFormation.massLimit =
+       NewFrazil->computeFrazilFormation.massLimit;
+   NewFrazil->computeBasicFrazilMelt.massLimit =
+       NewFrazil->computeFrazilFormation.massLimit;
 
-   Err += FrazilConfig.get("Phi", NewFrazil->computeFrazilFormation.Phi);
+   Err += FrazilConfig.get("Phi", NewFrazil->computeFrazilFormation.phi);
    CHECK_ERROR_ABORT(Err, "Frazil::create: Phi not found in Frazil config");
 
    Err += FrazilConfig.get("ConservationCheck", NewFrazil->conservationCheck);
@@ -413,6 +413,7 @@ void Frazil::computeFrazilTeosImpl(const Array2DReal &CT, const Array2DReal &SA,
           bool HasKlim     = true;
           const bool Limit = (LocDepthLimit >= 0.0_Real);
 
+          // calculates the depth limit based on geometric height
           if (Limit) {
              HasKlim = false;
              for (I4 K = KMax; K >= KMin; --K) {
@@ -459,6 +460,8 @@ void Frazil::computeFrazilTeosImpl(const Array2DReal &CT, const Array2DReal &SA,
              }
 
              //  // temporary kernel logging -- TBRemoved
+             //  // used for debugging - only on CPUs.
+             //  // can be removed once we have single-column testing
              //  if (ICell == 0) {
              //     const Real Hf  = H + HTend;
              //     const Real SAf = (H * SAIn + STend) / Hf;
