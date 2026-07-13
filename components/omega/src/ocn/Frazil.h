@@ -33,11 +33,10 @@ class BasicFrazilFormation {
  public:
    BasicFrazilFormation();
 
-   Real FractionalThicknessLimit = 0.1_Real;
-   Real FrazilIceSalinity        = IceRefSal;
-   Real LatFrazil = LatIce; // Internal for now; can move to config later.
-   // Real RhoFrazilIce = RhoIce; // Internal for now; can move to config later.
-   // Real RhoFrazilIce = 1000.0_Real; // adjusted to mpas-o default value
+   Real massLimit         = 0.1_Real;  // to do:  remove default
+   Real FrazilIceSalinity = IceRefSal; // Global constant
+   Real LatFrazil         = LatIce;    // Global constant
+
    Real FrazilPorosity =
        1.0_Real; // Internal for now; can move to config later.
 
@@ -47,13 +46,8 @@ class BasicFrazilFormation {
                                    Real &TTend, Real &STend,
                                    const Real Tfrz) const {
 
-      // constexpr Real Eps = 1.0e-12_Real;
-
-      // const Real Tfrz = Eos.calcCtFreezing(SA, PDb, 0.0_Real); // to-do:
-      // change to Eos function
       const Real potential      = H * Cp0Sw * RhoSw * (CT - Tfrz);
       const Real freezingEnergy = Kokkos::max(0.0_Real, -potential);
-      // const Real meltingEnergy  = Kokkos::max(0.0_Real, potential);
 
       HTend = 0.0_Real;
       TTend = 0.0_Real;
@@ -61,14 +55,10 @@ class BasicFrazilFormation {
 
       Real newFrzThickness =
           freezingEnergy /
-          (LatFrazil * RhoSw); // frazil mass in pseudo-thickness terms
-      // Port from MPAS-O: energy per unit of ice volume
-      // Real newFrzThickness = freezingEnergy / (LatFrazil * RhoFrazilIce);
-      newFrzThickness =
-          Kokkos::min(newFrzThickness, H * FractionalThicknessLimit);
+          (LatFrazil * RhoSw); // frazil (ice) mass in pseudo-thickness terms
+
+      newFrzThickness   = Kokkos::min(newFrzThickness, H * massLimit);
       Real newFrzEnergy = -newFrzThickness * LatFrazil; // (<0; enthalpy of ice)
-      // previous port: Real newFrzEnergy = - newFrzThickness * LatFrazil *
-      // RhoFrazilIce; // (<0; enthalpy of ice)
 
       // MANUAL TOGGLE: uncomment line below to use porosity
       // const Real FrazilIceSalinity = FrazilPorosity * SA;
@@ -77,15 +67,15 @@ class BasicFrazilFormation {
       const Real newSaltContent =
           newFrzThickness * frazilSalinity; // in m.(g/kg)
 
-      HTend = -newFrzThickness;
-      // previous port: HTend = -newFrzThickness * RhoFrazilIce / RhoSw;
+      HTend = -newFrzThickness - newSaltContent;
+      // TTend below should include the enthalpy associated with the mass flux
+      // this is intentionally not added here to match the mpas-o implementation
       TTend =
           -(newFrzEnergy) / (Cp0Sw); // (E< 0 so TTend>0) // scaled to h.CT tend
       STend = -newSaltContent;
 
       SumIceThickness += newFrzThickness;
       // non-conservation between Sum and HTend by construction in the original
-      // port now updated to track mass (in pseudo-thickness units)
       SumSalt += newSaltContent;
       SumEnergy += newFrzEnergy;
    }
@@ -103,10 +93,9 @@ class BasicFrazilMelt {
  public:
    BasicFrazilMelt();
 
-   Real FractionalThicknessLimit = 0.1_Real;
-   Real FrazilIceSalinity        = IceRefSal;
-   Real LatFrazil = LatIce; // Internal for now; can move to config later.
-   // Real RhoFrazilIce = RhoIce; // Internal for now; can move to config later.
+   Real massLimit         = 0.1_Real;  // to do:  remove default
+   Real FrazilIceSalinity = IceRefSal; // Global constant
+   Real LatFrazil         = LatIce;    // Global constant
 
    KOKKOS_FUNCTION void operator()(const Real SA, const Real CT, const Real PDb,
                                    const Real H, Real &SumIceThickness,
@@ -123,9 +112,7 @@ class BasicFrazilMelt {
          STend           = 0.0_Real;
          return;
       }
-      // const Real Tfrz = gsw_ct_freezing_poly(SA, PDb, 0.0_Real);
-      const Real potential = H * Cp0Sw * RhoSw * (CT - Tfrz);
-      // const Real freezingEnergy = Kokkos::max(0.0_Real, -potential);
+      const Real potential       = H * Cp0Sw * RhoSw * (CT - Tfrz);
       const Real availableEnergy = Kokkos::max(0.0_Real, potential);
 
       HTend = 0.0_Real;
@@ -135,17 +122,14 @@ class BasicFrazilMelt {
       Real meltThickness =
           availableEnergy /
           (LatFrazil * RhoSw); // mass in pseudo-thickness units
-      /// original port: Real meltThickness = availableEnergy / (LatFrazil *
-      /// RhoFrazilIce);
       meltThickness = Kokkos::min(meltThickness, SumIceThickness);
-      meltThickness = Kokkos::min(
-          meltThickness,
-          H * FractionalThicknessLimit); // also 0.1h lim on added mass
+      meltThickness = Kokkos::min(meltThickness,
+                                  H * massLimit); // also 0.1h lim on added mass
       const Real meltAverageSalinity = SumSalt / SumIceThickness;
       const Real meltingEnergy =
           meltThickness * LatFrazil; // (energy needed to melt)
 
-      HTend = +meltThickness; // (>0 so HTend>0)
+      HTend = +meltThickness * (1 + meltAverageSalinity); // (>0 so HTend>0)
       TTend =
           -meltingEnergy /
               (Cp0Sw) + // (TTend < 0 when melting for phase change)
