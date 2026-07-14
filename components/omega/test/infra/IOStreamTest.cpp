@@ -153,7 +153,7 @@ void initIOStreamTest(Clock *&ModelClock // Model clock
 
    // Initialize VertMix
    VertMix::init();
-   
+
    // Initialize Tracers before Tendencies so tracer indices are available
    // during FrazilOnCell construction inside Tendencies::init().
    Tracers::init();
