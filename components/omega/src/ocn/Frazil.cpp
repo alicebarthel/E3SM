@@ -319,7 +319,7 @@ void Frazil::computeFrazilBasicImpl(const Array2DReal &CT,
              const Real H    = LayerH(ICell, K);
 
              const Real Tfrz =
-                 Eos::calcCtFreezing(SAIn, PDb, 0.0_Real, LocEosChoice);
+                 Eos::calcCtFreezing(LocEosChoice, SAIn, PDb, 0.0_Real);
 
              Real HTend = 0.0_Real;
              Real TTend = 0.0_Real;
@@ -441,7 +441,7 @@ void Frazil::computeFrazilTeosImpl(const Array2DReal &CT, const Array2DReal &SA,
              const Real H    = LayerH(ICell, K);
 
              const Real Tfrz =
-                 Eos::calcCtFreezing(SAIn, PDb, 0.0_Real, LocEosChoice);
+                 Eos::calcCtFreezing(LocEosChoice, SAIn, PDb, 0.0_Real);
 
              Real HTend = 0.0_Real;
              Real TTend = 0.0_Real;

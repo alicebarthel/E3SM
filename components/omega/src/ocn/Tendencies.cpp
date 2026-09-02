@@ -967,6 +967,7 @@ void Tendencies::computeTracerTendenciesOnly(
                                  EvaporationFlux, SeaIceSaltFlux);
           });
       Pacer::stop("Tend:sfcTracerForcing", 2);
+   }
 
    // compute frazil tendency
    if (FrazilTerm.Enabled) {
