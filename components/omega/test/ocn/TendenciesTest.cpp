@@ -332,7 +332,7 @@ int testTendencies() {
    // Test surface thickness forcing with freshwater terms
    const int ThicknessForcingErr = testSfcThicknessForcing();
    Err += ThicknessForcingErr;
-   
+
    // Verify frazil tendencies are plumbed into pseudo-thickness and tracer
    // tendencies by comparing runs with FrazilTerm disabled/enabled.
    I4 TempTracerIndex = -1;
@@ -487,7 +487,7 @@ int testTendencies() {
       LOG_ERROR("TendenciesTest: PseudoThickTend FAIL");
    }
 
-   const Real TraceTendSum =
+   const Real TracerTendSum =
        sum(DefTendencies->TracerTend, NTracers, NCellsOwned,
            VCoord->MinLayerCell, VCoord->MaxLayerCell);
    if (!Kokkos::isfinite(TracerTendSum) || TracerTendSum == 0) {
