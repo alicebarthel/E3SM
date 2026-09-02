@@ -119,6 +119,11 @@ int initTendenciesTest(const std::string &mesh) {
    Config("Omega");
    Config::readAll("omega.yml");
 
+   Config *OmegaConfig = Config::getOmegaConfig();
+   Config TendConfig("Tendencies");
+   OmegaConfig->get(TendConfig);
+   TendConfig.set("FrazilTendencyEnable", true);
+
    // Initialize time stepping and model clock
    TimeStepper::init1();
    TimeStepper *DefStepper = TimeStepper::getDefault();

@@ -80,7 +80,7 @@ Omega:
     VelocityVertAdvTendencyEnable: true
     TracerVertAdvTendencyEnable: true
     PressureGradTendencyEnable: true
-    FrazilTendencyEnable: true
+    FrazilTendencyEnable: false
     VelVertMixTendencyEnable: true
     TracerVertMixTendencyEnable: true
   ManufacturedSolution:

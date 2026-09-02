@@ -40,6 +40,11 @@ void initFrazilTest(const std::string &mesh) {
    Config("Omega");
    Config::readAll("omega.yml");
 
+   Config *OmegaConfig = Config::getOmegaConfig();
+   Config TendConfig("Tendencies");
+   OmegaConfig->get(TendConfig);
+   TendConfig.set("FrazilTendencyEnable", true);
+
    Calendar::init("No Leap");
    TimeInstant StartTime(0, 1, 1, 0, 0, 0.0);
    TimeInterval TimeStep(1, TimeUnits::Hours);
