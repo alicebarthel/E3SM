@@ -663,6 +663,7 @@ Tendencies::Tendencies(const std::string &Name_, ///< [in] Name for tendencies
        Array1DReal("KPPNonLocalTracerTempColumnSumDiag", Mesh->NCellsSize);
    deepCopy(KPPNonLocalTracerTempTendDiag, 0.0_Real);
    deepCopy(KPPNonLocalTracerTempColumnSumDiag, 0.0_Real);
+   ExtraEnergy = Array1DReal("ExtraEnergy", Mesh->NCellsSize);
 
    Name = Name_;
 
@@ -1086,6 +1087,7 @@ void Tendencies::computeTracerTendenciesOnly(
 ) {
    OMEGA_SCOPE(LocTracerArray, TracerArray);
    OMEGA_SCOPE(LocTracerTend, TracerTend);
+   OMEGA_SCOPE(LocExtraEnergy, ExtraEnergy);
    OMEGA_SCOPE(LocTracerHorzAdv, TracerHorzAdv);
    OMEGA_SCOPE(LocTracerDiffusion, TracerDiffusion);
    OMEGA_SCOPE(LocKPPNonLocalTracerFlux, KPPNonLocalTracerFlux);
@@ -1329,6 +1331,7 @@ void Tendencies::computeTracerTendenciesOnly(
 
    // compute tracer forcing tendency; this also fills SurfaceTracerFlux,
    // which the KPP non-local flux term below depends on
+   deepCopy(ExtraEnergy, 0.0_Real);
    if (LocSfcTracerForcing.Enabled) {
       Pacer::start("Tend:sfcTracerForcing", 2);
       const auto *ForcingState = Forcing::getDefault();
@@ -1360,11 +1363,11 @@ void Tendencies::computeTracerTendenciesOnly(
       parallelFor(
           {Mesh->NCellsOwned}, KOKKOS_LAMBDA(int ICell) {
              LocSfcTracerForcing(
-                 LocTracerTend, SurfaceTracerFlux, ICell, TracerArray,
-                 LatentHeatFluxEvap, SensibleHeatFlux, LongWaveHeatFluxUp,
-                 LongWaveHeatFluxDown, SeaIceHeatFlux, ShortWaveHeatFlux,
-                 SnowFlux, RainFlux, IceRunoffFlux, RiverRunoffFlux,
-                 EvaporationFlux, SeaIceSaltFlux);
+                 LocTracerTend, SurfaceTracerFlux, LocExtraEnergy, ICell,
+                 TracerArray, LatentHeatFluxEvap, SensibleHeatFlux,
+                 LongWaveHeatFluxUp, LongWaveHeatFluxDown, SeaIceHeatFlux,
+                 ShortWaveHeatFlux, SnowFlux, RainFlux, IceRunoffFlux,
+                 RiverRunoffFlux, EvaporationFlux, SeaIceSaltFlux);
           });
       Pacer::stop("Tend:sfcTracerForcing", 2);
    }
