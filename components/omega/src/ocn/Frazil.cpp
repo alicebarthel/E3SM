@@ -335,36 +335,10 @@ void Frazil::computeFrazilBasicImpl(const Array2DReal &CT,
                                           HTend, TTend, STend, Tfrz);
              }
 
-             // temporary log -- TBRemoved
-             // if  (ICell == 0) {
-             // LOG_INFO("computeFrazil cell = {}, SAIn = {}, CTIn = {}, PIn = "
-             //          "{}, H = {}, Tfrz = {}",
-             //          ICell, SAIn, CTIn, PIn, H, Tfrz);
-             // LOG_INFO("computeFrazil cell={} K={} (cold={}) AccMIce={} "
-             //          "AccMLiq={} AccMSalt={} AccELiq={} AccEIce={}",
-             //          ICell, K, (CTIn < Tfrz), LocAccMIce(ICell),
-             //          LocAccMLiq(ICell), LocAccMSalt(ICell),
-             //          LocAccELiq(ICell), LocAccEIce(ICell));
-             // LOG_INFO("                                     HTend= {} "
-             //          "TTend= {} STend= {}",
-             //          HTend, TTend, STend);
-             //}
-
              LocFrazilHTend(ICell, K) = HTend; // not scaled by dt
              LocFrazilTTend(ICell, K) = TTend;
              LocFrazilSTend(ICell, K) = STend;
           } // end of vertical loop
-
-          //  // temporary log -- TBRemoved
-          //  if (ICell == 0) {
-          //     LOG_INFO(
-          //         "Frazil::computeFrazil: (basic={}), cell={} AccMIce={} "
-          //         "AccMSaltCalc={} AccMSaltCpl={} "
-          //         "AccEIceCalc={} AccEIceCpl={}",
-          //         true, ICell, LocAccMIce(ICell),
-          //         LocAccMSalt(ICell), LocAccMIce(ICell) * LocIceRefSal,
-          //         LocAccEIce(ICell), -LocAccMIce(ICell) * LocLatIce);
-          //  }
 
           // Redistribute excess salt at the surface. No treatment of low
           // salinity frazil for now.
@@ -383,29 +357,42 @@ void Frazil::computeFrazilBasicImpl(const Array2DReal &CT,
        }); // end of NCells loop
 }
 
+// TEOS-10 frazil relies on host-only GSW routines, so this implementation
+// mirrors all inputs/outputs to the host and runs a plain host loop.
+// This is a temporary implementation until a device-callable solution
+// is available.
 void Frazil::computeFrazilTeosImpl(const Array2DReal &CT, const Array2DReal &SA,
                                    const Array2DReal &P,
                                    const Array2DReal &LayerH) {
    const EosType LocEosChoice = Eos::getInstance()->EosChoice;
    const Real LocDepthLimit   = depthLimit;
 
-   OMEGA_SCOPE(MinLayerCell, VCoordPtr->MinLayerCell);
-   OMEGA_SCOPE(MaxLayerCell, VCoordPtr->MaxLayerCell);
-   OMEGA_SCOPE(LocGeomZMid, VCoordPtr->GeomZMid);
+   const auto MinLayerCell = createHostMirrorCopy(VCoordPtr->MinLayerCell);
+   const auto MaxLayerCell = createHostMirrorCopy(VCoordPtr->MaxLayerCell);
+   const auto LocGeomZMid  = createHostMirrorCopy(VCoordPtr->GeomZMid);
 
-   OMEGA_SCOPE(LocComputeFrazilFormation, computeFrazilFormation);
-   OMEGA_SCOPE(LocComputeFrazilMelt, computeFrazilMelt);
-   OMEGA_SCOPE(LocFrazilTTend, FrazilTTend);
-   OMEGA_SCOPE(LocFrazilSTend, FrazilSTend);
-   OMEGA_SCOPE(LocFrazilHTend, FrazilHTend);
-   OMEGA_SCOPE(LocAccMIce, AccMIce);
-   OMEGA_SCOPE(LocAccEIce, AccEIce);
-   OMEGA_SCOPE(LocAccMLiq, AccMLiq);
-   OMEGA_SCOPE(LocAccELiq, AccELiq);
-   OMEGA_SCOPE(LocAccMSalt, AccMSalt);
+   const auto SAH     = createHostMirrorCopy(SA);
+   const auto CTH     = createHostMirrorCopy(CT);
+   const auto PH      = createHostMirrorCopy(P);
+   const auto LayerHH = createHostMirrorCopy(LayerH);
 
-   parallelFor(
-       {NCellsAll}, KOKKOS_LAMBDA(I4 ICell) {
+   auto LocFrazilTTend = createHostMirrorCopy(FrazilTTend);
+   auto LocFrazilSTend = createHostMirrorCopy(FrazilSTend);
+   auto LocFrazilHTend = createHostMirrorCopy(FrazilHTend);
+   auto LocAccMIce     = createHostMirrorCopy(AccMIce);
+   auto LocAccEIce     = createHostMirrorCopy(AccEIce);
+   auto LocAccMLiq     = createHostMirrorCopy(AccMLiq);
+   auto LocAccELiq     = createHostMirrorCopy(AccELiq);
+   auto LocAccMSalt    = createHostMirrorCopy(AccMSalt);
+
+   // Copies of the functors so the lambda below stays a plain (non-device)
+   // lambda instead of a KOKKOS_LAMBDA, keeping this loop host-only.
+   const auto LocComputeFrazilFormation = computeFrazilFormation;
+   const auto LocComputeFrazilMelt      = computeFrazilMelt;
+
+   Kokkos::parallel_for(
+       "frazilTeosImpl", Kokkos::RangePolicy<HostExecSpace>(0, NCellsAll),
+       [=](const I4 ICell) {
           const I4 KMin = MinLayerCell(ICell);
           const I4 KMax = MaxLayerCell(ICell);
 
@@ -434,11 +421,11 @@ void Frazil::computeFrazilTeosImpl(const Array2DReal &CT, const Array2DReal &SA,
                 continue;
              }
 
-             const Real SAIn = SA(ICell, K);
-             const Real CTIn = CT(ICell, K);
-             const Real PIn  = P(ICell, K);
+             const Real SAIn = SAH(ICell, K);
+             const Real CTIn = CTH(ICell, K);
+             const Real PIn  = PH(ICell, K);
              const Real PDb  = PIn * Pa2Db;
-             const Real H    = LayerH(ICell, K);
+             const Real H    = LayerHH(ICell, K);
 
              const Real Tfrz =
                  Eos::calcCtFreezing(LocEosChoice, SAIn, PDb, 0.0_Real);
@@ -459,31 +446,6 @@ void Frazil::computeFrazilTeosImpl(const Array2DReal &CT, const Array2DReal &SA,
                                      HTend, TTend, STend);
              }
 
-             //  // temporary kernel logging -- TBRemoved
-             //  // used for debugging - only on CPUs.
-             //  // can be removed once we have single-column testing
-             //  if (ICell == 0) {
-             //     const Real Hf  = H + HTend;
-             //     const Real SAf = (H * SAIn + STend) / Hf;
-             //     const Real Tf  = (H * CTIn + TTend) / Hf;
-             //     // LOG_INFO("computeFrazil cell = {}, SAIn = {}, CTIn = {},
-             //     PIn
-             //     // = "
-             //     //          "{}, H = {}, Tfrz = {}",
-             //     //          ICell, SAIn, CTIn, PIn, H, Tfrz);
-             //     LOG_INFO("computeFrazil cell={} K={} (cold={}) AccMIce={} "
-             //              "AccMLiq={} AccMSalt={} AccELiq={} AccEIce={}",
-             //              ICell, K, (CTIn < Tfrz), LocAccMIce(ICell),
-             //              LocAccMLiq(ICell), LocAccMSalt(ICell),
-             //              LocAccELiq(ICell), LocAccEIce(ICell));
-             //     LOG_INFO("                                     HTend= {} "
-             //              "TTend= {} STend= {}",
-             //              HTend, TTend, STend);
-             //     LOG_INFO("                                    "
-             //              "H= {}-->{}, T= {}-->{}, S= {}-->{}",
-             //              H, Hf, CTIn, Tf, SAIn, SAf);
-             //  }
-
              LocFrazilHTend(ICell, K) = HTend; // not scaled by dt
              LocFrazilTTend(ICell, K) = TTend;
              LocFrazilSTend(ICell, K) = STend;
@@ -496,6 +458,15 @@ void Frazil::computeFrazilTeosImpl(const Array2DReal &CT, const Array2DReal &SA,
           LocAccELiq(ICell)  = LocAccELiq(ICell) * RhoSw;
           LocAccEIce(ICell)  = LocAccEIce(ICell) * RhoSw;
        }); // end of NCells loop
+
+   deepCopy(FrazilTTend, LocFrazilTTend);
+   deepCopy(FrazilSTend, LocFrazilSTend);
+   deepCopy(FrazilHTend, LocFrazilHTend);
+   deepCopy(AccMIce, LocAccMIce);
+   deepCopy(AccEIce, LocAccEIce);
+   deepCopy(AccMLiq, LocAccMLiq);
+   deepCopy(AccELiq, LocAccELiq);
+   deepCopy(AccMSalt, LocAccMSalt);
 }
 
 void Frazil::computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
