@@ -157,11 +157,12 @@ class FrazilMelt {
    //   the accumulated frazil solid and liquid mass, energy, and salt
    //   and outputs the frazil tendencies (HTend, TTend, STend) and updated
    //   accumulators.
-   KOKKOS_FUNCTION void operator()(const Real SA, const Real CT, const Real P,
-                                   const Real h, Real &AccMIce, Real &AccMLiq,
-                                   Real &AccMSalt, Real &AccELiq, Real &AccEIce,
-                                   Real &HTend, Real &TTend,
-                                   Real &STend) const {
+   //   Host-only: relies on GSW TEOS-10 routines that are not device-callable.
+   //   This is a temporary implementation until a device-callable solution is
+   //   available.
+   void operator()(const Real SA, const Real CT, const Real P, const Real h,
+                   Real &AccMIce, Real &AccMLiq, Real &AccMSalt, Real &AccELiq,
+                   Real &AccEIce, Real &HTend, Real &TTend, Real &STend) const {
 
       constexpr Real Eps = 1.0e-12_Real;
 
@@ -255,11 +256,12 @@ class FrazilFormation {
    //   the accumulated frazil solid and liquid mass, energy, and salt
    //   and outputs the frazil tendencies (HTend, TTend, STend) and updated
    //   accumulators.
-   KOKKOS_FUNCTION void operator()(const Real SA, const Real CT, const Real P,
-                                   const Real h, Real &AccMIce, Real &AccMLiq,
-                                   Real &AccMSalt, Real &AccELiq, Real &AccEIce,
-                                   Real &HTend, Real &TTend,
-                                   Real &STend) const {
+   //   Host-only: relies on GSW TEOS-10 routines that are not device-callable.
+   //   This is a temporary implementation until a device-callable solution is
+   //   available.
+   void operator()(const Real SA, const Real CT, const Real P, const Real h,
+                   Real &AccMIce, Real &AccMLiq, Real &AccMSalt, Real &AccELiq,
+                   Real &AccEIce, Real &HTend, Real &TTend, Real &STend) const {
 
       Real CTnew;
       Real SAnew;
