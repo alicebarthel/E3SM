@@ -233,6 +233,154 @@ void testFrazilFormationWarm() {
 
 // this test only excercises the frazil formation functor (no melt)
 // in a warm case: the frazil FORMATION terms should all be zero
+void testNonConservFrazilFormationWarm() {
+   const auto Mesh   = HorzMesh::getDefault();
+   const auto VCoord = VertCoord::getDefault();
+
+   VCoord->NVertLayers = NVertLayers;
+
+   const Real SAIn = 35.0_Real;
+   const Real CTIn = 10.0_Real;
+   const Real PIn  = 100.0_Real;
+   const Real h    = 10.0_Real;
+   const Real RTol = 1e-10_Real;
+
+   (void)Mesh;
+
+   NonConservFrazilFormation ComputeFrazilFormation;
+
+   Real AccMIce  = 0.0_Real;
+   Real AccMLiq  = 0.0_Real;
+   Real AccMSalt = 0.0_Real;
+   Real AccELiq  = 0.0_Real;
+   Real AccEIce  = 0.0_Real;
+
+   Real HTend = 0.0_Real;
+   Real TTend = 0.0_Real;
+   Real STend = 0.0_Real;
+
+   Real CTfrz = gsw_ct_freezing_poly(SAIn, PIn, 0.0_Real);
+
+   ComputeFrazilFormation(SAIn, CTIn, PIn, h, AccMIce, AccMSalt, AccEIce, HTend,
+                          TTend, STend, CTfrz);
+
+   if (!isApprox(AccMIce, 0.0_Real, RTol)) {
+      ABORT_ERROR(
+          "FrazilNonConservFormationTest warm: expected zero AccMIce, got {}",
+          AccMIce);
+   }
+
+   if (!isApprox(AccMSalt, 0.0_Real, RTol)) {
+      ABORT_ERROR(
+          "FrazilNonConservFormationTest warm: expected zero AccMSalt, got {}",
+          AccMSalt);
+   }
+
+   if (!isApprox(AccEIce, 0.0_Real, RTol)) {
+      ABORT_ERROR(
+          "FrazilNonConservFormationTest warm: expected zero AccEIce, got {}",
+          AccEIce);
+   }
+   if (!isApprox(HTend, 0.0_Real, RTol)) {
+      ABORT_ERROR(
+          "FrazilNonConservFormationTest warm: expected zero HTend, got {}",
+          HTend);
+   }
+
+   if (!isApprox(TTend, 0.0_Real, RTol)) {
+      ABORT_ERROR(
+          "FrazilNonConservFormationTest warm: expected zero TTend, got {}",
+          TTend);
+   }
+
+   if (!isApprox(STend, 0.0_Real, RTol)) {
+      ABORT_ERROR(
+          "FrazilNonConservFormationTest warm: expected zero STend, got {}",
+          STend);
+   }
+   LOG_INFO("FrazilNonConservFormationTestWarm: AccMIce = {}, AccMLiq = {}, "
+            "AccMSalt = {}, "
+            "AccELiq = {}, AccEIce = {}, HTend = {}, TTend = {}, STend = {}",
+            AccMIce, AccMLiq, AccMSalt, AccELiq, AccEIce, HTend, TTend, STend);
+}
+
+// this test only excercises the frazil formation functor (no melt)
+// in a cold case: the frazil terms should be
+// - strictly positive for ice, liquid, and salt mass
+//- strictly negative for ice and liquid energy
+// - positive for T tendency and negative for S, H tendencies
+void testNonConservFrazilFormationCold() {
+   const auto Mesh   = HorzMesh::getDefault();
+   const auto VCoord = VertCoord::getDefault();
+
+   VCoord->NVertLayers = NVertLayers;
+
+   const Real SAIn = 35.0_Real;
+   const Real CTIn = -2.0_Real;
+   const Real PIn  = 100.0_Real;
+   const Real h    = 10.0_Real;
+   const Real RTol = 1e-10_Real;
+
+   (void)Mesh;
+
+   NonConservFrazilFormation ComputeFrazilFormation;
+
+   Real AccMIce  = 0.0_Real;
+   Real AccMLiq  = 0.0_Real;
+   Real AccMSalt = 0.0_Real;
+   Real AccELiq  = 0.0_Real;
+   Real AccEIce  = 0.0_Real;
+
+   Real HTend = 0.0_Real;
+   Real TTend = 0.0_Real;
+   Real STend = 0.0_Real;
+
+   Real CTfrz = gsw_ct_freezing_poly(SAIn, PIn, 0.0_Real);
+
+   ComputeFrazilFormation(SAIn, CTIn, PIn, h, AccMIce, AccMSalt, AccEIce, HTend,
+                          TTend, STend, CTfrz);
+
+   if (AccMIce <= 0.0_Real) {
+      ABORT_ERROR("FrazilNonConservFormationTestCold: accumulated ice mass is "
+                  "non-positive: {}",
+                  AccMIce);
+   }
+
+   if (AccMSalt <= 0.0_Real) {
+      ABORT_ERROR("FrazilNonConservFormationTestCold: accumulated salt mass is "
+                  "non-positive: {}",
+                  AccMSalt);
+   }
+
+   if (AccEIce >= 0.0_Real) {
+      ABORT_ERROR("FrazilNonConservFormationTestCold: accumulated ice energy "
+                  "is positive "
+                  "(exp. negative): {}",
+                  AccEIce);
+   }
+   if (HTend >= 0.0_Real) {
+      ABORT_ERROR("FrazilNonConservFormationTestCold: HTend is positive (exp. "
+                  "negative): {}",
+                  HTend);
+   }
+   if (TTend <= 0.0_Real) {
+      ABORT_ERROR("FrazilNonConservFormationTestCold: TTend is negative (exp. "
+                  "positive): {}",
+                  TTend);
+   }
+   if (STend >= 0.0_Real) {
+      ABORT_ERROR("FrazilNonConservFormationTestCold: STend is positive (exp. "
+                  "negative): {}",
+                  STend);
+   }
+   LOG_INFO("FrazilNonConservFormationTestCold: AccMIce = {}, AccMLiq = {}, "
+            "AccMSalt = {}, "
+            "AccELiq = {}, AccEIce = {}, HTend = {}, TTend = {}, STend = {}",
+            AccMIce, AccMLiq, AccMSalt, AccELiq, AccEIce, HTend, TTend, STend);
+}
+
+// this test only excercises the frazil formation functor (no melt)
+// in a warm case: the frazil FORMATION terms should all be zero
 void testBasicFrazilFormationWarm() {
    const auto Mesh   = HorzMesh::getDefault();
    const auto VCoord = VertCoord::getDefault();
@@ -451,7 +599,9 @@ void testComputeFrazilColumn() {
 
    const bool SavedConservationCheck = TestFrazil->conservationCheck;
    TestFrazil->conservationCheck     = true;
-   // TestFrazil->conservationCheck = false; // manual toggle for BasicFrazil
+   // we could turn it on for NonConservFrazil and it will produce an expected
+   // fail
+
    TestFrazil->computeFrazil(CT, SA, P, H);
    TestFrazil->conservationCheck = SavedConservationCheck;
 
@@ -624,6 +774,8 @@ void frazilTest(const std::string &MeshFile = "OmegaMesh.nc") {
    testFrazilFormationWarm();
    testBasicFrazilFormationCold();
    testBasicFrazilFormationWarm();
+   testNonConservFrazilFormationCold();
+   testNonConservFrazilFormationWarm();
    testComputeFrazilColumn();
    testComputeFrazilDepthLimit();
    finalizeFrazilTest();

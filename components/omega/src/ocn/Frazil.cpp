@@ -42,6 +42,12 @@ BasicFrazilFormation::BasicFrazilFormation() {}
 /// Constructor for BasicFrazilMelt
 BasicFrazilMelt::BasicFrazilMelt() {}
 
+/// Constructor for NonConservFrazilFormation
+NonConservFrazilFormation::NonConservFrazilFormation() {}
+
+/// Constructor for NonConservFrazilMelt
+NonConservFrazilMelt::NonConservFrazilMelt() {}
+
 void Frazil::init() {
 
    if (!HorzMesh::getDefault() or !VertCoord::getDefault()) {
@@ -131,10 +137,10 @@ Frazil *Frazil::create(const std::string &Name) {
    if ((FrazilTypeStr == "Basic") or (FrazilTypeStr == "basic") or
        (FrazilTypeStr == "BasicFrazil")) {
       NewFrazil->frazilChoice = FrazilType::BasicFrazil;
-   } else if ((FrazilTypeStr == "Simple") or (FrazilTypeStr == "simple") or
-              (FrazilTypeStr == "SimpleFrazil")) {
-      NewFrazil->frazilChoice = FrazilType::SimpleFrazil;
-      ABORT_ERROR("Frazil::create: SimpleFrazil not supported yet");
+   } else if ((FrazilTypeStr == "NonConservingFrazil") or
+              (FrazilTypeStr == "oldmpaso") or
+              (FrazilTypeStr == "NonConservFrazil")) {
+      NewFrazil->frazilChoice = FrazilType::NonConservFrazil;
    } else if ((FrazilTypeStr == "teos") or (FrazilTypeStr == "Teos") or
               (FrazilTypeStr == "TEOS") or (FrazilTypeStr == "Teos10") or
               (FrazilTypeStr == "teos10") or (FrazilTypeStr == "TEOS10")) {
@@ -225,7 +231,15 @@ void Frazil::checkColumnConservation() const {
          SaltTend += FrazilSTendH(ICell, K);
       }
 
-      const Real MassTotal   = AccMIceH(ICell) + AccMLiqH(ICell);
+      const Real MassTotal =
+          frazilChoice == FrazilType::TeosFrazil
+              ? AccMIceH(ICell) +
+                    AccMLiqH(ICell) // Teos case deals with total mass including
+                                    // salt in liquid
+              : AccMIceH(ICell) +
+                    AccMSaltH(ICell); // Basic needs Salt included but here it
+                                      // is already scaled by PPt2Salt
+
       const Real EnergyTotal = AccELiqH(ICell) + AccEIceH(ICell);
       const Real SaltTotal   = AccMSaltH(ICell);
       if (ICell == 0) {
@@ -243,17 +257,17 @@ void Frazil::checkColumnConservation() const {
       }
 
       if (!isApprox(-MassTend * RhoSw, MassTotal, RTol)) {
-         LOG_INFO(
+         ABORT_ERROR(
              "Frazil column mass check failed: cell {} tendency={} total={}",
              ICell, -MassTend * RhoSw, MassTotal);
       }
       if (!isApprox(-EnergyTend * Cp0Sw * RhoSw, EnergyTotal, RTol)) {
-         LOG_INFO(
+         ABORT_ERROR(
              "Frazil column energy check failed: cell {} tendency={} total={}",
              ICell, -EnergyTend * Cp0Sw * RhoSw, EnergyTotal);
       }
       if (!isApprox(-SaltTend * RhoSw * PPt2Salt, SaltTotal, RTol)) {
-         LOG_INFO(
+         ABORT_ERROR(
              "Frazil column salt check failed: cell {} tendency={} total={}",
              ICell, -SaltTend * RhoSw * PPt2Salt, SaltTotal);
       }
@@ -333,6 +347,100 @@ void Frazil::computeFrazilBasicImpl(const Array2DReal &CT,
                 LocComputeBasicFrazilMelt(SAIn, CTIn, PDb, H, LocAccMIce(ICell),
                                           LocAccMSalt(ICell), LocAccEIce(ICell),
                                           HTend, TTend, STend, Tfrz);
+             }
+
+             LocFrazilHTend(ICell, K) = HTend; // not scaled by dt
+             LocFrazilTTend(ICell, K) = TTend;
+             LocFrazilSTend(ICell, K) = STend;
+          } // end of vertical loop
+
+          // in the fractional / conservative treatment,
+          // there is no excess salt etc. or need to hijack coupling terms
+
+          // Convert to coupler units
+          LocAccMIce(ICell)  = LocAccMIce(ICell) * RhoSw;
+          LocAccMLiq(ICell)  = LocAccMLiq(ICell) * RhoSw;
+          LocAccMSalt(ICell) = LocAccMSalt(ICell) * RhoSw * PPt2Salt;
+          LocAccELiq(ICell)  = LocAccELiq(ICell) * RhoSw;
+          LocAccEIce(ICell)  = LocAccEIce(ICell) * RhoSw;
+       }); // end of NCells loop
+}
+
+void Frazil::computeFrazilNonConservImpl(const Array2DReal &CT,
+                                         const Array2DReal &SA,
+                                         const Array2DReal &P,
+                                         const Array2DReal &LayerH) {
+   const EosType LocEosChoice = Eos::getInstance()->EosChoice;
+   const Real LocDepthLimit   = depthLimit;
+
+   OMEGA_SCOPE(MinLayerCell, VCoordPtr->MinLayerCell);
+   OMEGA_SCOPE(MaxLayerCell, VCoordPtr->MaxLayerCell);
+   OMEGA_SCOPE(LocGeomZMid, VCoordPtr->GeomZMid);
+
+   OMEGA_SCOPE(LocComputeNonConservFrazilFormation,
+               computeNonConservFrazilFormation);
+   OMEGA_SCOPE(LocComputeNonConservFrazilMelt, computeNonConservFrazilMelt);
+   OMEGA_SCOPE(LocFrazilTTend, FrazilTTend);
+   OMEGA_SCOPE(LocFrazilSTend, FrazilSTend);
+   OMEGA_SCOPE(LocFrazilHTend, FrazilHTend);
+   OMEGA_SCOPE(LocAccMIce, AccMIce);
+   OMEGA_SCOPE(LocAccEIce, AccEIce);
+   OMEGA_SCOPE(LocAccMLiq, AccMLiq);
+   OMEGA_SCOPE(LocAccELiq, AccELiq);
+   OMEGA_SCOPE(LocAccMSalt, AccMSalt);
+   OMEGA_SCOPE(LocIceRefSal, IceRefSal);
+   OMEGA_SCOPE(LocLatIce, LatIce);
+
+   parallelFor(
+       {NCellsAll}, KOKKOS_LAMBDA(I4 ICell) {
+          const I4 KMin = MinLayerCell(ICell);
+          const I4 KMax = MaxLayerCell(ICell);
+
+          I4 Klim          = KMax;
+          bool HasKlim     = true;
+          const bool Limit = (LocDepthLimit >= 0.0_Real);
+
+          if (Limit) {
+             HasKlim = false;
+             for (I4 K = KMax; K >= KMin; --K) {
+                if (Kokkos::abs(LocGeomZMid(ICell, K)) <= LocDepthLimit) {
+                   Klim    = K;
+                   HasKlim = true;
+                   break;
+                }
+             }
+          }
+
+          // Explicit accumulation order: bottom layer to top layer.
+          for (I4 K = KMax; K >= KMin; --K) {
+             if (!HasKlim || K > Klim) {
+                LocFrazilHTend(ICell, K) = 0.0_Real;
+                LocFrazilTTend(ICell, K) = 0.0_Real;
+                LocFrazilSTend(ICell, K) = 0.0_Real;
+                continue;
+             }
+
+             const Real SAIn = SA(ICell, K);
+             const Real CTIn = CT(ICell, K);
+             const Real PIn  = P(ICell, K);
+             const Real PDb  = PIn * Pa2Db;
+             const Real H    = LayerH(ICell, K);
+
+             const Real Tfrz =
+                 Eos::calcCtFreezing(LocEosChoice, SAIn, PDb, 0.0_Real);
+
+             Real HTend = 0.0_Real;
+             Real TTend = 0.0_Real;
+             Real STend = 0.0_Real;
+
+             if (CTIn < Tfrz) {
+                LocComputeNonConservFrazilFormation(
+                    SAIn, CTIn, PDb, H, LocAccMIce(ICell), LocAccMSalt(ICell),
+                    LocAccEIce(ICell), HTend, TTend, STend, Tfrz);
+             } else if (LocAccMIce(ICell) > 0.0_Real) {
+                LocComputeNonConservFrazilMelt(
+                    SAIn, CTIn, PDb, H, LocAccMIce(ICell), LocAccMSalt(ICell),
+                    LocAccEIce(ICell), HTend, TTend, STend, Tfrz);
              }
 
              LocFrazilHTend(ICell, K) = HTend; // not scaled by dt
@@ -490,8 +598,10 @@ void Frazil::computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
    case FrazilType::TeosFrazil:
       computeFrazilTeosImpl(CT, SA, P, LayerH);
       break;
-   case FrazilType::SimpleFrazil:
-      ABORT_ERROR("Frazil::computeFrazil: SimpleFrazil not supported yet");
+   case FrazilType::NonConservFrazil:
+      computeFrazilNonConservImpl(CT, SA, P, LayerH);
+      // ABORT_ERROR("Frazil::computeFrazil: NonConservFrazil not supported
+      // yet");
       break;
    default:
       ABORT_ERROR("Frazil::computeFrazil: Unknown frazilChoice");
