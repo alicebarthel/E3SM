@@ -24,14 +24,124 @@
 namespace OMEGA {
 
 enum class FrazilType {
-   BasicFrazil,  ///< MPAS-O style basic frazil option
-   SimpleFrazil, ///< Placeholder simple frazil option
-   TeosFrazil    ///< Placeholder TEOS frazil option
+   BasicFrazil,      ///< basic frazil option
+   NonConservFrazil, ///< old MPAS-O frazil option (non-conserving)
+   TeosFrazil        ///< TEOS frazil option
 };
 
 class BasicFrazilFormation {
  public:
    BasicFrazilFormation();
+
+   Real massLimit         = 0.1_Real;  // to do:  remove default
+   Real FrazilIceSalinity = IceRefSal; // Global constant
+   Real LatFrazil         = LatIce;    // Global constant
+
+   Real FrazilPorosity =
+       1.0_Real; // Internal for now; can move to config later.
+
+   KOKKOS_FUNCTION void operator()(const Real SA, const Real CT, const Real PDb,
+                                   const Real H, Real &SumIceThickness,
+                                   Real &SumSalt, Real &SumEnergy, Real &HTend,
+                                   Real &TTend, Real &STend,
+                                   const Real Tfrz) const {
+
+      const Real potential      = H * Cp0Sw * RhoSw * (CT - Tfrz);
+      const Real freezingEnergy = Kokkos::max(0.0_Real, -potential);
+
+      HTend = 0.0_Real;
+      TTend = 0.0_Real;
+      STend = 0.0_Real;
+
+      Real newFrzThickness =
+          freezingEnergy /
+          (LatFrazil * RhoSw); // frazil (ice) mass in pseudo-thickness terms
+
+      newFrzThickness = Kokkos::min(newFrzThickness, H * massLimit);
+      Real newFrzEnergy =
+          newFrzThickness *
+          (-LatFrazil + Cp0Sw * Tfrz); // (<0; enthalpy of frazil, i.e. phase
+                                       // change and enthalpy of melted equ)
+
+      // MANUAL TOGGLE: uncomment line below to use porosity
+      // const Real FrazilIceSalinity = FrazilPorosity * SA;
+
+      const Real frazilSalinity = Kokkos::min(FrazilIceSalinity, SA);
+      const Real newSaltContent =
+          newFrzThickness * frazilSalinity; // in m.(g/kg)
+
+      HTend = -newFrzThickness - newSaltContent * PPt2Salt;
+      // TTend below should include the enthalpy associated with the mass flux
+      // this is intentionally not added here to match the mpas-o implementation
+      TTend =
+          -(newFrzEnergy) / (Cp0Sw); // (E< 0 so TTend>0) // scaled to h.CT tend
+      STend = -newSaltContent;
+
+      SumIceThickness += newFrzThickness;
+      SumSalt += newSaltContent;
+      SumEnergy += newFrzEnergy;
+   }
+};
+
+class BasicFrazilMelt {
+ public:
+   BasicFrazilMelt();
+
+   Real massLimit = 0.1_Real; // to do:  remove default
+   // Real FrazilIceSalinity = IceRefSal; // Global constant
+   Real LatFrazil = LatIce; // Global constant
+
+   KOKKOS_FUNCTION void operator()(const Real SA, const Real CT, const Real PDb,
+                                   const Real H, Real &SumIceThickness,
+                                   Real &SumSalt, Real &SumEnergy, Real &HTend,
+                                   Real &TTend, Real &STend,
+                                   const Real Tfrz) const {
+      constexpr Real Eps = 1.0e-12_Real;
+
+      if (SumIceThickness <= Eps) { // potential leak if we dont redistribute
+         SumIceThickness = 0.0_Real;
+         SumSalt         = 0.0_Real;
+         HTend           = 0.0_Real;
+         TTend           = 0.0_Real;
+         STend           = 0.0_Real;
+         return;
+      }
+      const Real potential       = H * Cp0Sw * RhoSw * (CT - Tfrz);
+      const Real availableEnergy = Kokkos::max(0.0_Real, potential);
+
+      HTend = 0.0_Real;
+      TTend = 0.0_Real;
+      STend = 0.0_Real;
+
+      Real meltThickness =
+          availableEnergy /
+          (LatFrazil * RhoSw); // mass in pseudo-thickness units
+      meltThickness = Kokkos::min(meltThickness, SumIceThickness);
+      meltThickness = Kokkos::min(meltThickness,
+                                  H * massLimit); // also 0.1h lim on added mass
+      const Real frazilFractionMelted =
+          meltThickness / SumIceThickness; // mass fraction melted
+      // const Real meltAverageSalinity = SumSalt / SumIceThickness;
+      const Real meltEnergy = frazilFractionMelted * SumEnergy;
+
+      HTend = frazilFractionMelted *
+              (SumIceThickness + SumSalt * PPt2Salt); // (>0 so HTend>0)
+      TTend = frazilFractionMelted * SumEnergy /
+              Cp0Sw; // (SumE <0 thus TTend < 0 when melting for phase change)
+      STend = +frazilFractionMelted * SumSalt; // (STend > 0 when melting)
+
+      const Real frazilFractionLeft =
+          Kokkos::max(0.0_Real, 1.0_Real - frazilFractionMelted);
+      SumIceThickness = frazilFractionLeft * SumIceThickness;
+      SumSalt         = frazilFractionLeft * SumSalt;
+      SumEnergy =
+          frazilFractionLeft * SumEnergy; // conservative by construction
+   }
+};
+
+class NonConservFrazilFormation {
+ public:
+   NonConservFrazilFormation();
 
    Real massLimit         = 0.1_Real;  // to do:  remove default
    Real FrazilIceSalinity = IceRefSal; // Global constant
@@ -89,9 +199,9 @@ class BasicFrazilFormation {
 // accumulatedFrazilIceSalinityNew(iCell) =
 // accumulatedFrazilIceSalinityOld(iCell) + newThicknessWeightedSaltContent
 
-class BasicFrazilMelt {
+class NonConservFrazilMelt {
  public:
-   BasicFrazilMelt();
+   NonConservFrazilMelt();
 
    Real massLimit         = 0.1_Real;  // to do:  remove default
    Real FrazilIceSalinity = IceRefSal; // Global constant
@@ -296,7 +406,9 @@ class FrazilFormation {
       solidEnthalpy  = solidMass * gsw_pot_enthalpy_from_pt_ice_poly(PTnew_d);
       liquidEnthalpy = liquidMass * Cp0Sw * CTnew;
       // per timestep (not scaled by dt here)
-      HTend = -(solidMass + liquidMass);
+      HTend = -(solidMass +
+                liquidMass); // because phi is a *mass* fraction, liquidMass
+                             // includes the salt contribution to mass.
       TTend = -(liquidEnthalpy + solidEnthalpy) / Cp0Sw;
       STend = -(liquidMass * SAnew);
 
@@ -344,6 +456,9 @@ class Frazil {
                       const Array2DReal &P, const Array2DReal &H);
    void computeFrazilBasicImpl(const Array2DReal &CT, const Array2DReal &SA,
                                const Array2DReal &P, const Array2DReal &LayerH);
+   void computeFrazilNonConservImpl(const Array2DReal &CT,
+                                    const Array2DReal &SA, const Array2DReal &P,
+                                    const Array2DReal &LayerH);
    void computeFrazilTeosImpl(const Array2DReal &CT, const Array2DReal &SA,
                               const Array2DReal &P, const Array2DReal &LayerH);
    bool conservationCheck = false;
@@ -364,6 +479,8 @@ class Frazil {
    FrazilType frazilChoice;
    BasicFrazilFormation computeBasicFrazilFormation;
    BasicFrazilMelt computeBasicFrazilMelt;
+   NonConservFrazilFormation computeNonConservFrazilFormation;
+   NonConservFrazilMelt computeNonConservFrazilMelt;
    FrazilFormation computeFrazilFormation;
    FrazilMelt computeFrazilMelt;
    I4 NCellsAll;
