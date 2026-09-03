@@ -88,11 +88,11 @@ Omega:
       DRhoDS: 0.8
       RhoT0S0: 1000.0
   Frazil:
-    FrazilType: basic
+    FrazilType: teos10
     MassLimit: 0.1
     Phi: 0.75
     DepthLimit: -1.0
-    ConservationCheck: false
+    ConservationCheck: true
   VertMix:
     Background:
       Diffusivity: 1.0e-5
