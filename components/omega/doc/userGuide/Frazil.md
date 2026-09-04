@@ -20,7 +20,7 @@ Omega:
     FrazilTendencyEnable: true
 
   Frazil:
-    FrazilType: basic
+    FrazilType: FixedProperty
     MassLimit: 0.1
     Phi: 0.75
     DepthLimit: -1.0
@@ -31,12 +31,13 @@ Omega:
   - enables/disables application of frazil tendency contributions
 - `Frazil.FrazilType`
   - selects frazil option
-  - supported options in current code: `basic` and `teos`
+  - supported options in current code: `FixedProperty` and `Teos10`
+  - `basic` is a deprecated compatibility alias for `FixedProperty`
   - `simple` exists as a placeholder name but is not supported
 - `Frazil.MassLimit`
   - limits per-layer frazil mass/thickness tendency magnitude (applied to formation and melt)
 - `Frazil.Phi`
-  - liquid-mass fraction of frazil (used by the teos frazil formation, or by the basic frazil when using porosity rather than constant salinity).
+  - liquid-mass fraction of frazil (used by teos frazil formation, or by fixed-property frazil when using porosity rather than constant salinity).
 - `Frazil.DepthLimit`
   - limits the depth range over which frazil is computed
   - negative values mean no depth limit
@@ -47,9 +48,9 @@ Omega:
 
 Omega currently includes two active frazil pathways:
 
-- `basic`
+- `FixedProperty`
   - freezing is based on the formation of fresh solid ice, to which salt is added (similar the mpas-ocean implementation).
-- `teos`
+- `Teos10`
   - teos-10-based option using Gibbs SeaWater thermodynamic routines.
 
 Both pathways contribute to:
