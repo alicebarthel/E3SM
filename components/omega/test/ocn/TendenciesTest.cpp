@@ -87,6 +87,9 @@ int initState() {
        PseudoThickCell, Geom, Mesh, OnCell, VCoord->MinLayerCell,
        VCoord->MaxLayerCell, ExchangeHalos::Yes, SetBoundary::Yes);
 
+   deepCopy(VCoord->SurfacePressure, 0.0_Real);
+   VCoord->computePressure(PseudoThickCell, VCoord->SurfacePressure);
+
    Err += setScalar(
        KOKKOS_LAMBDA(Real X, Real Y) { return Setup.tracer(X, Y); },
        TracersCell, Geom, Mesh, OnCell, VCoord->MinLayerCell,
