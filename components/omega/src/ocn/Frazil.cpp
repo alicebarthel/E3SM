@@ -36,11 +36,11 @@ FrazilFormation::FrazilFormation() {}
 /// Constructor for FrazilMelt
 FrazilMelt::FrazilMelt() {}
 
-/// Constructor for BasicFrazilFormation
-BasicFrazilFormation::BasicFrazilFormation() {}
+/// Constructor for FixedPropertyFrazilFormation
+FixedPropertyFrazilFormation::FixedPropertyFrazilFormation() {}
 
-/// Constructor for BasicFrazilMelt
-BasicFrazilMelt::BasicFrazilMelt() {}
+/// Constructor for FixedPropertyFrazilMelt
+FixedPropertyFrazilMelt::FixedPropertyFrazilMelt() {}
 
 void Frazil::init() {
 
@@ -128,9 +128,10 @@ Frazil *Frazil::create(const std::string &Name) {
    CHECK_ERROR_ABORT(Err,
                      "Frazil::create: FrazilType not found in Frazil config");
 
-   if ((FrazilTypeStr == "Basic") or (FrazilTypeStr == "basic") or
-       (FrazilTypeStr == "BasicFrazil")) {
-      NewFrazil->frazilChoice = FrazilType::BasicFrazil;
+   if ((FrazilTypeStr == "FixedProperty") or
+       (FrazilTypeStr == "fixedProperty") or (FrazilTypeStr == "fixed") or
+       (FrazilTypeStr == "basic") or (FrazilTypeStr == "fixedproperty")) {
+      NewFrazil->frazilChoice = FrazilType::FixedPropertyFrazil;
    } else if ((FrazilTypeStr == "teos") or (FrazilTypeStr == "Teos") or
               (FrazilTypeStr == "TEOS") or (FrazilTypeStr == "Teos10") or
               (FrazilTypeStr == "teos10") or (FrazilTypeStr == "TEOS10")) {
@@ -145,9 +146,9 @@ Frazil *Frazil::create(const std::string &Name) {
    CHECK_ERROR_ABORT(Err,
                      "Frazil::create: MassLimit not found in Frazil config");
 
-   NewFrazil->computeBasicFrazilFormation.massLimit =
+   NewFrazil->computeFixedPropertyFrazilFormation.massLimit =
        NewFrazil->computeFrazilFormation.massLimit;
-   NewFrazil->computeBasicFrazilMelt.massLimit =
+   NewFrazil->computeFixedPropertyFrazilMelt.massLimit =
        NewFrazil->computeFrazilFormation.massLimit;
 
    Err += FrazilConfig.get("Phi", NewFrazil->computeFrazilFormation.phi);
@@ -226,9 +227,8 @@ void Frazil::checkColumnConservation() const {
               ? AccMIceH(ICell) +
                     AccMLiqH(ICell) // Teos case deals with total mass including
                                     // salt in liquid
-              : AccMIceH(ICell) +
-                    AccMSaltH(ICell); // Basic needs Salt included but here it
-                                      // is already scaled by PPt2Salt
+              : AccMIceH(ICell) + AccMSaltH(ICell); // Fixed-property frazil
+                                                    // includes scaled salt mass
 
       const Real EnergyTotal = AccELiqH(ICell) + AccEIceH(ICell);
       const Real SaltTotal   = AccMSaltH(ICell);
@@ -264,9 +264,10 @@ void Frazil::checkColumnConservation() const {
    }
 }
 
-void Frazil::computeFrazilBasicImpl(const Array2DReal &CT,
-                                    const Array2DReal &SA, const Array2DReal &P,
-                                    const Array2DReal &LayerH) {
+void Frazil::computeFrazilFixedPropertyImpl(const Array2DReal &CT,
+                                            const Array2DReal &SA,
+                                            const Array2DReal &P,
+                                            const Array2DReal &LayerH) {
    const EosType LocEosChoice = Eos::getInstance()->EosChoice;
    const Real LocDepthLimit   = depthLimit;
 
@@ -274,8 +275,10 @@ void Frazil::computeFrazilBasicImpl(const Array2DReal &CT,
    OMEGA_SCOPE(MaxLayerCell, VCoordPtr->MaxLayerCell);
    OMEGA_SCOPE(LocGeomZMid, VCoordPtr->GeomZMid);
 
-   OMEGA_SCOPE(LocComputeBasicFrazilFormation, computeBasicFrazilFormation);
-   OMEGA_SCOPE(LocComputeBasicFrazilMelt, computeBasicFrazilMelt);
+   OMEGA_SCOPE(LocComputeFixedPropertyFrazilFormation,
+               computeFixedPropertyFrazilFormation);
+   OMEGA_SCOPE(LocComputeFixedPropertyFrazilMelt,
+               computeFixedPropertyFrazilMelt);
    OMEGA_SCOPE(LocFrazilTTend, FrazilTTend);
    OMEGA_SCOPE(LocFrazilSTend, FrazilSTend);
    OMEGA_SCOPE(LocFrazilHTend, FrazilHTend);
@@ -330,13 +333,13 @@ void Frazil::computeFrazilBasicImpl(const Array2DReal &CT,
              Real STend = 0.0_Real;
 
              if (CTIn < Tfrz) {
-                LocComputeBasicFrazilFormation(
+                LocComputeFixedPropertyFrazilFormation(
                     SAIn, CTIn, PDb, H, LocAccMIce(ICell), LocAccMSalt(ICell),
                     LocAccEIce(ICell), HTend, TTend, STend, Tfrz);
              } else if (LocAccMIce(ICell) > 0.0_Real) {
-                LocComputeBasicFrazilMelt(SAIn, CTIn, PDb, H, LocAccMIce(ICell),
-                                          LocAccMSalt(ICell), LocAccEIce(ICell),
-                                          HTend, TTend, STend, Tfrz);
+                LocComputeFixedPropertyFrazilMelt(
+                    SAIn, CTIn, PDb, H, LocAccMIce(ICell), LocAccMSalt(ICell),
+                    LocAccEIce(ICell), HTend, TTend, STend, Tfrz);
              }
 
              LocFrazilHTend(ICell, K) = HTend; // not scaled by dt
@@ -483,8 +486,8 @@ void Frazil::computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
    }
 
    switch (frazilChoice) {
-   case FrazilType::BasicFrazil:
-      computeFrazilBasicImpl(CT, SA, P, LayerH);
+   case FrazilType::FixedPropertyFrazil:
+      computeFrazilFixedPropertyImpl(CT, SA, P, LayerH);
       break;
    case FrazilType::TeosFrazil:
       computeFrazilTeosImpl(CT, SA, P, LayerH);
