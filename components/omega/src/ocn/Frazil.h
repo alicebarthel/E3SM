@@ -24,13 +24,13 @@
 namespace OMEGA {
 
 enum class FrazilType {
-   BasicFrazil, ///< basic frazil option
-   TeosFrazil   ///< TEOS frazil option
+   FixedPropertyFrazil, ///< fixed-property frazil option
+   TeosFrazil           ///< TEOS frazil option
 };
 
-class BasicFrazilFormation {
+class FixedPropertyFrazilFormation {
  public:
-   BasicFrazilFormation();
+   FixedPropertyFrazilFormation();
 
    Real massLimit         = 0.1_Real;  // to do:  remove default
    Real FrazilIceSalinity = IceRefSal; // Global constant
@@ -84,9 +84,9 @@ class BasicFrazilFormation {
    }
 };
 
-class BasicFrazilMelt {
+class FixedPropertyFrazilMelt {
  public:
-   BasicFrazilMelt();
+   FixedPropertyFrazilMelt();
 
    Real massLimit = 0.1_Real; // to do:  remove default
    Real LatFrazil = LatIce;   // Global constant
@@ -339,8 +339,10 @@ class Frazil {
 
    void computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
                       const Array2DReal &P, const Array2DReal &H);
-   void computeFrazilBasicImpl(const Array2DReal &CT, const Array2DReal &SA,
-                               const Array2DReal &P, const Array2DReal &LayerH);
+   void computeFrazilFixedPropertyImpl(const Array2DReal &CT,
+                                       const Array2DReal &SA,
+                                       const Array2DReal &P,
+                                       const Array2DReal &LayerH);
    void computeFrazilTeosImpl(const Array2DReal &CT, const Array2DReal &SA,
                               const Array2DReal &P, const Array2DReal &LayerH);
    bool conservationCheck = false;
@@ -359,8 +361,8 @@ class Frazil {
    Frazil &operator=(Frazil &&)      = delete;
 
    FrazilType frazilChoice;
-   BasicFrazilFormation computeBasicFrazilFormation;
-   BasicFrazilMelt computeBasicFrazilMelt;
+   FixedPropertyFrazilFormation computeFixedPropertyFrazilFormation;
+   FixedPropertyFrazilMelt computeFixedPropertyFrazilMelt;
    FrazilFormation computeFrazilFormation;
    FrazilMelt computeFrazilMelt;
    I4 NCellsAll;
