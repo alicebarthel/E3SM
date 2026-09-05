@@ -69,9 +69,8 @@ class FixedPropertyFrazilFormation {
       const Real newSaltContent =
           newFrzThickness * frazilSalinity; // in m.(g/kg)
 
-      // HTend includes the salt mass contribution to align with sfc forcing
-      // tendencies This differs from mpas-o.
-      HTend = -newFrzThickness - newSaltContent * PPt2Salt;
+      // HTend does not include the salt mass contribution to align with mpas-o.
+      HTend = -newFrzThickness;
       // TTend includes the enthalpy associated with the mass flux to be
       // conservative with the melt impl. (this differs from old mpas-o)
       TTend =
@@ -124,8 +123,7 @@ class FixedPropertyFrazilMelt {
       // const Real meltAverageSalinity = SumSalt / SumIceThickness;
       const Real meltEnergy = frazilFractionMelted * SumEnergy;
 
-      HTend = frazilFractionMelted *
-              (SumIceThickness + SumSalt * PPt2Salt); // (>0 so HTend>0)
+      HTend = frazilFractionMelted * (SumIceThickness); // (>0 so HTend>0)
       TTend = frazilFractionMelted * SumEnergy /
               Cp0Sw; // (SumE <0 thus TTend < 0 when melting for phase change)
       STend = +frazilFractionMelted * SumSalt; // (STend > 0 when melting)
