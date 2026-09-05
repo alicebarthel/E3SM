@@ -222,14 +222,7 @@ void Frazil::checkColumnConservation() const {
          SaltTend += FrazilSTendH(ICell, K);
       }
 
-      const Real MassTotal =
-          frazilChoice == FrazilType::TeosFrazil
-              ? AccMIceH(ICell) +
-                    AccMLiqH(ICell) // Teos case deals with total mass including
-                                    // salt in liquid
-              : AccMIceH(ICell) + AccMSaltH(ICell); // Fixed-property frazil
-                                                    // includes scaled salt mass
-
+      const Real MassTotal   = AccMIceH(ICell) + AccMLiqH(ICell);
       const Real EnergyTotal = AccELiqH(ICell) + AccEIceH(ICell);
       const Real SaltTotal   = AccMSaltH(ICell);
       if (ICell == 0) {
