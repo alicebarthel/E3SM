@@ -335,7 +335,8 @@ void Frazil::computeFrazilFixedPropertyImpl(const Array2DReal &CT,
                     LocAccEIce(ICell), HTend, TTend, STend, Tfrz);
              }
 
-             LocFrazilHTend(ICell, K) = HTend; // not scaled by dt
+             // Per-call increments; FrazilOnCell normalizes these to rates.
+             LocFrazilHTend(ICell, K) = HTend;
              LocFrazilTTend(ICell, K) = TTend;
              LocFrazilSTend(ICell, K) = STend;
           } // end of vertical loop
@@ -441,7 +442,8 @@ void Frazil::computeFrazilTeosImpl(const Array2DReal &CT, const Array2DReal &SA,
                                      HTend, TTend, STend);
              }
 
-             LocFrazilHTend(ICell, K) = HTend; // not scaled by dt
+             // Per-call increments; FrazilOnCell normalizes these to rates.
+             LocFrazilHTend(ICell, K) = HTend;
              LocFrazilTTend(ICell, K) = TTend;
              LocFrazilSTend(ICell, K) = STend;
           } // end of vertical loop
