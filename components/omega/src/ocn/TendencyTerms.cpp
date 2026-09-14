@@ -168,12 +168,15 @@ void FrazilOnCell::operator()(const Array2DReal &PseudoThicknessTend,
                               const Array3DReal &TracerTend,
                               const Array3DReal &TracerArray,
                               const Array2DReal &PressureMid,
-                              const Array2DReal &PseudoThickness) const {
+                              const Array2DReal &PseudoThickness,
+                              const TimeInterval &TimeStep) const {
    auto *Frazil = Frazil::getDefault();
    if (!Enabled || !Frazil) {
       return;
    }
 
+   R8 TimeStepSeconds;
+   TimeStep.get(TimeStepSeconds, TimeUnits::Seconds);
    deepCopy(Frazil->FrazilTTend, 0.0_Real);
    deepCopy(Frazil->FrazilSTend, 0.0_Real);
    deepCopy(Frazil->FrazilHTend, 0.0_Real);
@@ -212,9 +215,12 @@ void FrazilOnCell::operator()(const Array2DReal &PseudoThicknessTend,
 
           parallelForInner(
               Team, Range{KMin, KMax}, INNER_LAMBDA(int K) {
-                 LocPseudoThicknessTend(ICell, K) += LocFrazilHTend(ICell, K);
-                 LocTracerTend(TempIndex, ICell, K) += LocFrazilTTend(ICell, K);
-                 LocTracerTend(SaltIndex, ICell, K) += LocFrazilSTend(ICell, K);
+                 LocPseudoThicknessTend(ICell, K) +=
+                     LocFrazilHTend(ICell, K) / TimeStepSeconds;
+                 LocTracerTend(TempIndex, ICell, K) +=
+                     LocFrazilTTend(ICell, K) / TimeStepSeconds;
+                 LocTracerTend(SaltIndex, ICell, K) +=
+                     LocFrazilSTend(ICell, K) / TimeStepSeconds;
               });
        });
 }

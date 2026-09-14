@@ -1187,7 +1187,7 @@ void Tendencies::computeTracerTendenciesOnly(
       const auto &PressureMid     = VCoord->PressureMid;
       Array2DReal PseudoThickness = State->getPseudoThickness(ThickTimeLevel);
       FrazilTerm(PseudoThicknessTend, TracerTend, TracerArray, PressureMid,
-                 PseudoThickness);
+                 PseudoThickness, TimeStep);
       Pacer::stop("Tend:frazil", 2);
    }
 

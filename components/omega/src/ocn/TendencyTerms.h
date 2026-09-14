@@ -1248,7 +1248,8 @@ class FrazilOnCell {
                    const Array3DReal &TracerTend,
                    const Array3DReal &TracerArray,
                    const Array2DReal &PressureMid,
-                   const Array2DReal &PseudoThickness) const;
+                   const Array2DReal &PseudoThickness,
+                   const TimeInterval &TimeStep) const;
 
  private:
    I4 NCellsAll;
