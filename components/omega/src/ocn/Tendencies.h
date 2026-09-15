@@ -99,12 +99,14 @@ class Tendencies {
                                 const AuxiliaryState *AuxState,
                                 const Array3DReal &TracerArray,
                                 int ThickTimeLevel, int VelTimeLevel,
-                                TimeInstant Time);
+                                TimeInstant Time,
+                                Real FinalUpdateWeight = 1.0_Real);
    void computeAllTendencies(const OceanState *State,
                              const AuxiliaryState *AuxState,
                              const Array3DReal &TracerArray, int ThickTimeLevel,
                              int VelTimeLevel, int TracerTimeLevel,
-                             TimeInstant Time, TimeInterval ProjDt);
+                             TimeInstant Time, TimeInterval ProjDt,
+                             Real FinalUpdateWeight = 1.0_Real);
    void computePseudoThicknessTendenciesOnly(const OceanState *State,
                                              const AuxiliaryState *AuxState,
                                              int ThickTimeLevel,
@@ -119,7 +121,8 @@ class Tendencies {
                                     const AuxiliaryState *AuxState,
                                     const Array3DReal &TracerArray,
                                     int ThickTimeLevel, int VelTimeLevel,
-                                    TimeInstant Time);
+                                    TimeInstant Time,
+                                    Real FinalUpdateWeight = 1.0_Real);
 
    // Create a non-default group of tendencies
    static Tendencies *

@@ -824,7 +824,8 @@ void Tendencies::computeTracerTendenciesOnly(
     const Array3DReal &TracerArray, ///< [in] Tracer array
     int ThickTimeLevel,             ///< [in] Time level
     int VelTimeLevel,               ///< [in] Time level
-    TimeInstant Time                ///< [in] Time
+    TimeInstant Time,               ///< [in] Time
+    Real FinalUpdateWeight          ///< [in] final update weight
 ) {
    OMEGA_SCOPE(LocTracerTend, TracerTend);
    OMEGA_SCOPE(LocTracerHorzAdv, TracerHorzAdv);
@@ -975,7 +976,7 @@ void Tendencies::computeTracerTendenciesOnly(
       const auto &PressureMid     = VCoord->PressureMid;
       Array2DReal PseudoThickness = State->getPseudoThickness(ThickTimeLevel);
       FrazilTerm(PseudoThicknessTend, TracerTend, TracerArray, PressureMid,
-                 PseudoThickness, TimeStep);
+                 PseudoThickness, TimeStep, FinalUpdateWeight);
       Pacer::stop("Tend:frazil", 2);
    }
 
@@ -1042,7 +1043,8 @@ void Tendencies::computeTracerTendencies(
     const Array3DReal &TracerArray, ///< [in] Tracer array
     int ThickTimeLevel,             ///< [in] Time level
     int VelTimeLevel,               ///< [in] Time level
-    TimeInstant Time                ///< [in] Time
+    TimeInstant Time,               ///< [in] Time
+    Real FinalUpdateWeight          ///< [in] final update weight
 ) {
    Array2DReal PseudoThickCell = State->getPseudoThickness(ThickTimeLevel);
    Array2DReal NormalVelEdge   = State->getNormalVelocity(VelTimeLevel);
@@ -1068,7 +1070,7 @@ void Tendencies::computeTracerTendencies(
    Pacer::stop("Tend:computeTracerAuxCell", 2);
 
    computeTracerTendenciesOnly(State, AuxState, TracerArray, ThickTimeLevel,
-                               VelTimeLevel, Time);
+                               VelTimeLevel, Time, FinalUpdateWeight);
 
    Pacer::stop("Tend:computeTracerTendencies", 1);
 }
@@ -1083,8 +1085,8 @@ void Tendencies::computeAllTendencies(
     int VelTimeLevel,               ///< [in] Time level
     int TracerTimeLevel,            ///< [in] Time level
     TimeInstant Time,               ///< [in] Time
-    TimeInterval ProjDt ///< [in] Time interval for projection over the current
-                        ///< time stepper stage
+    TimeInterval ProjDt,            ///< [in] projection time interval
+    Real FinalUpdateWeight          ///< [in] final update weight
 ) {
    AuxState->computeAll(State, TracerArray, ThickTimeLevel, VelTimeLevel,
                         ProjDt);
@@ -1094,7 +1096,7 @@ void Tendencies::computeAllTendencies(
    computeVelocityTendenciesOnly(State, AuxState, TracerArray, ThickTimeLevel,
                                  VelTimeLevel, TracerTimeLevel, Time);
    computeTracerTendenciesOnly(State, AuxState, TracerArray, ThickTimeLevel,
-                               VelTimeLevel, Time);
+                               VelTimeLevel, Time, FinalUpdateWeight);
 } // end all tendency compute
 
 } // end namespace OMEGA

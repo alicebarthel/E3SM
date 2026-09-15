@@ -52,6 +52,8 @@ void ForwardBackwardStepper::doStep(
    if (AuxState == nullptr)
       LOG_CRITICAL("Invalid AuxState");
 
+   resetFrazilOcnStepTotals();
+
    prescribeVelocity(State, VelCurLevel, State, VelCurLevel, SimTime);
 
    // R_u^{n} = RHS_u(u^{n}, h^{n}, t^{n})
@@ -83,7 +85,8 @@ void ForwardBackwardStepper::doStep(
 
    // R_phi^{n} = RHS_phi(u^{n+1}, h^{n+1}, phi^{n}, t^{n})
    Tend->computeTracerTendencies(State, AuxState, CurTracerArray,
-                                 ThickNextLevel, VelNextLevel, SimTime);
+                                 ThickNextLevel, VelNextLevel, SimTime,
+                                 1.0_Real);
 
    // phi^{n+1} = (phi^{n} * h^{n} + R_phi^{n}) / h^{n+1}
    updateTracersByTend(NextTracerArray, CurTracerArray, State, ThickNextLevel,
