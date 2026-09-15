@@ -89,11 +89,14 @@ Frazil::Frazil(const HorzMesh *Mesh, const VertCoord *VCoord)
    FrazilHTend =
        Array2DReal("FrazilHTend", Mesh->NCellsSize, VCoord->NVertLayers);
 
-   AccMIce  = Array1DReal("AccMIce", Mesh->NCellsSize);
-   AccEIce  = Array1DReal("AccEIce", Mesh->NCellsSize);
-   AccMLiq  = Array1DReal("AccMLiq", Mesh->NCellsSize);
-   AccELiq  = Array1DReal("AccELiq", Mesh->NCellsSize);
-   AccMSalt = Array1DReal("AccMSalt", Mesh->NCellsSize);
+   AccMIce           = Array1DReal("AccMIce", Mesh->NCellsSize);
+   AccEIce           = Array1DReal("AccEIce", Mesh->NCellsSize);
+   AccMLiq           = Array1DReal("AccMLiq", Mesh->NCellsSize);
+   AccELiq           = Array1DReal("AccELiq", Mesh->NCellsSize);
+   AccMSalt          = Array1DReal("AccMSalt", Mesh->NCellsSize);
+   OcnDtFrazilMass   = Array1DReal("FrazilOcnDtFrazilMass", Mesh->NCellsSize);
+   OcnDtFrazilSalt   = Array1DReal("FrazilOcnDtFrazilSalt", Mesh->NCellsSize);
+   OcnDtFrazilEnergy = Array1DReal("FrazilOcnDtFrazilEnergy", Mesh->NCellsSize);
 
    deepCopy(FrazilTTend, 0.0_Real);
    deepCopy(FrazilSTend, 0.0_Real);
@@ -103,6 +106,7 @@ Frazil::Frazil(const HorzMesh *Mesh, const VertCoord *VCoord)
    deepCopy(AccMLiq, 0.0_Real);
    deepCopy(AccELiq, 0.0_Real);
    deepCopy(AccMSalt, 0.0_Real);
+   resetOcnStepTotals();
 }
 
 Frazil::~Frazil() {}
@@ -192,6 +196,32 @@ void Frazil::erase(std::string InName) {
 void Frazil::clear() {
    AllFrazil.clear();
    DefaultFrazil = nullptr;
+}
+
+void Frazil::resetOcnStepTotals() {
+   deepCopy(OcnDtFrazilMass, 0.0_Real);
+   deepCopy(OcnDtFrazilSalt, 0.0_Real);
+   deepCopy(OcnDtFrazilEnergy, 0.0_Real);
+}
+
+void Frazil::accumulateOcnStepTotals(const Real FinalUpdateWeight) {
+   OMEGA_SCOPE(LocAccMIce, AccMIce);
+   OMEGA_SCOPE(LocAccMLiq, AccMLiq);
+   OMEGA_SCOPE(LocAccMSalt, AccMSalt);
+   OMEGA_SCOPE(LocAccELiq, AccELiq);
+   OMEGA_SCOPE(LocAccEIce, AccEIce);
+   OMEGA_SCOPE(LocOcnDtFrazilMass, OcnDtFrazilMass);
+   OMEGA_SCOPE(LocOcnDtFrazilSalt, OcnDtFrazilSalt);
+   OMEGA_SCOPE(LocOcnDtFrazilEnergy, OcnDtFrazilEnergy);
+
+   parallelFor(
+       {NCellsAll}, KOKKOS_LAMBDA(I4 ICell) {
+          LocOcnDtFrazilMass(ICell) +=
+              FinalUpdateWeight * (LocAccMIce(ICell) + LocAccMLiq(ICell));
+          LocOcnDtFrazilSalt(ICell) += FinalUpdateWeight * LocAccMSalt(ICell);
+          LocOcnDtFrazilEnergy(ICell) +=
+              FinalUpdateWeight * (LocAccEIce(ICell) + LocAccELiq(ICell));
+       });
 }
 
 void Frazil::checkColumnConservation() const {
