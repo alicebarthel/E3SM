@@ -8,7 +8,10 @@
 #include "Frazil.h"
 #include "Eos.h"
 #include "Error.h"
+#include "Field.h"
 #include "Logging.h"
+
+#include <limits>
 
 namespace OMEGA {
 
@@ -72,7 +75,9 @@ void Frazil::init() {
          return;
       }
 
+      FieldGroup::create("Frazil");
       DefaultFrazil = create("Default");
+      DefaultFrazil->registerFields();
    }
 }
 
@@ -109,7 +114,7 @@ Frazil::Frazil(const HorzMesh *Mesh, const VertCoord *VCoord)
    resetOcnStepTotals();
 }
 
-Frazil::~Frazil() {}
+Frazil::~Frazil() { unregisterFields(); }
 
 Frazil *Frazil::create(const std::string &Name) {
    if (AllFrazil.find(Name) != AllFrazil.end()) {
@@ -196,6 +201,9 @@ void Frazil::erase(std::string InName) {
 void Frazil::clear() {
    AllFrazil.clear();
    DefaultFrazil = nullptr;
+   if (FieldGroup::exists("Frazil")) {
+      FieldGroup::destroy("Frazil");
+   }
 }
 
 void Frazil::resetOcnStepTotals() {
@@ -204,7 +212,8 @@ void Frazil::resetOcnStepTotals() {
    deepCopy(OcnDtFrazilEnergy, 0.0_Real);
 }
 
-void Frazil::accumulateOcnStepTotals(const Real FinalUpdateWeight) {
+void Frazil::accumulateOcnStepTotals(const Real FinalUpdateWeight,
+                                     const R8 TimeStepSeconds) {
    OMEGA_SCOPE(LocAccMIce, AccMIce);
    OMEGA_SCOPE(LocAccMLiq, AccMLiq);
    OMEGA_SCOPE(LocAccMSalt, AccMSalt);
@@ -216,12 +225,60 @@ void Frazil::accumulateOcnStepTotals(const Real FinalUpdateWeight) {
 
    parallelFor(
        {NCellsAll}, KOKKOS_LAMBDA(I4 ICell) {
-          LocOcnDtFrazilMass(ICell) +=
-              FinalUpdateWeight * (LocAccMIce(ICell) + LocAccMLiq(ICell));
-          LocOcnDtFrazilSalt(ICell) += FinalUpdateWeight * LocAccMSalt(ICell);
+          LocOcnDtFrazilMass(ICell) += FinalUpdateWeight *
+                                       (LocAccMIce(ICell) + LocAccMLiq(ICell)) /
+                                       TimeStepSeconds;
+          LocOcnDtFrazilSalt(ICell) +=
+              FinalUpdateWeight * LocAccMSalt(ICell) / TimeStepSeconds;
           LocOcnDtFrazilEnergy(ICell) +=
-              FinalUpdateWeight * (LocAccEIce(ICell) + LocAccELiq(ICell));
+              FinalUpdateWeight * (LocAccEIce(ICell) + LocAccELiq(ICell)) /
+              TimeStepSeconds;
        });
+}
+
+void Frazil::registerFields() {
+   constexpr int NDims = 1;
+   const std::vector<std::string> DimNames{"NCells"};
+
+   auto FrazilMassField = Field::create(
+       OcnDtFrazilMass.label(), "frazil mass flux averaged over ocean timestep",
+       "kg m^-2 s^-1", "", std::numeric_limits<Real>::lowest(),
+       std::numeric_limits<Real>::max(), NDims, DimNames);
+   auto FrazilSaltField = Field::create(
+       OcnDtFrazilSalt.label(), "frazil salt flux averaged over ocean timestep",
+       "kg m^-2 s^-1", "", std::numeric_limits<Real>::lowest(),
+       std::numeric_limits<Real>::max(), NDims, DimNames);
+   auto FrazilEnergyField =
+       Field::create(OcnDtFrazilEnergy.label(),
+                     "frazil energy flux averaged over ocean timestep",
+                     "W m^-2", "", std::numeric_limits<Real>::lowest(),
+                     std::numeric_limits<Real>::max(), NDims, DimNames);
+
+   FieldGroup::addFieldToGroup(OcnDtFrazilMass.label(), "Frazil");
+   FieldGroup::addFieldToGroup(OcnDtFrazilSalt.label(), "Frazil");
+   FieldGroup::addFieldToGroup(OcnDtFrazilEnergy.label(), "Frazil");
+
+   FrazilMassField->attachData<Array1DReal>(OcnDtFrazilMass, false);
+   FrazilSaltField->attachData<Array1DReal>(OcnDtFrazilSalt, false);
+   FrazilEnergyField->attachData<Array1DReal>(OcnDtFrazilEnergy, false);
+   FieldsRegistered = true;
+}
+
+void Frazil::unregisterFields() {
+   if (!FieldsRegistered) {
+      return;
+   }
+
+   if (Field::exists(OcnDtFrazilMass.label())) {
+      Field::destroy(OcnDtFrazilMass.label());
+   }
+   if (Field::exists(OcnDtFrazilSalt.label())) {
+      Field::destroy(OcnDtFrazilSalt.label());
+   }
+   if (Field::exists(OcnDtFrazilEnergy.label())) {
+      Field::destroy(OcnDtFrazilEnergy.label());
+   }
+   FieldsRegistered = false;
 }
 
 void Frazil::checkColumnConservation() const {
@@ -503,7 +560,6 @@ void Frazil::computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
       ABORT_ERROR("Frazil::computeFrazil: Eos must be initialized before "
                   "computeFrazil");
    }
-
 
    switch (frazilChoice) {
    case FrazilType::FixedPropertyFrazil:
