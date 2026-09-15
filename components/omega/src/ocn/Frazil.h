@@ -334,9 +334,14 @@ class Frazil {
    Array1DReal AccMLiq;
    Array1DReal AccELiq;
    Array1DReal AccMSalt;
+   Array1DReal OcnDtFrazilMass;
+   Array1DReal OcnDtFrazilSalt;
+   Array1DReal OcnDtFrazilEnergy;
 
    void computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
                       const Array2DReal &P, const Array2DReal &H);
+   void resetOcnStepTotals();
+   void accumulateOcnStepTotals(Real FinalUpdateWeight);
    void computeFrazilFixedPropertyImpl(const Array2DReal &CT,
                                        const Array2DReal &SA,
                                        const Array2DReal &P,

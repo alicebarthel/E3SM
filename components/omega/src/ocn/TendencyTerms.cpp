@@ -169,7 +169,8 @@ void FrazilOnCell::operator()(const Array2DReal &PseudoThicknessTend,
                               const Array3DReal &TracerArray,
                               const Array2DReal &PressureMid,
                               const Array2DReal &PseudoThickness,
-                              const TimeInterval &TimeStep) const {
+                              const TimeInterval &TimeStep,
+                              const Real FinalUpdateWeight) const {
    auto *Frazil = Frazil::getDefault();
    if (!Enabled || !Frazil) {
       return;
@@ -193,6 +194,7 @@ void FrazilOnCell::operator()(const Array2DReal &PseudoThicknessTend,
 
    Frazil->computeFrazil(ConservTemp, AbsSalinity, PressureMid,
                          PseudoThickness);
+   Frazil->accumulateOcnStepTotals(FinalUpdateWeight);
 
    const auto FrazilHTend = Frazil->FrazilHTend;
    const auto FrazilTTend = Frazil->FrazilTTend;
