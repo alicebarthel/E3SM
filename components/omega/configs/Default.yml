@@ -205,6 +205,19 @@ Omega:
         - Tracers
         - State
         - SshCell
+    FrazilOutput:
+      UsePointerFile: false
+      Filename: ocn.frazil.$Y-$M-$D_$h.$m.$s
+      Mode: write
+      IfExists: append
+      Precision: double
+      Freq: 600
+      FreqUnits: Never
+      FileFreq: 1
+      FileFreqUnits: days
+      UseStartEnd: false
+      Contents:
+        - Frazil
     Highfreq:
       UsePointerFile: false
       Filename: ocn.hifreq.$Y-$M

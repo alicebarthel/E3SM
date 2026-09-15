@@ -341,7 +341,9 @@ class Frazil {
    void computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
                       const Array2DReal &P, const Array2DReal &H);
    void resetOcnStepTotals();
-   void accumulateOcnStepTotals(Real FinalUpdateWeight);
+   void accumulateOcnStepTotals(Real FinalUpdateWeight, R8 TimeStepSeconds);
+   void registerFields();
+   void unregisterFields();
    void computeFrazilFixedPropertyImpl(const Array2DReal &CT,
                                        const Array2DReal &SA,
                                        const Array2DReal &P,
@@ -373,6 +375,7 @@ class Frazil {
 
    const HorzMesh *MeshPtr;
    const VertCoord *VCoordPtr;
+   bool FieldsRegistered = false;
 
    void checkColumnConservation() const;
 };
