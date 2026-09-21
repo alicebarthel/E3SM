@@ -111,7 +111,7 @@ Frazil::Frazil(const HorzMesh *Mesh, const VertCoord *VCoord)
    deepCopy(AccMLiq, 0.0_Real);
    deepCopy(AccELiq, 0.0_Real);
    deepCopy(AccMSalt, 0.0_Real);
-   resetOcnStepTotals();
+   resetOcnStepRates();
 }
 
 Frazil::~Frazil() { unregisterFields(); }
@@ -206,14 +206,14 @@ void Frazil::clear() {
    }
 }
 
-void Frazil::resetOcnStepTotals() {
+void Frazil::resetOcnStepRates() {
    deepCopy(OcnDtFrazilMass, 0.0_Real);
    deepCopy(OcnDtFrazilSalt, 0.0_Real);
    deepCopy(OcnDtFrazilEnergy, 0.0_Real);
 }
 
-void Frazil::accumulateOcnStepTotals(const Real FinalUpdateWeight,
-                                     const R8 TimeStepSeconds) {
+void Frazil::accumulateOcnStepRates(const Real FinalUpdateWeight,
+                                    const R8 TimeStepSeconds) {
    OMEGA_SCOPE(LocAccMIce, AccMIce);
    OMEGA_SCOPE(LocAccMLiq, AccMLiq);
    OMEGA_SCOPE(LocAccMSalt, AccMSalt);
@@ -258,9 +258,9 @@ void Frazil::registerFields() {
    FieldGroup::addFieldToGroup(OcnDtFrazilSalt.label(), "Frazil");
    FieldGroup::addFieldToGroup(OcnDtFrazilEnergy.label(), "Frazil");
 
-   FrazilMassField->attachData<Array1DReal>(OcnDtFrazilMass, false);
-   FrazilSaltField->attachData<Array1DReal>(OcnDtFrazilSalt, false);
-   FrazilEnergyField->attachData<Array1DReal>(OcnDtFrazilEnergy, false);
+   FrazilMassField->attachData<Array1DReal>(OcnDtFrazilMass);
+   FrazilSaltField->attachData<Array1DReal>(OcnDtFrazilSalt);
+   FrazilEnergyField->attachData<Array1DReal>(OcnDtFrazilEnergy);
    FieldsRegistered = true;
 }
 
