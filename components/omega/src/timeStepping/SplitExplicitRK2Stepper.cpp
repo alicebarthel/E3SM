@@ -540,7 +540,7 @@ void SplitExplicitRK2Stepper::doStep(OceanState *State,
 
    VertMix *VMix = VertMix::getInstance();
 
-   resetFrazilOcnStepTotals();
+   resetFrazilOcnStepRates();
 
    // Initialize NextLevel from CurLevel
    // TODO: This can be optimized in the future.

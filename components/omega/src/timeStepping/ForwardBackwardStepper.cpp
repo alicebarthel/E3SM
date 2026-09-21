@@ -52,7 +52,7 @@ void ForwardBackwardStepper::doStep(
    if (AuxState == nullptr)
       LOG_CRITICAL("Invalid AuxState");
 
-   resetFrazilOcnStepTotals();
+   resetFrazilOcnStepRates();
 
    prescribeVelocity(State, VelCurLevel, State, VelCurLevel, SimTime);
 

@@ -155,8 +155,8 @@ class Frazil {
    Array1DReal OcnDtFrazilEnergy;
 
    void computeFrazil(...);
-   void resetOcnStepTotals();
-   void accumulateOcnStepTotals(Real FinalUpdateWeight, R8 TimeStepSeconds);
+   void resetOcnStepRates();
+   void accumulateOcnStepRates(Real FinalUpdateWeight, R8 TimeStepSeconds);
    void registerFields();
    void unregisterFields();
 };
@@ -198,7 +198,7 @@ The method is later invoked from the tendency operator, which is the integration
 
 #### 4.2.4 Completed-step accumulation
 
-The `accumulateOcnStepTotals()` method updates the final per-cell ocean-step sums. It:
+The `accumulateOcnStepRates()` method updates the final per-cell ocean-step sums. It:
 - reads the stage-local accumulation arrays,
 - applies the update weight,
 - divides by the full ocean timestep seconds,

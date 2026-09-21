@@ -39,7 +39,7 @@ void RungeKutta2Stepper::doStep(OceanState *State,   // model state
 
    VertMix *VMix = VertMix::getInstance();
 
-   resetFrazilOcnStepTotals();
+   resetFrazilOcnStepRates();
 
    prescribeState(State, CurLevel, State, CurLevel, SimTime);
 
