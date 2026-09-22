@@ -540,6 +540,126 @@ void testFixedPropertyFrazilFormationMassLimit() {
             AccMIce, HTend);
 }
 
+// this test exercises the frazil melt mass limiter in the TEOS path
+void testFrazilMeltMassLimit() {
+   const Real SAIn      = 32.0_Real;
+   const Real CTIn      = 35.0_Real;
+   const Real PIn       = 100.0_Real;
+   const Real h         = 1.0_Real;
+   const Real MassLimit = 0.10_Real;
+   const Real RTol      = 1e-10_Real;
+
+   FrazilMelt ComputeFrazilMelt;
+   ComputeFrazilMelt.massLimit = MassLimit;
+
+   const Real AccMIce0  = 0.25_Real;
+   const Real AccMLiq0  = 0.75_Real;
+   const Real AccMSalt0 = 3.0_Real;
+   const Real AccELiq0  = -10000.0_Real;
+   const Real AccEIce0  = -100000.0_Real;
+
+   Real AccMIce  = AccMIce0;
+   Real AccMLiq  = AccMLiq0;
+   Real AccMSalt = AccMSalt0;
+   Real AccELiq  = AccELiq0;
+   Real AccEIce  = AccEIce0;
+   Real HTend    = 0.0_Real;
+   Real TTend    = 0.0_Real;
+   Real STend    = 0.0_Real;
+
+   ComputeFrazilMelt(SAIn, CTIn, PIn, h, AccMIce, AccMLiq, AccMSalt, AccELiq,
+                     AccEIce, HTend, TTend, STend);
+
+   const Real ExpectedFraction = h * MassLimit / (AccMIce0 + AccMLiq0);
+   if (ExpectedFraction < 0.0_Real || ExpectedFraction > 1.0_Real) {
+      ABORT_ERROR("FrazilMeltMassLimit: expected fraction {} is outside "
+                  "[0, 1]",
+                  ExpectedFraction);
+   }
+   if (!isApprox(HTend, ExpectedFraction * (AccMIce0 + AccMLiq0), RTol)) {
+      ABORT_ERROR("FrazilMeltMassLimit: expected HTend={}, got {}",
+                  ExpectedFraction * (AccMIce0 + AccMLiq0), HTend);
+   }
+   if (!isApprox(STend, ExpectedFraction * AccMSalt0, RTol)) {
+      ABORT_ERROR("FrazilMeltMassLimit: expected STend={}, got {}",
+                  ExpectedFraction * AccMSalt0, STend);
+   }
+   if (!isApprox(TTend, ExpectedFraction * (AccELiq0 + AccEIce0) / Cp0Sw,
+                 RTol)) {
+      ABORT_ERROR("FrazilMeltMassLimit: expected TTend={}, got {}",
+                  ExpectedFraction * (AccELiq0 + AccEIce0) / Cp0Sw, TTend);
+   }
+   if (!isApprox(AccMIce, (1.0_Real - ExpectedFraction) * AccMIce0, RTol) ||
+       !isApprox(AccMLiq, (1.0_Real - ExpectedFraction) * AccMLiq0, RTol) ||
+       !isApprox(AccMSalt, (1.0_Real - ExpectedFraction) * AccMSalt0, RTol) ||
+       !isApprox(AccELiq, (1.0_Real - ExpectedFraction) * AccELiq0, RTol) ||
+       !isApprox(AccEIce, (1.0_Real - ExpectedFraction) * AccEIce0, RTol)) {
+      ABORT_ERROR("FrazilMeltMassLimit: remaining reservoir is inconsistent "
+                  "with expected fraction {}",
+                  ExpectedFraction);
+   }
+   LOG_INFO("FrazilMeltMassLimit: fraction = {}, HTend = {}, TTend = {}, "
+            "STend = {}",
+            ExpectedFraction, HTend, TTend, STend);
+}
+
+// this test exercises the frazil melt mass limiter in the fixed-property path
+void testFixedPropertyFrazilMeltMassLimit() {
+   const Real SAIn      = 32.0_Real;
+   const Real CTIn      = 35.0_Real;
+   const Real PIn       = 100.0_Real;
+   const Real h         = 1.0_Real;
+   const Real MassLimit = 0.10_Real;
+   const Real RTol      = 1e-10_Real;
+
+   FixedPropertyFrazilMelt ComputeFrazilMelt;
+   ComputeFrazilMelt.massLimit = MassLimit;
+
+   const Real SumIce0    = 0.5_Real;
+   const Real SumSalt0   = 2.0_Real;
+   const Real SumEnergy0 = -100000.0_Real;
+
+   Real SumIce    = SumIce0;
+   Real SumSalt   = SumSalt0;
+   Real SumEnergy = SumEnergy0;
+   Real HTend     = 0.0_Real;
+   Real TTend     = 0.0_Real;
+   Real STend     = 0.0_Real;
+   Real CTfrz     = gsw_ct_freezing_poly(SAIn, PIn, 0.0_Real);
+
+   ComputeFrazilMelt(SAIn, CTIn, PIn, h, SumIce, SumSalt, SumEnergy, HTend,
+                     TTend, STend, CTfrz);
+
+   const Real ExpectedFraction = h * MassLimit / SumIce0;
+   if (ExpectedFraction < 0.0_Real || ExpectedFraction > 1.0_Real) {
+      ABORT_ERROR("FrazilFixedPropertyMeltMassLimit: expected fraction {} is "
+                  "outside [0, 1]",
+                  ExpectedFraction);
+   }
+   if (!isApprox(HTend, ExpectedFraction * SumIce0, RTol)) {
+      ABORT_ERROR("FrazilFixedPropertyMeltMassLimit: expected HTend={}, got {}",
+                  ExpectedFraction * SumIce0, HTend);
+   }
+   if (!isApprox(STend, ExpectedFraction * SumSalt0, RTol)) {
+      ABORT_ERROR("FrazilFixedPropertyMeltMassLimit: expected STend={}, got {}",
+                  ExpectedFraction * SumSalt0, STend);
+   }
+   if (!isApprox(TTend, ExpectedFraction * SumEnergy0 / Cp0Sw, RTol)) {
+      ABORT_ERROR("FrazilFixedPropertyMeltMassLimit: expected TTend={}, got {}",
+                  ExpectedFraction * SumEnergy0 / Cp0Sw, TTend);
+   }
+   if (!isApprox(SumIce, (1.0_Real - ExpectedFraction) * SumIce0, RTol) ||
+       !isApprox(SumSalt, (1.0_Real - ExpectedFraction) * SumSalt0, RTol) ||
+       !isApprox(SumEnergy, (1.0_Real - ExpectedFraction) * SumEnergy0, RTol)) {
+      ABORT_ERROR("FrazilFixedPropertyMeltMassLimit: remaining reservoir is "
+                  "inconsistent with expected fraction {}",
+                  ExpectedFraction);
+   }
+   LOG_INFO("FrazilFixedPropertyMeltMassLimit: fraction = {}, HTend = {}, "
+            "TTend = {}, STend = {}",
+            ExpectedFraction, HTend, TTend, STend);
+}
+
 // this test exercises the frazil formation and melt functors
 // in a column of water with both cold and warm layers.
 // It turns to frazil column conservation check.
@@ -791,6 +911,8 @@ void frazilTest(const std::string &MeshFile = "OmegaMesh.nc") {
    testFixedPropertyFrazilFormationCold();
    testFixedPropertyFrazilFormationWarm();
    testFixedPropertyFrazilFormationMassLimit();
+   testFrazilMeltMassLimit();
+   testFixedPropertyFrazilMeltMassLimit();
    testComputeFrazilColumn();
    testComputeFrazilDepthLimit();
    finalizeFrazilTest();
