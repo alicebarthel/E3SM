@@ -231,21 +231,138 @@ void testFrazilFormationWarm() {
        AccMIce, AccMLiq, AccMSalt, AccELiq, AccEIce, HTend, TTend, STend);
 }
 
-// this test only excercises the fixed-property frazil formation functor (no
-// melt) in a warm case: the frazil FORMATION terms should all be zero
-void testFixedPropertyFrazilFormationWarm() {
+// this test exercises the frazil formation mass limiter in the TEOS path
+void testFrazilFormationMassLimit() {
    const auto Mesh   = HorzMesh::getDefault();
    const auto VCoord = VertCoord::getDefault();
 
    VCoord->NVertLayers = NVertLayers;
+
+   const Real SAIn      = 35.0_Real;
+   const Real CTIn      = -5.0_Real;
+   const Real PIn       = 100.0_Real;
+   const Real h         = 1.0_Real;
+   const Real Phi       = 0.75_Real;
+   const Real MassLimit = 0.10_Real;
+   const Real RTol      = 1e-10_Real;
+
+   (void)Mesh;
+
+   FrazilFormation ComputeFrazilFormation;
+   ComputeFrazilFormation.phi       = Phi;
+   ComputeFrazilFormation.massLimit = MassLimit;
+
+   Real AccMIce  = 0.0_Real;
+   Real AccMLiq  = 0.0_Real;
+   Real AccMSalt = 0.0_Real;
+   Real AccELiq  = 0.0_Real;
+   Real AccEIce  = 0.0_Real;
+
+   Real HTend = 0.0_Real;
+   Real TTend = 0.0_Real;
+   Real STend = 0.0_Real;
+
+   ComputeFrazilFormation(SAIn, CTIn, PIn, h, AccMIce, AccMLiq, AccMSalt,
+                          AccELiq, AccEIce, HTend, TTend, STend);
+
+   const Real ExpectedIceMass    = h * (1.0_Real - Phi) * MassLimit;
+   const Real ExpectedLiquidMass = Phi / (1.0_Real - Phi) * ExpectedIceMass;
+   const Real ExpectedTotalMass  = ExpectedIceMass + ExpectedLiquidMass;
+
+   if (!isApprox(AccMIce, ExpectedIceMass, RTol)) {
+      ABORT_ERROR("FrazilFormationMassLimit: expected AccMIce={}, got {}",
+                  ExpectedIceMass, AccMIce);
+   }
+   if (!isApprox(AccMLiq, ExpectedLiquidMass, RTol)) {
+      ABORT_ERROR("FrazilFormationMassLimit: expected AccMLiq={}, got {}",
+                  ExpectedLiquidMass, AccMLiq);
+   }
+   if (!isApprox(-HTend, ExpectedTotalMass, RTol)) {
+      ABORT_ERROR("FrazilFormationMassLimit: expected -HTend={}, got {}",
+                  ExpectedTotalMass, -HTend);
+   }
+   LOG_INFO("FrazilFormationMassLimit: AccMIce = {}, AccMLiq = {}, "
+            "HTend = {}",
+            AccMIce, AccMLiq, HTend);
+}
+
+// this test exercises the Phi parameter in the TEOS frazil formation path
+void testFrazilFormationPhi() {
+   const Real SAIn      = 35.0_Real;
+   const Real CTIn      = -2.0_Real;
+   const Real PIn       = 100.0_Real;
+   const Real h         = 1.0_Real;
+   const Real MassLimit = 0.10_Real;
+   const Real Phi0      = 0.75_Real;
+   const Real Phi1      = 0.85_Real;
+   const Real RTol      = 1e-10_Real;
+
+   FrazilFormation ComputeFrazilFormation;
+   ComputeFrazilFormation.massLimit = MassLimit;
+
+   Real AccMIce0  = 0.0_Real;
+   Real AccMLiq0  = 0.0_Real;
+   Real AccMSalt0 = 0.0_Real;
+   Real AccELiq0  = 0.0_Real;
+   Real AccEIce0  = 0.0_Real;
+   Real HTend0    = 0.0_Real;
+   Real TTend0    = 0.0_Real;
+   Real STend0    = 0.0_Real;
+
+   ComputeFrazilFormation.phi = Phi0;
+   ComputeFrazilFormation(SAIn, CTIn, PIn, h, AccMIce0, AccMLiq0, AccMSalt0,
+                          AccELiq0, AccEIce0, HTend0, TTend0, STend0);
+
+   Real AccMIce1  = 0.0_Real;
+   Real AccMLiq1  = 0.0_Real;
+   Real AccMSalt1 = 0.0_Real;
+   Real AccELiq1  = 0.0_Real;
+   Real AccEIce1  = 0.0_Real;
+   Real HTend1    = 0.0_Real;
+   Real TTend1    = 0.0_Real;
+   Real STend1    = 0.0_Real;
+
+   ComputeFrazilFormation.phi = Phi1;
+   ComputeFrazilFormation(SAIn, CTIn, PIn, h, AccMIce1, AccMLiq1, AccMSalt1,
+                          AccELiq1, AccEIce1, HTend1, TTend1, STend1);
+
+   if (!isApprox(AccMIce0, AccMIce1, RTol)) {
+      ABORT_ERROR("FrazilFormationPhi: AccMIce changed from {} to {}; "
+                  "chosen state may be mass-limit capped",
+                  AccMIce0, AccMIce1);
+   }
+
+   if ((AccMIce1 + AccMLiq1) <= (AccMIce0 + AccMLiq0)) {
+      ABORT_ERROR("FrazilFormationPhi: expected total frazil mass to increase "
+                  "from {}, got {}",
+                  AccMIce0 + AccMLiq0, AccMIce1 + AccMLiq1);
+   }
+   if (AccMSalt1 <= AccMSalt0) {
+      ABORT_ERROR("FrazilFormationPhi: expected AccMSalt to increase from {}, "
+                  "got {}",
+                  AccMSalt0, AccMSalt1);
+   }
+   if ((AccELiq1 + AccEIce1) >= (AccELiq0 + AccEIce0)) {
+      ABORT_ERROR("FrazilFormationPhi: expected total frazil energy to become "
+                  "more negative than {}, got {}",
+                  AccELiq0 + AccEIce0, AccELiq1 + AccEIce1);
+   }
+
+   LOG_INFO("FrazilFormationPhi: Phi0 = {}, Phi1 = {}, TotalMass0 = {}, "
+            "TotalMass1 = {}, TotalEnergy0 = {}, TotalEnergy1 = {}",
+            Phi0, Phi1, AccMIce0 + AccMLiq0, AccMIce1 + AccMLiq1,
+            AccELiq0 + AccEIce0, AccELiq1 + AccEIce1);
+}
+
+// this test only excercises the fixed-property frazil formation functor (no
+// melt) in a warm case: the frazil FORMATION terms should all be zero
+void testFixedPropertyFrazilFormationWarm() {
 
    const Real SAIn = 35.0_Real;
    const Real CTIn = 10.0_Real;
    const Real PIn  = 100.0_Real;
    const Real h    = 10.0_Real;
    const Real RTol = 1e-10_Real;
-
-   (void)Mesh;
 
    FixedPropertyFrazilFormation ComputeFrazilFormation;
 
@@ -379,6 +496,48 @@ void testFixedPropertyFrazilFormationCold() {
             "AccMSalt = {}, "
             "AccELiq = {}, AccEIce = {}, HTend = {}, TTend = {}, STend = {}",
             AccMIce, AccMLiq, AccMSalt, AccELiq, AccEIce, HTend, TTend, STend);
+}
+
+// this test exercises the frazil formation mass limiter in the fixed-property
+// path
+void testFixedPropertyFrazilFormationMassLimit() {
+   const Real SAIn      = 35.0_Real;
+   const Real CTIn      = -12.0_Real;
+   const Real PIn       = 100.0_Real;
+   const Real h         = 1.0_Real;
+   const Real MassLimit = 0.10_Real;
+   const Real RTol      = 1e-10_Real;
+
+   FixedPropertyFrazilFormation ComputeFrazilFormation;
+   ComputeFrazilFormation.massLimit = MassLimit;
+
+   Real AccMIce  = 0.0_Real;
+   Real AccMSalt = 0.0_Real;
+   Real AccEIce  = 0.0_Real;
+
+   Real HTend = 0.0_Real;
+   Real TTend = 0.0_Real;
+   Real STend = 0.0_Real;
+
+   Real CTfrz = gsw_ct_freezing_poly(SAIn, PIn, 0.0_Real);
+
+   ComputeFrazilFormation(SAIn, CTIn, PIn, h, AccMIce, AccMSalt, AccEIce, HTend,
+                          TTend, STend, CTfrz);
+
+   const Real ExpectedIceThickness = h * MassLimit;
+
+   if (!isApprox(AccMIce, ExpectedIceThickness, RTol)) {
+      ABORT_ERROR("FrazilFixedPropertyFormationMassLimit: expected AccMIce={}, "
+                  "got {}",
+                  ExpectedIceThickness, AccMIce);
+   }
+   if (!isApprox(-HTend, ExpectedIceThickness, RTol)) {
+      ABORT_ERROR("FrazilFixedPropertyFormationMassLimit: expected -HTend={}, "
+                  "got {}",
+                  ExpectedIceThickness, -HTend);
+   }
+   LOG_INFO("FrazilFixedPropertyFormationMassLimit: AccMIce = {}, HTend = {}",
+            AccMIce, HTend);
 }
 
 // this test exercises the frazil formation and melt functors
@@ -627,8 +786,11 @@ void frazilTest(const std::string &MeshFile = "OmegaMesh.nc") {
    initFrazilTest(MeshFile);
    testFrazilFormationCold();
    testFrazilFormationWarm();
+   testFrazilFormationMassLimit();
+   testFrazilFormationPhi();
    testFixedPropertyFrazilFormationCold();
    testFixedPropertyFrazilFormationWarm();
+   testFixedPropertyFrazilFormationMassLimit();
    testComputeFrazilColumn();
    testComputeFrazilDepthLimit();
    finalizeFrazilTest();
