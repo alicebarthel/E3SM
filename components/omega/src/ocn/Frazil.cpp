@@ -154,6 +154,11 @@ Frazil *Frazil::create(const std::string &Name) {
    Err += FrazilConfig.get("MassLimit", NewFrazil->computeFrazilMelt.massLimit);
    CHECK_ERROR_ABORT(Err,
                      "Frazil::create: MassLimit not found in Frazil config");
+   if (!(NewFrazil->computeFrazilFormation.massLimit > 0.0_Real &&
+         NewFrazil->computeFrazilFormation.massLimit < 1.0_Real)) {
+      ABORT_ERROR(
+          "Frazil::create: MassLimit must be between 0 and 1 (excluded)");
+   }
 
    NewFrazil->computeFixedPropertyFrazilFormation.massLimit =
        NewFrazil->computeFrazilFormation.massLimit;
@@ -162,6 +167,10 @@ Frazil *Frazil::create(const std::string &Name) {
 
    Err += FrazilConfig.get("Phi", NewFrazil->computeFrazilFormation.phi);
    CHECK_ERROR_ABORT(Err, "Frazil::create: Phi not found in Frazil config");
+   if (!(NewFrazil->computeFrazilFormation.phi >= 0.0_Real &&
+         NewFrazil->computeFrazilFormation.phi < 1.0_Real)) {
+      ABORT_ERROR("Frazil::create: Phi must be between 0 and 1 (1 excluded)");
+   }
 
    Err += FrazilConfig.get("ConservationCheck", NewFrazil->conservationCheck);
    CHECK_ERROR_ABORT(

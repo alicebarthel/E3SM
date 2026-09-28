@@ -233,20 +233,14 @@ void testFrazilFormationWarm() {
 
 // this test exercises the frazil formation mass limiter in the TEOS path
 void testFrazilFormationMassLimit() {
-   const auto Mesh   = HorzMesh::getDefault();
-   const auto VCoord = VertCoord::getDefault();
 
-   VCoord->NVertLayers = NVertLayers;
-
-   const Real SAIn      = 35.0_Real;
+   const Real SAIn      = 20.0_Real;
    const Real CTIn      = -5.0_Real;
    const Real PIn       = 100.0_Real;
    const Real h         = 1.0_Real;
    const Real Phi       = 0.75_Real;
    const Real MassLimit = 0.10_Real;
    const Real RTol      = 1e-10_Real;
-
-   (void)Mesh;
 
    FrazilFormation ComputeFrazilFormation;
    ComputeFrazilFormation.phi       = Phi;
@@ -277,9 +271,9 @@ void testFrazilFormationMassLimit() {
       ABORT_ERROR("FrazilFormationMassLimit: expected AccMLiq={}, got {}",
                   ExpectedLiquidMass, AccMLiq);
    }
-   if (!isApprox(-HTend, ExpectedTotalMass, RTol)) {
-      ABORT_ERROR("FrazilFormationMassLimit: expected -HTend={}, got {}",
-                  ExpectedTotalMass, -HTend);
+   if (!isApprox(HTend, -ExpectedTotalMass, RTol)) {
+      ABORT_ERROR("FrazilFormationMassLimit: expected HTend={}, got {}",
+                  -ExpectedTotalMass, HTend);
    }
    LOG_INFO("FrazilFormationMassLimit: AccMIce = {}, AccMLiq = {}, "
             "HTend = {}",
@@ -501,7 +495,7 @@ void testFixedPropertyFrazilFormationCold() {
 // this test exercises the frazil formation mass limiter in the fixed-property
 // path
 void testFixedPropertyFrazilFormationMassLimit() {
-   const Real SAIn      = 35.0_Real;
+   const Real SAIn      = 20.0_Real;
    const Real CTIn      = -12.0_Real;
    const Real PIn       = 100.0_Real;
    const Real h         = 1.0_Real;
@@ -531,10 +525,10 @@ void testFixedPropertyFrazilFormationMassLimit() {
                   "got {}",
                   ExpectedIceThickness, AccMIce);
    }
-   if (!isApprox(-HTend, ExpectedIceThickness, RTol)) {
-      ABORT_ERROR("FrazilFixedPropertyFormationMassLimit: expected -HTend={}, "
+   if (!isApprox(HTend, -ExpectedIceThickness, RTol)) {
+      ABORT_ERROR("FrazilFixedPropertyFormationMassLimit: expected HTend={}, "
                   "got {}",
-                  ExpectedIceThickness, -HTend);
+                  -ExpectedIceThickness, HTend);
    }
    LOG_INFO("FrazilFixedPropertyFormationMassLimit: AccMIce = {}, HTend = {}",
             AccMIce, HTend);
@@ -594,7 +588,7 @@ void testFrazilMeltMassLimit() {
        !isApprox(AccMSalt, (1.0_Real - ExpectedFraction) * AccMSalt0, RTol) ||
        !isApprox(AccELiq, (1.0_Real - ExpectedFraction) * AccELiq0, RTol) ||
        !isApprox(AccEIce, (1.0_Real - ExpectedFraction) * AccEIce0, RTol)) {
-      ABORT_ERROR("FrazilMeltMassLimit: remaining reservoir is inconsistent "
+      ABORT_ERROR("FrazilMeltMassLimit: remaining reservoirs areinconsistent "
                   "with expected fraction {}",
                   ExpectedFraction);
    }
@@ -734,7 +728,7 @@ void testComputeFrazilColumn() {
    deepCopy(CT, CTH);
 
    const bool SavedConservationCheck = TestFrazil->conservationCheck;
-   // TestFrazil->conservationCheck     = true;
+   TestFrazil->conservationCheck     = true;
 
    TestFrazil->computeFrazil(CT, SA, P, H);
    TestFrazil->conservationCheck = SavedConservationCheck;
@@ -761,13 +755,25 @@ void testComputeFrazilColumn() {
 
    if (HTendH(ICell, KWarm) < 0.0_Real || TTendH(ICell, KWarm) > 0.0_Real ||
        STendH(ICell, KWarm) < 0.0_Real) {
-      ABORT_ERROR("FrazilTestColumn: warm layer sign check failed (HTend>=0, "
+      ABORT_ERROR("FrazilTestColumn: warm layer1 sign check failed (HTend>=0, "
+                  "TTend<=0, STend>=0 expected)");
+   }
+   if (HTendH(ICell, KWarm2) < 0.0_Real || TTendH(ICell, KWarm2) > 0.0_Real ||
+       STendH(ICell, KWarm) < 0.0_Real) {
+      ABORT_ERROR("FrazilTestColumn: warm layer2 sign check failed (HTend>=0, "
                   "TTend<=0, STend>=0 expected)");
    }
 
    if (HTendH(ICell, KTopCold) >= 0.0_Real ||
        TTendH(ICell, KTopCold) <= 0.0_Real ||
        STendH(ICell, KTopCold) >= 0.0_Real) {
+      ABORT_ERROR(
+          "FrazilTestColumn: top cold layer sign check failed (HTend<0, "
+          "TTend>0, STend<0 expected)");
+   }
+   if (HTendH(ICell, KTopCold2) >= 0.0_Real ||
+       TTendH(ICell, KTopCold2) <= 0.0_Real ||
+       STendH(ICell, KTopCold2) >= 0.0_Real) {
       ABORT_ERROR(
           "FrazilTestColumn: top cold layer sign check failed (HTend<0, "
           "TTend>0, STend<0 expected)");
@@ -851,7 +857,7 @@ void testComputeFrazilDepthLimit() {
    deepCopy(CT, CTH);
 
    const bool SavedConservationCheck = TestFrazil->conservationCheck;
-   const bool SavedDepthLimit        = TestFrazil->depthLimit;
+   const Real SavedDepthLimit        = TestFrazil->depthLimit;
    const Real TestDepthLimit         = 35.0_Real; // this needs to be positive
    // if TestDepthLimit is negative, test will fail:
    // - the code assume depthlimit < 0 mean no limit (i.e. full depth frazil)
@@ -908,10 +914,10 @@ void frazilTest(const std::string &MeshFile = "OmegaMesh.nc") {
    testFrazilFormationWarm();
    testFrazilFormationMassLimit();
    testFrazilFormationPhi();
+   testFrazilMeltMassLimit();
    testFixedPropertyFrazilFormationCold();
    testFixedPropertyFrazilFormationWarm();
    testFixedPropertyFrazilFormationMassLimit();
-   testFrazilMeltMassLimit();
    testFixedPropertyFrazilMeltMassLimit();
    testComputeFrazilColumn();
    testComputeFrazilDepthLimit();

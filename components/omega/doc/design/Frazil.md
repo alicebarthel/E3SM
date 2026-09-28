@@ -233,37 +233,65 @@ This is the integration point used by [add-basic-frazil/components/omega/src/ocn
 
 ## 5 Verification and Testing
 
-### 5.1 Test cold formation
+### 5.1 Ctest - Test cold formation
 
-The cold-case frazil formation test verifies that:
-- accumulated ice mass is positive,
-- accumulated salt mass is positive,
-- accumulated energy is negative,
-- temperature tendency is positive,
-- salinity and thickness tendencies are negative.
+The cold-case frazil formation test verifies that in a single layer set to super-cooled conditons, a call to FrazilFormation() produces:
+- accumulated frazil ice mass is positive,
+- accumulated frazil salt mass is positive,
+- accumulated frazil energy is negative,
+- layer temperature tendency is positive,
+- layer salinity and thickness tendencies are negative.
 
-This verifies the sign and directionality of the formation branch.
+This verifies the sign and directionality of the formation branch for a single layer.
+The `testFrazilFormationCold` verifies the Teos-10 implementation, and `testFixedPropertyFrazilFormationCold` verifies the FixedProperty implementation.
 
-### 5.2 Test warm formation
+### 5.2 Ctest - Test warm formation
 
 The warm-case formation test verifies that the formation branch is zero when water is not supercooled. This checks that the algorithm respects the physical cutoff condition.
+The `testFrazilFormationWarm` verifies the Teos-10 implementation, and `testFixedPropertyFrazilFormationWarm` verifies the FixedProperty implementation.
 
-### 5.3 Test fixed-property formulation
+### 5.4 Ctest - Test column conservation and formation/melt switching
 
-The fixed-property frazil test exercises the simplified formulation and validates the same sign and physical expectations without requiring the full TEOS-based path.
+The column test verifies the full `Frazil::computeFrazil()` path across a single water column with multiple active layers.  The test constructs a vertical profile with cold layers separated by warm layers so that frazil can form in supercooled water, be carried upward through the column accumulators, and melt again where warmer water is encountered.
 
-### 5.4 Test column conservation
+The test checks the branch switching through the signs of the layer tendencies:
+- cold layers should form frazil, giving negative thickness and salinity tendencies and a positive temperature tendency;
+- warm layers with accumulated frazil should produce melt, giving the opposite tendency signs.
 
-The column test verifies that the computation remains consistent across multiple active layers and that the integrated frazil contribution satisfies the expected conservation behavior with the enabled check.
+The test also forcibly enables the internal frazil column conservation check, which verifies that the summed layer tendencies balance the accumulated frazil mass, salt, and energy reservoirs.  This provides coverage of the conservation relationship inside one call to `computeFrazil()`, while the separate timestep-level tests cover completed-step output and coupling diagnostics.
+
+This case has also been used for manual checks by adding logging commands (which work on CPU). The checks on layer accummulation, left over after limited melt etc. are not part of the automated checks.
 
 ### 5.5 Test depth limit
 
-The depth-limit test ensures that any layers below the configured depth threshold do not generate frazil tendencies, which guards the parameterized cutoff behavior.
+The depth-limit test ensures that any layers below the configured depth threshold generate frazil tendencies of zero, which guards the parameterized cutoff behavior.
 
 ### 5.6 Test mass limit
 
-A future test should check that the mass limit is implemented correctly.
+The mass-limit tests verify that `MassLimit` caps the frazil mass change to a
+fixed fraction of the layer thickness.  The tests are single layer, use the default value `MassLimit = 0.10` and exercise both available frazil formulations.
 
-### 5.6 Test per-tilmestep conservation
+For formation, the initial conditions are set to produce a large frazil mass (i.e. small layer of 1m pseudothickness and very super-cooled water), which should be capped. `testFrazilFormationMassLimit()` verifies the TEOS-10 path and
+`testFixedPropertyFrazilFormationMassLimit()` verifies the fixed-property path.
+The TEOS-10 test checks that the produced solid ice mass, the `Phi`-dependent liquid
+mass, and thickness tendency against the analytical capped values.  The fixed-property test checks that the produced ice thickness and thickness tendency are equal to the
+expected capped value.
+
+For melt, the initial ocean conditions are set to allow melting:  the small layer of 1m pseudothickness is warm water and a large amount of frazil terms is present for melting, which should be capped. `testFrazilMeltMassLimit()` verifies the TEOS-10 path and `testFixedPropertyFrazilMeltMassLimit()` verifies the fixed-property path.
+These tests check that the computed fraction of frazil to be melted is bounded between zero and one,
+that the 3 frazil tendencies match the expected values, and that the remaining frazil
+reservoirs are reduced consistently.
+
+### 5.7 Test Phi sensitivity
+
+The `testFrazilFormationPhi()` test verifies that the TEOS-10 formation path
+responds to the `Phi` parameter.  The test runs the same scalar state with
+`Phi = 0.75` and `Phi = 0.85`.  With all other inputs unchanged, increasing
+`Phi` should increase the total frazil mass, increase the salt content, and
+make the total frazil energy more negative.  The test also checks that the
+solid ice mass is unchanged so the comparison is not accidentally testing the
+mass limiter.
+
+### 5.8 Test per-timestep conservation
 
 A future test should check that the ocean tendencies and the terms ready for coupling export are conserved. The above test 5.4 ensures conservation within the frazil call but does not check the full timestep totals, which will differ across time stepper choice.
