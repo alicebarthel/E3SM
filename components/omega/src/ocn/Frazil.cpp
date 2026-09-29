@@ -10,6 +10,7 @@
 #include "Error.h"
 #include "Field.h"
 #include "Logging.h"
+#include "TimeStepper.h"
 
 #include <limits>
 
@@ -73,6 +74,14 @@ void Frazil::init() {
                   "frazil object creation");
          LOG_INFO("All frazil is off - frazil parameters will be ignored");
          return;
+      }
+
+      TimeStepper *DefTimeStepper = TimeStepper::getDefault();
+      if (DefTimeStepper &&
+          DefTimeStepper->getType() == TimeStepperType::ForwardBackward) {
+         ABORT_ERROR(
+             "Frazil is not supported for the Forward-Backward timestepper. "
+             "Turn frazil off or use a different timestepper");
       }
 
       FieldGroup::create("Frazil");
