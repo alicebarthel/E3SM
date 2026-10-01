@@ -362,6 +362,18 @@ void Frazil::checkColumnConservation() const {
    }
 }
 
+// Reported once per run; a persistent negative salinity would otherwise warn
+// on every tendency evaluation.
+void Frazil::warnNegativeSalinity(I4 NClamped) {
+   if (NClamped > 0 && !WarnedNegativeSalinity) {
+      WarnedNegativeSalinity = true;
+      LOG_WARN("Frazil: clamped negative absolute salinity to zero in {} "
+               "layer(s); the freezing-point polynomial is undefined for "
+               "SA < 0. This warning is issued only once.",
+               NClamped);
+   }
+}
+
 void Frazil::computeFrazilFixedPropertyImpl(const Array2DReal &CT,
                                             const Array2DReal &SA,
                                             const Array2DReal &P,
@@ -388,8 +400,10 @@ void Frazil::computeFrazilFixedPropertyImpl(const Array2DReal &CT,
    OMEGA_SCOPE(LocIceRefSal, IceRefSal);
    OMEGA_SCOPE(LocLatIce, LatIce);
 
-   parallelFor(
-       {NCellsAll}, KOKKOS_LAMBDA(I4 ICell) {
+   I4 NClamped = 0;
+   parallelReduce(
+       "frazilFixedPropertyImpl", {NCellsAll},
+       KOKKOS_LAMBDA(I4 ICell, I4 & Accum) {
           const I4 KMin = MinLayerCell(ICell);
           const I4 KMax = MaxLayerCell(ICell);
 
@@ -417,7 +431,13 @@ void Frazil::computeFrazilFixedPropertyImpl(const Array2DReal &CT,
                 continue;
              }
 
-             const Real SAIn = SA(ICell, K);
+             // sqrt(SA) in the freezing-point polynomial returns NaN for
+             // SA < 0, which silently disables frazil since NaN compares false
+             const Real SARaw = SA(ICell, K);
+             if (SARaw < 0.0_Real) {
+                ++Accum;
+             }
+             const Real SAIn = Kokkos::max(0.0_Real, SARaw);
              const Real CTIn = CT(ICell, K);
              const Real PIn  = P(ICell, K);
              const Real PDb  = PIn * Pa2Db;
@@ -455,7 +475,10 @@ void Frazil::computeFrazilFixedPropertyImpl(const Array2DReal &CT,
           LocAccMSalt(ICell) = LocAccMSalt(ICell) * RhoSw * PPt2Salt;
           LocAccELiq(ICell)  = LocAccELiq(ICell) * RhoSw;
           LocAccEIce(ICell)  = LocAccEIce(ICell) * RhoSw;
-       }); // end of NCells loop
+       },
+       NClamped); // end of NCells loop
+
+   warnNegativeSalinity(NClamped);
 }
 
 // TEOS-10 frazil relies on host-only GSW routines, so this implementation
@@ -491,9 +514,10 @@ void Frazil::computeFrazilTeosImpl(const Array2DReal &CT, const Array2DReal &SA,
    const auto LocComputeFrazilFormation = computeFrazilFormation;
    const auto LocComputeFrazilMelt      = computeFrazilMelt;
 
-   Kokkos::parallel_for(
+   I4 NClamped = 0;
+   Kokkos::parallel_reduce(
        "frazilTeosImpl", Kokkos::RangePolicy<HostExecSpace>(0, NCellsAll),
-       [=](const I4 ICell) {
+       [=](const I4 ICell, I4 &Accum) {
           const I4 KMin = MinLayerCell(ICell);
           const I4 KMax = MaxLayerCell(ICell);
 
@@ -522,7 +546,13 @@ void Frazil::computeFrazilTeosImpl(const Array2DReal &CT, const Array2DReal &SA,
                 continue;
              }
 
-             const Real SAIn = SAH(ICell, K);
+             // sqrt(SA) in the freezing-point polynomial returns NaN for
+             // SA < 0, which silently disables frazil since NaN compares false
+             const Real SARaw = SAH(ICell, K);
+             if (SARaw < 0.0_Real) {
+                ++Accum;
+             }
+             const Real SAIn = Kokkos::max(0.0_Real, SARaw);
              const Real CTIn = CTH(ICell, K);
              const Real PIn  = PH(ICell, K);
              const Real PDb  = PIn * Pa2Db;
@@ -544,7 +574,7 @@ void Frazil::computeFrazilTeosImpl(const Array2DReal &CT, const Array2DReal &SA,
                 LocComputeFrazilMelt(SAIn, CTIn, PDb, H, LocAccMIce(ICell),
                                      LocAccMLiq(ICell), LocAccMSalt(ICell),
                                      LocAccELiq(ICell), LocAccEIce(ICell),
-                                     HTend, TTend, STend);
+                                     HTend, TTend, STend, Tfrz);
              }
 
              // Per-call increments; FrazilOnCell normalizes these to rates.
@@ -559,7 +589,10 @@ void Frazil::computeFrazilTeosImpl(const Array2DReal &CT, const Array2DReal &SA,
           LocAccMSalt(ICell) = LocAccMSalt(ICell) * RhoSw * PPt2Salt;
           LocAccELiq(ICell)  = LocAccELiq(ICell) * RhoSw;
           LocAccEIce(ICell)  = LocAccEIce(ICell) * RhoSw;
-       }); // end of NCells loop
+       },
+       NClamped); // end of NCells loop
+
+   warnNegativeSalinity(NClamped);
 
    deepCopy(FrazilTTend, LocFrazilTTend);
    deepCopy(FrazilSTend, LocFrazilSTend);

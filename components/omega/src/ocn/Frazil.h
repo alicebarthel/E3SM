@@ -155,7 +155,8 @@ class FrazilMelt {
    //   available.
    void operator()(const Real SA, const Real CT, const Real P, const Real h,
                    Real &AccMIce, Real &AccMLiq, Real &AccMSalt, Real &AccELiq,
-                   Real &AccEIce, Real &HTend, Real &TTend, Real &STend) const {
+                   Real &AccEIce, Real &HTend, Real &TTend, Real &STend,
+                   const Real Tfrz) const {
 
       constexpr Real Eps = 1.0e-12_Real;
 
@@ -205,6 +206,23 @@ class FrazilMelt {
 
       gsw_melting_ice_into_seawater(SA_d, CT_d, P_d, wIhIn_d, tIce_d, &SAnew_d,
                                     &CTnew_d, &wIhOut_d);
+
+      // GSW marks all three of its failure exits with the same sentinel. The
+      // ct < ctf exit is reachable in normal operation because the caller
+      // gates melt on the polynomial freezing point while GSW uses the exact
+      // one; at that point there is no melt energy available anyway.
+      if (wIhOut_d > GSW_ERROR_LIMIT) {
+         constexpr Real FreezingTol = 1.0e-3_Real;
+         if (CT - Tfrz < FreezingTol) {
+            HTend = 0.0_Real;
+            TTend = 0.0_Real;
+            STend = 0.0_Real;
+            return;
+         }
+         ABORT_ERROR("FrazilMelt: GSW returned invalid values for "
+                     "SA={}, CT={}, P={}, h={}, Tfrz={}",
+                     SA, CT, P, h, Tfrz);
+      }
 
       const Real wIhOut = static_cast<Real>(
           wIhOut_d); // by def 0<= wIhOut <= 1 ;  To-do: check function behavior
@@ -385,7 +403,10 @@ class Frazil {
 
    const HorzMesh *MeshPtr;
    const VertCoord *VCoordPtr;
-   bool FieldsRegistered = false;
+   bool FieldsRegistered       = false;
+   bool WarnedNegativeSalinity = false;
+
+   void warnNegativeSalinity(I4 NClamped);
 
    void checkColumnConservation() const;
 };
