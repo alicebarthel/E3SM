@@ -108,9 +108,9 @@ Frazil::Frazil(const HorzMesh *Mesh, const VertCoord *VCoord)
    AccMLiq           = Array1DReal("AccMLiq", Mesh->NCellsSize);
    AccELiq           = Array1DReal("AccELiq", Mesh->NCellsSize);
    AccMSalt          = Array1DReal("AccMSalt", Mesh->NCellsSize);
-   OcnDtFrazilMass   = Array1DReal("FrazilOcnDtFrazilMass", Mesh->NCellsSize);
-   OcnDtFrazilSalt   = Array1DReal("FrazilOcnDtFrazilSalt", Mesh->NCellsSize);
-   OcnDtFrazilEnergy = Array1DReal("FrazilOcnDtFrazilEnergy", Mesh->NCellsSize);
+   OcnDtFrazilMass   = Array1DReal("FrazilMassFlux", Mesh->NCellsSize);
+   OcnDtFrazilSalt   = Array1DReal("FrazilSaltFlux", Mesh->NCellsSize);
+   OcnDtFrazilEnergy = Array1DReal("FrazilEnergyFlux", Mesh->NCellsSize);
 
    deepCopy(FrazilTTend, 0.0_Real);
    deepCopy(FrazilSTend, 0.0_Real);
@@ -158,21 +158,22 @@ Frazil *Frazil::create(const std::string &Name) {
       ABORT_ERROR("Frazil::create: Unknown FrazilType requested");
    }
 
-   Err += FrazilConfig.get("MassLimit",
-                           NewFrazil->computeFrazilFormation.massLimit);
-   Err += FrazilConfig.get("MassLimit", NewFrazil->computeFrazilMelt.massLimit);
-   CHECK_ERROR_ABORT(Err,
-                     "Frazil::create: MassLimit not found in Frazil config");
-   if (!(NewFrazil->computeFrazilFormation.massLimit > 0.0_Real &&
-         NewFrazil->computeFrazilFormation.massLimit < 1.0_Real)) {
-      ABORT_ERROR(
-          "Frazil::create: MassLimit must be between 0 and 1 (excluded)");
+   Err += FrazilConfig.get("LayerMassFracMax",
+                           NewFrazil->computeFrazilFormation.layerMassFracMax);
+   Err += FrazilConfig.get("LayerMassFracMax",
+                           NewFrazil->computeFrazilMelt.layerMassFracMax);
+   CHECK_ERROR_ABORT(
+       Err, "Frazil::create: LayerMassFracMax not found in Frazil config");
+   if (!(NewFrazil->computeFrazilFormation.layerMassFracMax > 0.0_Real &&
+         NewFrazil->computeFrazilFormation.layerMassFracMax < 1.0_Real)) {
+      ABORT_ERROR("Frazil::create: LayerMassFracMax must be between 0 and 1 "
+                  "(excluded)");
    }
 
-   NewFrazil->computeFixedPropertyFrazilFormation.massLimit =
-       NewFrazil->computeFrazilFormation.massLimit;
-   NewFrazil->computeFixedPropertyFrazilMelt.massLimit =
-       NewFrazil->computeFrazilFormation.massLimit;
+   NewFrazil->computeFixedPropertyFrazilFormation.layerMassFracMax =
+       NewFrazil->computeFrazilFormation.layerMassFracMax;
+   NewFrazil->computeFixedPropertyFrazilMelt.layerMassFracMax =
+       NewFrazil->computeFrazilFormation.layerMassFracMax;
 
    Err += FrazilConfig.get("Phi", NewFrazil->computeFrazilFormation.phi);
    CHECK_ERROR_ABORT(Err, "Frazil::create: Phi not found in Frazil config");

@@ -38,7 +38,7 @@ Frazil behavior is configured with:
   - global switch for applying frazil tendency terms
 - `Omega.Frazil.FrazilType`
   - implementation choice (`FixedProperty` or `Teos10`)
-- `Omega.Frazil.MassLimit`
+- `Omega.Frazil.LayerMassFracMax`
   - per-layer mass/thickness limiter used by frazil formation/melt pathways
 - `Omega.Frazil.Phi`
   - teos pathway liquid-fraction parameter for new frazil partitioning
@@ -72,7 +72,7 @@ The fraction of existing frazil to be melted is set by the amount of pure ice th
 
 - Uses teos-10 Gibbs SeaWater routines for frazil formation and melt state
   transitions.
-- Formation uses `Phi` and `MassLimit` to partition and limit newly formed
+- Formation uses `Phi` and `LayerMassFracMax` to partition and limit newly formed
   frazil contributions.
 - Melt computes fraction melted subject to available thermodynamic energy and
   mass-limit constraints.

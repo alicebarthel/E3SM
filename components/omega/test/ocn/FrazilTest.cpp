@@ -93,8 +93,8 @@ void testFrazilFormationCold() {
    (void)Mesh;
 
    FrazilFormation ComputeFrazilFormation;
-   ComputeFrazilFormation.phi       = 0.75_Real;
-   ComputeFrazilFormation.massLimit = 0.1_Real;
+   ComputeFrazilFormation.phi              = 0.75_Real;
+   ComputeFrazilFormation.layerMassFracMax = 0.1_Real;
 
    Real AccMIce  = 0.0_Real;
    Real AccMLiq  = 0.0_Real;
@@ -173,8 +173,8 @@ void testFrazilFormationWarm() {
    (void)Mesh;
 
    FrazilFormation ComputeFrazilFormation;
-   ComputeFrazilFormation.phi       = 0.75_Real;
-   ComputeFrazilFormation.massLimit = 0.1_Real;
+   ComputeFrazilFormation.phi              = 0.75_Real;
+   ComputeFrazilFormation.layerMassFracMax = 0.1_Real;
 
    Real AccMIce  = 0.0_Real;
    Real AccMLiq  = 0.0_Real;
@@ -234,17 +234,17 @@ void testFrazilFormationWarm() {
 // this test exercises the frazil formation mass limiter in the TEOS path
 void testFrazilFormationMassLimit() {
 
-   const Real SAIn      = 20.0_Real;
-   const Real CTIn      = -5.0_Real;
-   const Real PIn       = 100.0_Real;
-   const Real h         = 1.0_Real;
-   const Real Phi       = 0.75_Real;
-   const Real MassLimit = 0.10_Real;
-   const Real RTol      = 1e-10_Real;
+   const Real SAIn             = 20.0_Real;
+   const Real CTIn             = -5.0_Real;
+   const Real PIn              = 100.0_Real;
+   const Real h                = 1.0_Real;
+   const Real Phi              = 0.75_Real;
+   const Real LayerMassFracMax = 0.10_Real;
+   const Real RTol             = 1e-10_Real;
 
    FrazilFormation ComputeFrazilFormation;
-   ComputeFrazilFormation.phi       = Phi;
-   ComputeFrazilFormation.massLimit = MassLimit;
+   ComputeFrazilFormation.phi              = Phi;
+   ComputeFrazilFormation.layerMassFracMax = LayerMassFracMax;
 
    Real AccMIce  = 0.0_Real;
    Real AccMLiq  = 0.0_Real;
@@ -259,7 +259,7 @@ void testFrazilFormationMassLimit() {
    ComputeFrazilFormation(SAIn, CTIn, PIn, h, AccMIce, AccMLiq, AccMSalt,
                           AccELiq, AccEIce, HTend, TTend, STend);
 
-   const Real ExpectedIceMass    = h * (1.0_Real - Phi) * MassLimit;
+   const Real ExpectedIceMass    = h * (1.0_Real - Phi) * LayerMassFracMax;
    const Real ExpectedLiquidMass = Phi / (1.0_Real - Phi) * ExpectedIceMass;
    const Real ExpectedTotalMass  = ExpectedIceMass + ExpectedLiquidMass;
 
@@ -282,17 +282,17 @@ void testFrazilFormationMassLimit() {
 
 // this test exercises the Phi parameter in the TEOS frazil formation path
 void testFrazilFormationPhi() {
-   const Real SAIn      = 35.0_Real;
-   const Real CTIn      = -2.0_Real;
-   const Real PIn       = 100.0_Real;
-   const Real h         = 1.0_Real;
-   const Real MassLimit = 0.10_Real;
-   const Real Phi0      = 0.75_Real;
-   const Real Phi1      = 0.85_Real;
-   const Real RTol      = 1e-10_Real;
+   const Real SAIn             = 35.0_Real;
+   const Real CTIn             = -2.0_Real;
+   const Real PIn              = 100.0_Real;
+   const Real h                = 1.0_Real;
+   const Real LayerMassFracMax = 0.10_Real;
+   const Real Phi0             = 0.75_Real;
+   const Real Phi1             = 0.85_Real;
+   const Real RTol             = 1e-10_Real;
 
    FrazilFormation ComputeFrazilFormation;
-   ComputeFrazilFormation.massLimit = MassLimit;
+   ComputeFrazilFormation.layerMassFracMax = LayerMassFracMax;
 
    Real AccMIce0  = 0.0_Real;
    Real AccMLiq0  = 0.0_Real;
@@ -495,15 +495,15 @@ void testFixedPropertyFrazilFormationCold() {
 // this test exercises the frazil formation mass limiter in the fixed-property
 // path
 void testFixedPropertyFrazilFormationMassLimit() {
-   const Real SAIn      = 20.0_Real;
-   const Real CTIn      = -12.0_Real;
-   const Real PIn       = 100.0_Real;
-   const Real h         = 1.0_Real;
-   const Real MassLimit = 0.10_Real;
-   const Real RTol      = 1e-10_Real;
+   const Real SAIn             = 20.0_Real;
+   const Real CTIn             = -12.0_Real;
+   const Real PIn              = 100.0_Real;
+   const Real h                = 1.0_Real;
+   const Real LayerMassFracMax = 0.10_Real;
+   const Real RTol             = 1e-10_Real;
 
    FixedPropertyFrazilFormation ComputeFrazilFormation;
-   ComputeFrazilFormation.massLimit = MassLimit;
+   ComputeFrazilFormation.layerMassFracMax = LayerMassFracMax;
 
    Real AccMIce  = 0.0_Real;
    Real AccMSalt = 0.0_Real;
@@ -518,7 +518,7 @@ void testFixedPropertyFrazilFormationMassLimit() {
    ComputeFrazilFormation(SAIn, CTIn, PIn, h, AccMIce, AccMSalt, AccEIce, HTend,
                           TTend, STend, CTfrz);
 
-   const Real ExpectedIceThickness = h * MassLimit;
+   const Real ExpectedIceThickness = h * LayerMassFracMax;
 
    if (!isApprox(AccMIce, ExpectedIceThickness, RTol)) {
       ABORT_ERROR("FrazilFixedPropertyFormationMassLimit: expected AccMIce={}, "
@@ -536,15 +536,15 @@ void testFixedPropertyFrazilFormationMassLimit() {
 
 // this test exercises the frazil melt mass limiter in the TEOS path
 void testFrazilMeltMassLimit() {
-   const Real SAIn      = 32.0_Real;
-   const Real CTIn      = 35.0_Real;
-   const Real PIn       = 100.0_Real;
-   const Real h         = 1.0_Real;
-   const Real MassLimit = 0.10_Real;
-   const Real RTol      = 1e-10_Real;
+   const Real SAIn             = 32.0_Real;
+   const Real CTIn             = 35.0_Real;
+   const Real PIn              = 100.0_Real;
+   const Real h                = 1.0_Real;
+   const Real LayerMassFracMax = 0.10_Real;
+   const Real RTol             = 1e-10_Real;
 
    FrazilMelt ComputeFrazilMelt;
-   ComputeFrazilMelt.massLimit = MassLimit;
+   ComputeFrazilMelt.layerMassFracMax = LayerMassFracMax;
 
    const Real AccMIce0  = 0.25_Real;
    const Real AccMLiq0  = 0.75_Real;
@@ -565,7 +565,7 @@ void testFrazilMeltMassLimit() {
    ComputeFrazilMelt(SAIn, CTIn, PIn, h, AccMIce, AccMLiq, AccMSalt, AccELiq,
                      AccEIce, HTend, TTend, STend, CTfrz);
 
-   const Real ExpectedFraction = h * MassLimit / (AccMIce0 + AccMLiq0);
+   const Real ExpectedFraction = h * LayerMassFracMax / (AccMIce0 + AccMLiq0);
    if (ExpectedFraction < 0.0_Real || ExpectedFraction > 1.0_Real) {
       ABORT_ERROR("FrazilMeltMassLimit: expected fraction {} is outside "
                   "[0, 1]",
@@ -600,15 +600,15 @@ void testFrazilMeltMassLimit() {
 
 // this test exercises the frazil melt mass limiter in the fixed-property path
 void testFixedPropertyFrazilMeltMassLimit() {
-   const Real SAIn      = 32.0_Real;
-   const Real CTIn      = 35.0_Real;
-   const Real PIn       = 100.0_Real;
-   const Real h         = 1.0_Real;
-   const Real MassLimit = 0.10_Real;
-   const Real RTol      = 1e-10_Real;
+   const Real SAIn             = 32.0_Real;
+   const Real CTIn             = 35.0_Real;
+   const Real PIn              = 100.0_Real;
+   const Real h                = 1.0_Real;
+   const Real LayerMassFracMax = 0.10_Real;
+   const Real RTol             = 1e-10_Real;
 
    FixedPropertyFrazilMelt ComputeFrazilMelt;
-   ComputeFrazilMelt.massLimit = MassLimit;
+   ComputeFrazilMelt.layerMassFracMax = LayerMassFracMax;
 
    const Real SumIce0    = 0.5_Real;
    const Real SumSalt0   = 2.0_Real;
@@ -625,7 +625,7 @@ void testFixedPropertyFrazilMeltMassLimit() {
    ComputeFrazilMelt(SAIn, CTIn, PIn, h, SumIce, SumSalt, SumEnergy, HTend,
                      TTend, STend, CTfrz);
 
-   const Real ExpectedFraction = h * MassLimit / SumIce0;
+   const Real ExpectedFraction = h * LayerMassFracMax / SumIce0;
    if (ExpectedFraction < 0.0_Real || ExpectedFraction > 1.0_Real) {
       ABORT_ERROR("FrazilFixedPropertyMeltMassLimit: expected fraction {} is "
                   "outside [0, 1]",

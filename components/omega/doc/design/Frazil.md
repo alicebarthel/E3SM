@@ -50,7 +50,7 @@ Omega uses ocean thermodynamics consistent with TEOS-10. We target to form (and 
 
 ### 2.6 Requirement: Support IO field registration and output
 
-The accumulated frazil totals should be exposed as fields so they can be selected in output streams. The fields must be attached to the correct arrays and registered under a group.
+The per-timestep column-wise frazil totals should be exposed as fields so they can be selected in output streams. The fields must be attached to the correct arrays and registered under a group.
 
 This is needed because we desire to test the frazil contributions in standalone mode before coupling. This will also be useful for diagnostics of production simulations.
 
@@ -110,7 +110,7 @@ We prefer that the public output arrays captures mean fluxes rather than stage o
 
 The Frazil configuration is stored under the `Frazil` config group. Relevant entries include:
 - `FrazilType`: fixed-property or TEOS-based formulation
-- `MassLimit`: maximum total frazil mass changed allowed in an ocean layer
+- `LayerMassFracMax`: maximum total frazil mass changed allowed in an ocean layer
 - `Phi`: target liquid mass fraction for the formed frazil
 - `DepthLimit`: optional depth limit below which frazil is disabled
 - `ConservationCheck`: whether conservation must be validated
@@ -268,8 +268,8 @@ The depth-limit test ensures that any layers below the configured depth threshol
 
 ### 5.6 Test mass limit
 
-The mass-limit tests verify that `MassLimit` caps the frazil mass change to a
-fixed fraction of the layer thickness.  The tests are single layer, use the default value `MassLimit = 0.10` and exercise both available frazil formulations.
+The mass-limit tests verify that `LayerMassFracMax` caps the frazil mass change to a
+fixed fraction of the layer thickness.  The tests are single layer, use the default value `LayerMassFracMax = 0.10` and exercise both available frazil formulations.
 
 For formation, the initial conditions are set to produce a large frazil mass (i.e. small layer of 1m pseudothickness and very super-cooled water), which should be capped. `testFrazilFormationMassLimit()` verifies the TEOS-10 path and
 `testFixedPropertyFrazilFormationMassLimit()` verifies the fixed-property path.
