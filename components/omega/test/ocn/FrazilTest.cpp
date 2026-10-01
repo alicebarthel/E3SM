@@ -560,9 +560,10 @@ void testFrazilMeltMassLimit() {
    Real HTend    = 0.0_Real;
    Real TTend    = 0.0_Real;
    Real STend    = 0.0_Real;
+   Real CTfrz    = gsw_ct_freezing_poly(SAIn, PIn, 0.0_Real);
 
    ComputeFrazilMelt(SAIn, CTIn, PIn, h, AccMIce, AccMLiq, AccMSalt, AccELiq,
-                     AccEIce, HTend, TTend, STend);
+                     AccEIce, HTend, TTend, STend, CTfrz);
 
    const Real ExpectedFraction = h * MassLimit / (AccMIce0 + AccMLiq0);
    if (ExpectedFraction < 0.0_Real || ExpectedFraction > 1.0_Real) {
