@@ -21,7 +21,7 @@ Omega:
 
   Frazil:
     FrazilType: FixedProperty
-    MassLimit: 0.1
+    LayerMassFracMax: 0.1
     Phi: 0.75
     DepthLimit: -1.0
     ConservationCheck: false
@@ -34,7 +34,7 @@ Omega:
   - supported options in current code: `FixedProperty` and `Teos10`
   - `basic` is a deprecated compatibility alias for `FixedProperty`
   - `simple` exists as a placeholder name but is not supported
-- `Frazil.MassLimit`
+- `Frazil.LayerMassFracMax`
   - limits per-layer frazil mass/thickness tendency magnitude (applied to formation and melt)
 - `Frazil.Phi`
   - liquid-mass fraction of frazil (used by teos frazil formation, or by fixed-property frazil when using porosity rather than constant salinity).

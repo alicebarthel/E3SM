@@ -9,6 +9,6 @@ There are no user-configurable options beyond those for the tendency term functo
 
 Frazil is one of the configurable tendency contributions. It is controlled by
 `Omega.Tendencies.FrazilTendencyEnable` together with the `Omega.Frazil`
-configuration block (`FrazilType`, `MassLimit`, `Phi`, `DepthLimit`, and
+configuration block (`FrazilType`, `LayerMassFracMax`, `Phi`, `DepthLimit`, and
 `ConservationCheck`). For operational guidance and options, see
 [Frazil](Frazil.md).

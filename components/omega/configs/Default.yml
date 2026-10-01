@@ -101,7 +101,7 @@ Omega:
       RhoT0S0: 1000.0
   Frazil:
     FrazilType: teos10
-    MassLimit: 0.1
+    LayerMassFracMax: 0.1
     Phi: 0.75
     DepthLimit: -1.0
     ConservationCheck: true
