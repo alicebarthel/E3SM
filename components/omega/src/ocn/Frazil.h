@@ -274,6 +274,16 @@ class FrazilFormation {
       gsw_frazil_properties_potential_poly(
           static_cast<double>(SA), static_cast<double>(Cp0Sw * CT),
           static_cast<double>(P), &SAnew_d, &CTnew_d, &wIh_d);
+
+      // GSW flags out-of-domain input (w_Ih > 0.9) by setting all three outputs
+      // to GSW_INVALID_VALUE; the massLimit clamp below would otherwise hide
+      // it.
+      if (wIh_d > GSW_ERROR_LIMIT) {
+         ABORT_ERROR("FrazilFormation: GSW returned invalid values for "
+                     "SA={}, CT={}, P={}, h={}",
+                     SA, CT, P, h);
+      }
+
       double PTnew_d =
           gsw_pt_from_ct(SAnew_d, CTnew_d); // convert to potential temperature
 
