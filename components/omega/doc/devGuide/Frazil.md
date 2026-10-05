@@ -7,7 +7,7 @@ including both the `FixedProperty` and `Teos10` pathways.
 
 ## Purpose and coupling points
 
-Frazil computes phase-change-related tendencies that modify:
+Frazil computes frazil-related tendencies that modify:
 
 - pseudo-thickness tendency
 - temperature tracer tendency
@@ -16,6 +16,8 @@ Frazil computes phase-change-related tendencies that modify:
 The tendency hook-up is implemented through `FrazilOnCell` in the tracer
 tendency phase, where frazil contributions are added to the accumulated
 `PseudoThicknessTend` and `TracerTend` arrays.
+
+It also accumulates the column-integrated frazil terms over an ocean (outer) timestep to store the fluxes to be passed through the coupler.
 
 ## Data flow and call sequence
 
@@ -62,7 +64,7 @@ Frazil behavior is configured with:
 - Uses simplified energetics: the energy of the super-cooled water sets the
 amount of solid ice formed (used constant latent heat of fusion of fresh ice).
 Salt is added based on a constant bulk salinity `IceRefSal` (default) or a
-manual toggle (for now) using the local salinity and the frazil porosity.
+manual toggle (for now) using the local salinity and the frazil porosity. The salt contribution is included in the salinity tendency term, but is not accounted for in the pseudo-thickness tendency.
 The fraction of existing frazil to be melted is set by the amount of pure ice that can be melted by the warm layer, and used to determine the energy, mass and salt added to the tendencies. There is also fractional thickness limit to the possible melt.
 - Computes local layer tendencies (`HTend`, `TTend`, `STend`) and updates
   accumulated frazil stores.
@@ -76,6 +78,7 @@ The fraction of existing frazil to be melted is set by the amount of pure ice th
   frazil contributions.
 - Melt computes fraction melted subject to available thermodynamic energy and
   mass-limit constraints.
+  - Performance note: the GSW TEOS-10 routines rely on the submodule which is not GPU-portable, so this option currently executes on the CPU/host even in GPU builds. Expect host execution (and associated data movement) when `FrazilType: Teos10` is selected. The calculation will be moved to GPU once a function port is possible.
 
 ## Existing ctest coverage
 
