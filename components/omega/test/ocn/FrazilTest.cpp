@@ -352,13 +352,15 @@ void testFrazilFormationPhi() {
 // melt) in a warm case: the frazil FORMATION terms should all be zero
 void testFixedPropertyFrazilFormationWarm() {
 
-   const Real SAIn = 35.0_Real;
-   const Real CTIn = 10.0_Real;
-   const Real PIn  = 100.0_Real;
-   const Real h    = 10.0_Real;
-   const Real RTol = 1e-10_Real;
+   const Real SAIn             = 35.0_Real;
+   const Real CTIn             = 10.0_Real;
+   const Real PIn              = 100.0_Real;
+   const Real h                = 10.0_Real;
+   const Real RTol             = 1e-10_Real;
+   const Real LayerMassFracMax = 0.10_Real;
 
    FixedPropertyFrazilFormation ComputeFrazilFormation;
+   ComputeFrazilFormation.layerMassFracMax = LayerMassFracMax;
 
    Real AccMIce  = 0.0_Real;
    Real AccMLiq  = 0.0_Real;
@@ -426,15 +428,16 @@ void testFixedPropertyFrazilFormationCold() {
 
    VCoord->NVertLayers = NVertLayers;
 
-   const Real SAIn = 35.0_Real;
-   const Real CTIn = -2.0_Real;
-   const Real PIn  = 100.0_Real;
-   const Real h    = 10.0_Real;
-   const Real RTol = 1e-10_Real;
-
+   const Real SAIn             = 35.0_Real;
+   const Real CTIn             = -2.0_Real;
+   const Real PIn              = 100.0_Real;
+   const Real h                = 10.0_Real;
+   const Real RTol             = 1e-10_Real;
+   const Real LayerMassFracMax = 0.10_Real;
    (void)Mesh;
 
    FixedPropertyFrazilFormation ComputeFrazilFormation;
+   ComputeFrazilFormation.layerMassFracMax = LayerMassFracMax;
 
    Real AccMIce  = 0.0_Real;
    Real AccMLiq  = 0.0_Real;

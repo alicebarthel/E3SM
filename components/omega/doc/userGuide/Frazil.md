@@ -33,8 +33,6 @@ Omega:
 - `Frazil.FrazilType`
   - selects frazil option
   - supported options in current code: `FixedProperty` and `Teos10`
-  - `basic` is a deprecated compatibility alias for `FixedProperty`
-  - `simple` exists as a placeholder name but is not supported
 - `Frazil.LayerMassFracMax`
   - limits per-layer frazil mass/thickness tendency magnitude (applied to formation and melt)
 - `Frazil.Phi`

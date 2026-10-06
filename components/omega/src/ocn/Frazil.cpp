@@ -1,7 +1,7 @@
 //===-- ocn/Frazil.cpp - Frazil Ice Formation -----------------*- C++ -*-===//
 //
 // The Frazil class manages frazil tendencies and accumulators.
-// This initial implementation only has a teos-10 configuration.
+// The frazil options include a Teos-10 and a FixedProperty implementation.
 //
 //===----------------------------------------------------------------------===//
 
@@ -148,7 +148,7 @@ Frazil *Frazil::create(const std::string &Name) {
 
    if ((FrazilTypeStr == "FixedProperty") or
        (FrazilTypeStr == "fixedProperty") or (FrazilTypeStr == "fixed") or
-       (FrazilTypeStr == "basic") or (FrazilTypeStr == "fixedproperty")) {
+       (FrazilTypeStr == "fixedproperty")) {
       NewFrazil->frazilChoice = FrazilType::FixedPropertyFrazil;
    } else if ((FrazilTypeStr == "teos") or (FrazilTypeStr == "Teos") or
               (FrazilTypeStr == "TEOS") or (FrazilTypeStr == "Teos10") or

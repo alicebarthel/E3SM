@@ -32,7 +32,7 @@ class FixedPropertyFrazilFormation {
  public:
    FixedPropertyFrazilFormation();
 
-   Real layerMassFracMax  = 0.1_Real;  // to do:  remove default
+   Real layerMassFracMax; ///< layer mass fraction limit (set in config)
    Real FrazilIceSalinity = IceRefSal; // Global constant
    Real LatFrazil         = LatIce;    // Global constant
 
@@ -87,8 +87,8 @@ class FixedPropertyFrazilMelt {
  public:
    FixedPropertyFrazilMelt();
 
-   Real layerMassFracMax = 0.1_Real; // to do:  remove default
-   Real LatFrazil        = LatIce;   // Global constant
+   Real layerMassFracMax;   ///< layer mass fraction limit (set in config)
+   Real LatFrazil = LatIce; // Global constant
 
    KOKKOS_FUNCTION void operator()(const Real SA, const Real CT, const Real PDb,
                                    const Real H, Real &SumIceThickness,
@@ -97,12 +97,11 @@ class FixedPropertyFrazilMelt {
                                    const Real Tfrz) const {
       constexpr Real Eps = 1.0e-12_Real;
 
-      if (SumIceThickness <= Eps) { // potential leak if we dont redistribute
-         SumIceThickness = 0.0_Real;
-         SumSalt         = 0.0_Real;
-         HTend           = 0.0_Real;
-         TTend           = 0.0_Real;
-         STend           = 0.0_Real;
+      if (SumIceThickness <=
+          Eps) { // skipping melt if noise-level Ice is present
+         HTend = 0.0_Real;
+         TTend = 0.0_Real;
+         STend = 0.0_Real;
          return;
       }
       const Real potential       = H * Cp0Sw * RhoSw * (CT - Tfrz);
@@ -127,10 +126,9 @@ class FixedPropertyFrazilMelt {
               Cp0Sw; // (SumE <0 thus TTend < 0 when melting for phase change)
       STend = +frazilFractionMelted * SumSalt; // (STend > 0 when melting)
 
-      const Real frazilFractionLeft =
-          Kokkos::max(0.0_Real, 1.0_Real - frazilFractionMelted);
-      SumIceThickness = frazilFractionLeft * SumIceThickness;
-      SumSalt         = frazilFractionLeft * SumSalt;
+      const Real frazilFractionLeft = 1.0_Real - frazilFractionMelted;
+      SumIceThickness               = frazilFractionLeft * SumIceThickness;
+      SumSalt                       = frazilFractionLeft * SumSalt;
       SumEnergy =
           frazilFractionLeft * SumEnergy; // conservative by construction
    }
@@ -161,30 +159,25 @@ class FrazilMelt {
 
       // this check on AccMIce and E should be done in the calling function, but
       // is here for safety we can do a better implementation of the checks
+
+      if (AccMIce <= 0.0_Real || AccMLiq <= 0.0_Real ||
+          AccEIce >= 0.0_Real) { // below calculations assume sign
+         ABORT_ERROR{"FrazilMelt: Invalid accumulator signs: AccMIce={}, "
+                     "AccMLiq={}, AccELiq={}, AccEIce={}",
+                     AccMIce, AccMLiq, AccELiq, AccEIce};
+      }
+
       if (AccMIce <= Eps ||
-          AccEIce >= Eps) { // potential leak if we dont redistribute
-         AccMIce = 0.0_Real;
-         AccEIce = 0.0_Real;
-         HTend   = 0.0_Real;
-         TTend   = 0.0_Real;
-         STend   = 0.0_Real;
+          AccMLiq <= Eps) { // skipping melt calculation for noise-level AccMIce
+         HTend = 0.0_Real;
+         TTend = 0.0_Real;
+         STend = 0.0_Real;
          return;
       }
-
-      if (AccMLiq <= Eps ||
-          AccELiq >= Eps) { // potential leak if we dont redistribute
-         AccMLiq = 0.0_Real;
-         AccELiq = 0.0_Real;
-         HTend   = 0.0_Real;
-         TTend   = 0.0_Real;
-         STend   = 0.0_Real;
-         return;
-      }
-
       // 1. we start by adding the solid ice to the ocean layer (no brine yet)
       const Real potEnthalpyIce = AccEIce / AccMIce;
       const Real newLayerMass =
-          Kokkos::max(h + AccMIce, Eps); // max unnecessary but for safety
+          h + AccMIce; // AccMIce > Eps and h passed the ocean_validate()
       const Real newLayerIceFraction = AccMIce / newLayerMass;
 
       // 2. we calculate the (mass- and energy-conserving) ocean layer evolution
@@ -224,7 +217,7 @@ class FrazilMelt {
       }
 
       const Real wIhOut = static_cast<Real>(
-          wIhOut_d); // by def 0<= wIhOut <= 1 ;  To-do: check function behavior
+          wIhOut_d); // by def 0<= wIhOut <= 1 ; above checksfor invalid values
 
       // 3. we calculate the mass fraction of the frazil (pure) ice that was
       // melted - limited by a total mass limit of 0.1h
@@ -241,8 +234,7 @@ class FrazilMelt {
       TTend = +(frazilFractionMelted * (AccELiq + AccEIce)) / Cp0Sw;
       STend = +(frazilFractionMelted * AccMSalt);
 
-      const Real frazilFractionLeft =
-          Kokkos::max(0.0_Real, 1.0_Real - frazilFractionMelted);
+      const Real frazilFractionLeft = 1.0_Real - frazilFractionMelted;
 
       AccMIce  = frazilFractionLeft * AccMIce;
       AccMLiq  = frazilFractionLeft * AccMLiq;
