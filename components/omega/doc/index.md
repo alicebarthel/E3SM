@@ -131,6 +131,7 @@ design/Driver
 design/EOS
 design/Error
 design/FillValues
+design/Frazil
 design/Halo
 design/HorzMeshClass
 design/Logging

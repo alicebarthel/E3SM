@@ -372,16 +372,16 @@ class Frazil {
    Array1DReal AccMLiq;
    Array1DReal AccELiq;
    Array1DReal AccMSalt;
-   Array1DReal OcnDtFrazilMass;
-   Array1DReal OcnDtFrazilSalt;
-   Array1DReal OcnDtFrazilEnergy;
+   Array1DReal FrazilMassFlux;
+   Array1DReal FrazilSaltFlux;
+   Array1DReal FrazilEnergyFlux;
 
    void computeFrazil(const Array2DReal &ConservTemp,
                       const Array2DReal &AbsSalinity,
                       const Array2DReal &Pressure,
                       const Array2DReal &PseudoThickness);
-   void resetOcnStepRates();
-   void accumulateOcnStepRates(Real FinalUpdateWeight, R8 TimeStepSeconds);
+   void resetOcnStepFluxes();
+   void accumulateOcnStepFluxes(Real FinalUpdateWeight, R8 TimeStepSeconds);
    void registerFields();
    void unregisterFields();
    void computeFrazilFixedPropertyImpl(const Array2DReal &ConservTemp,

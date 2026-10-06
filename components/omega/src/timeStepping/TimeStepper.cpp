@@ -597,10 +597,10 @@ void TimeStepper::changeTimeStep(const TimeInterval &TimeStepIn) {
 // Get number of doStep calls made on this instance
 I8 TimeStepper::getStepCount() const { return StepCount; }
 
-void TimeStepper::resetFrazilOcnStepRates() const {
+void TimeStepper::resetFrazilFluxes() const {
    auto *DefaultFrazil = Frazil::getDefault();
    if (DefaultFrazil) {
-      DefaultFrazil->resetOcnStepRates();
+      DefaultFrazil->resetOcnStepFluxes();
    }
 }
 

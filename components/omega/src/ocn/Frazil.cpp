@@ -103,14 +103,14 @@ Frazil::Frazil(const HorzMesh *Mesh, const VertCoord *VCoord)
    FrazilHTend =
        Array2DReal("FrazilHTend", Mesh->NCellsSize, VCoord->NVertLayers);
 
-   AccMIce           = Array1DReal("AccMIce", Mesh->NCellsSize);
-   AccEIce           = Array1DReal("AccEIce", Mesh->NCellsSize);
-   AccMLiq           = Array1DReal("AccMLiq", Mesh->NCellsSize);
-   AccELiq           = Array1DReal("AccELiq", Mesh->NCellsSize);
-   AccMSalt          = Array1DReal("AccMSalt", Mesh->NCellsSize);
-   OcnDtFrazilMass   = Array1DReal("FrazilMassFlux", Mesh->NCellsSize);
-   OcnDtFrazilSalt   = Array1DReal("FrazilSaltFlux", Mesh->NCellsSize);
-   OcnDtFrazilEnergy = Array1DReal("FrazilEnergyFlux", Mesh->NCellsSize);
+   AccMIce          = Array1DReal("AccMIce", Mesh->NCellsSize);
+   AccEIce          = Array1DReal("AccEIce", Mesh->NCellsSize);
+   AccMLiq          = Array1DReal("AccMLiq", Mesh->NCellsSize);
+   AccELiq          = Array1DReal("AccELiq", Mesh->NCellsSize);
+   AccMSalt         = Array1DReal("AccMSalt", Mesh->NCellsSize);
+   FrazilMassFlux   = Array1DReal("FrazilMassFlux", Mesh->NCellsSize);
+   FrazilSaltFlux   = Array1DReal("FrazilSaltFlux", Mesh->NCellsSize);
+   FrazilEnergyFlux = Array1DReal("FrazilEnergyFlux", Mesh->NCellsSize);
 
    deepCopy(FrazilTTend, 0.0_Real);
    deepCopy(FrazilSTend, 0.0_Real);
@@ -120,7 +120,7 @@ Frazil::Frazil(const HorzMesh *Mesh, const VertCoord *VCoord)
    deepCopy(AccMLiq, 0.0_Real);
    deepCopy(AccELiq, 0.0_Real);
    deepCopy(AccMSalt, 0.0_Real);
-   resetOcnStepRates();
+   resetOcnStepFluxes();
 }
 
 Frazil::~Frazil() { unregisterFields(); }
@@ -225,31 +225,35 @@ void Frazil::clear() {
    }
 }
 
-void Frazil::resetOcnStepRates() {
-   deepCopy(OcnDtFrazilMass, 0.0_Real);
-   deepCopy(OcnDtFrazilSalt, 0.0_Real);
-   deepCopy(OcnDtFrazilEnergy, 0.0_Real);
+void Frazil::resetOcnStepFluxes() {
+   deepCopy(FrazilMassFlux, 0.0_Real);
+   deepCopy(FrazilSaltFlux, 0.0_Real);
+   deepCopy(FrazilEnergyFlux, 0.0_Real);
 }
 
-void Frazil::accumulateOcnStepRates(const Real FinalUpdateWeight,
-                                    const R8 TimeStepSeconds) {
+void Frazil::accumulateOcnStepFluxes(const Real FinalUpdateWeight,
+                                     const R8 TimeStepSeconds) {
+   // This function accumulates the frazil terms produced at each frazil call
+   // (multiple per timestep) into the ocean (outer)timestep fluxes.
    OMEGA_SCOPE(LocAccMIce, AccMIce);
    OMEGA_SCOPE(LocAccMLiq, AccMLiq);
    OMEGA_SCOPE(LocAccMSalt, AccMSalt);
    OMEGA_SCOPE(LocAccELiq, AccELiq);
    OMEGA_SCOPE(LocAccEIce, AccEIce);
-   OMEGA_SCOPE(LocOcnDtFrazilMass, OcnDtFrazilMass);
-   OMEGA_SCOPE(LocOcnDtFrazilSalt, OcnDtFrazilSalt);
-   OMEGA_SCOPE(LocOcnDtFrazilEnergy, OcnDtFrazilEnergy);
+   OMEGA_SCOPE(LocFrazilMassFlux, FrazilMassFlux);
+   OMEGA_SCOPE(LocFrazilSaltFlux, FrazilSaltFlux);
+   OMEGA_SCOPE(LocFrazilEnergyFlux, FrazilEnergyFlux);
 
+   // Accumulators are positive into the frazil reservoir; the exported fluxes
+   // use the coupler convention of being counted positive into the ocean.
    parallelFor(
        {NCellsAll}, KOKKOS_LAMBDA(I4 ICell) {
-          LocOcnDtFrazilMass(ICell) += FinalUpdateWeight *
-                                       (LocAccMIce(ICell) + LocAccMLiq(ICell)) /
-                                       TimeStepSeconds;
-          LocOcnDtFrazilSalt(ICell) +=
+          LocFrazilMassFlux(ICell) -= FinalUpdateWeight *
+                                      (LocAccMIce(ICell) + LocAccMLiq(ICell)) /
+                                      TimeStepSeconds;
+          LocFrazilSaltFlux(ICell) -=
               FinalUpdateWeight * LocAccMSalt(ICell) / TimeStepSeconds;
-          LocOcnDtFrazilEnergy(ICell) +=
+          LocFrazilEnergyFlux(ICell) -=
               FinalUpdateWeight * (LocAccEIce(ICell) + LocAccELiq(ICell)) /
               TimeStepSeconds;
        });
@@ -260,26 +264,29 @@ void Frazil::registerFields() {
    const std::vector<std::string> DimNames{"NCells"};
 
    auto FrazilMassField = Field::create(
-       OcnDtFrazilMass.label(), "frazil mass flux averaged over ocean timestep",
+       FrazilMassFlux.label(),
+       "frazil mass flux averaged over ocean timestep, positive into the ocean",
        "kg m^-2 s^-1", "", std::numeric_limits<Real>::lowest(),
        std::numeric_limits<Real>::max(), NDims, DimNames);
    auto FrazilSaltField = Field::create(
-       OcnDtFrazilSalt.label(), "frazil salt flux averaged over ocean timestep",
+       FrazilSaltFlux.label(),
+       "frazil salt flux averaged over ocean timestep, positive into the ocean",
        "kg m^-2 s^-1", "", std::numeric_limits<Real>::lowest(),
        std::numeric_limits<Real>::max(), NDims, DimNames);
    auto FrazilEnergyField =
-       Field::create(OcnDtFrazilEnergy.label(),
-                     "frazil energy flux averaged over ocean timestep",
+       Field::create(FrazilEnergyFlux.label(),
+                     "frazil energy flux averaged over ocean timestep, "
+                     "positive into the ocean",
                      "W m^-2", "", std::numeric_limits<Real>::lowest(),
                      std::numeric_limits<Real>::max(), NDims, DimNames);
 
-   FieldGroup::addFieldToGroup(OcnDtFrazilMass.label(), "Frazil");
-   FieldGroup::addFieldToGroup(OcnDtFrazilSalt.label(), "Frazil");
-   FieldGroup::addFieldToGroup(OcnDtFrazilEnergy.label(), "Frazil");
+   FieldGroup::addFieldToGroup(FrazilMassFlux.label(), "Frazil");
+   FieldGroup::addFieldToGroup(FrazilSaltFlux.label(), "Frazil");
+   FieldGroup::addFieldToGroup(FrazilEnergyFlux.label(), "Frazil");
 
-   FrazilMassField->attachData<Array1DReal>(OcnDtFrazilMass);
-   FrazilSaltField->attachData<Array1DReal>(OcnDtFrazilSalt);
-   FrazilEnergyField->attachData<Array1DReal>(OcnDtFrazilEnergy);
+   FrazilMassField->attachData<Array1DReal>(FrazilMassFlux);
+   FrazilSaltField->attachData<Array1DReal>(FrazilSaltFlux);
+   FrazilEnergyField->attachData<Array1DReal>(FrazilEnergyFlux);
    FieldsRegistered = true;
 }
 
@@ -288,14 +295,14 @@ void Frazil::unregisterFields() {
       return;
    }
 
-   if (Field::exists(OcnDtFrazilMass.label())) {
-      Field::destroy(OcnDtFrazilMass.label());
+   if (Field::exists(FrazilMassFlux.label())) {
+      Field::destroy(FrazilMassFlux.label());
    }
-   if (Field::exists(OcnDtFrazilSalt.label())) {
-      Field::destroy(OcnDtFrazilSalt.label());
+   if (Field::exists(FrazilSaltFlux.label())) {
+      Field::destroy(FrazilSaltFlux.label());
    }
-   if (Field::exists(OcnDtFrazilEnergy.label())) {
-      Field::destroy(OcnDtFrazilEnergy.label());
+   if (Field::exists(FrazilEnergyFlux.label())) {
+      Field::destroy(FrazilEnergyFlux.label());
    }
    FieldsRegistered = false;
 }

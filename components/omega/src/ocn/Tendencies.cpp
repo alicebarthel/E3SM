@@ -1402,9 +1402,9 @@ void Tendencies::computeTracerTendencies(
     int ThickTimeLevel,             ///< [in] Time level
     int VelTimeLevel,               ///< [in] Time level
     TimeInstant Time,               ///< [in] Time
-    TimeInterval ProjDt, ///< [in] Time interval for projection over the
-                        ///< current time stepper stage
-    Real FinalUpdateWeight          ///< [in] final update weight
+    TimeInterval ProjDt,   ///< [in] Time interval for projection over the
+                           ///< current time stepper stage
+    Real FinalUpdateWeight ///< [in] final update weight
 ) {
 
    Pacer::start("Tend:computeTracerTendencies", 1);
@@ -1428,9 +1428,9 @@ void Tendencies::computeAllTendencies(
     int VelTimeLevel,               ///< [in] Time level
     int TracerTimeLevel,            ///< [in] Time level
     TimeInstant Time,               ///< [in] Time
-    TimeInterval ProjDt, ///< [in] Time interval for projection over the
-                        ///< current time stepper stage
-    Real FinalUpdateWeight          ///< [in] final update weight
+    TimeInterval ProjDt,   ///< [in] Time interval for projection over the
+                           ///< current time stepper stage
+    Real FinalUpdateWeight ///< [in] final update weight
 ) {
    AuxState->computeAll(State, TracerArray, ThickTimeLevel, VelTimeLevel,
                         ProjDt);

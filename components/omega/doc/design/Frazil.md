@@ -25,7 +25,7 @@ The calculation must allow for tendency contributions from
 
 ### 2.2 Requirement: Preserve conservation and physical consistency
 
-The implementation must maintain column-level conservation and it must reject or flag situations where the computed mass, salt or energy budgets cannot be reconciled.
+The implementation must maintain column-level conservation: the sum of each Frazil tendency in a column should match the corresponding column-integrated Frazil term. it must reject or flag situations where the computed mass, salt or energy budgets cannot be reconciled. The implementation should also treat the 3 terms (mass, salt, and energy) in a self-consistent way, in line with the thermodynamic assumptions of each frazil option.
 
 Incorrect mass or energy partitioning can corrupt the tracer and thickness budgets and lead to a mass, salt, or energy leak in the coupled model.
 
@@ -115,7 +115,7 @@ The Frazil configuration is stored under the `Frazil` config group. Relevant ent
 - `DepthLimit`: optional depth limit below which frazil is disabled
 - `ConservationCheck`: whether conservation must be validated
 
-These parameters are read during object creation in [add-basic-frazil/components/omega/src/ocn/Frazil.cpp](add-basic-frazil/components/omega/src/ocn/Frazil.cpp).
+These parameters are read during object creation in `Frazil.cpp`.
 
 #### 4.1.2 Class/structs/data types
 
@@ -150,13 +150,13 @@ class Frazil {
    Array1DReal AccELiq;
    Array1DReal AccMSalt;
 
-   Array1DReal OcnDtFrazilMass;
-   Array1DReal OcnDtFrazilSalt;
-   Array1DReal OcnDtFrazilEnergy;
+   Array1DReal FrazilMassFlux;
+   Array1DReal FrazilSaltFlux;
+   Array1DReal FrazilEnergyFlux;
 
    void computeFrazil(...);
-   void resetOcnStepRates();
-   void accumulateOcnStepRates(Real FinalUpdateWeight, R8 TimeStepSeconds);
+   void resetOcnStepFluxes();
+   void accumulateOcnStepFluxes(Real FinalUpdateWeight, R8 TimeStepSeconds);
    void registerFields();
    void unregisterFields();
 };
@@ -198,10 +198,11 @@ The method is later invoked from the tendency operator, which is the integration
 
 #### 4.2.4 Completed-step accumulation
 
-The `accumulateOcnStepRates()` method updates the final per-cell ocean-step sums. It:
+The `accumulateOcnStepFluxes()` method updates the final per-cell ocean-step fluxes. It:
 - reads the stage-local accumulation arrays,
 - applies the update weight,
 - divides by the full ocean timestep seconds,
+- flips the sign, because the accumulators are counted positive into the frazil reservoir while the exported fluxes follow the coupler convention of being positive into the ocean,
 - writes the mean flux into the public output arrays.
 
 This is a key design choice because it keeps the output/coupling values independent of the internal stage ordering of the timestepper.
@@ -209,9 +210,12 @@ This is a key design choice because it keeps the output/coupling values independ
 #### 4.2.5 Field registration and output
 
 The `registerFields()` method creates the three default output fields:
-- `OcnDtFrazilMass`
-- `OcnDtFrazilSalt`
-- `OcnDtFrazilEnergy`
+- `FrazilMassFlux`
+- `FrazilSaltFlux`
+- `FrazilEnergyFlux`
+
+All three are counted positive into the ocean, so frazil formation gives
+negative values and net melt gives positive ones.
 
 Each field is:
 - 1D with `NCells` dimension,
@@ -229,7 +233,7 @@ The `FrazilOnCell` object is the bridge between the Frazil module and the tenden
 - accumulates the completed-step totals,
 - writes the resultant tendency contributions into the thickness and tracer tendency arrays.
 
-This is the integration point used by [add-basic-frazil/components/omega/src/ocn/TendencyTerms.cpp](add-basic-frazil/components/omega/src/ocn/TendencyTerms.cpp).
+This is the integration point used by `TendencyTerms.cpp`.
 
 ## 5 Verification and Testing
 
