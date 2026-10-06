@@ -32,7 +32,7 @@ class FixedPropertyFrazilFormation {
  public:
    FixedPropertyFrazilFormation();
 
-   Real layerMassFracMax; ///< layer mass fraction limit (set in config)
+   Real LayerMassFracMax; ///< layer mass fraction limit (set in config)
    Real FrazilIceSalinity = IceRefSal; // Global constant
    Real LatFrazil         = LatIce;    // Global constant
 
@@ -45,41 +45,41 @@ class FixedPropertyFrazilFormation {
                                    Real &TTend, Real &STend,
                                    const Real Tfrz) const {
 
-      const Real potential      = H * Cp0Sw * RhoSw * (CT - Tfrz);
-      const Real freezingEnergy = Kokkos::max(0.0_Real, -potential);
+      const Real Potential      = H * Cp0Sw * RhoSw * (CT - Tfrz);
+      const Real FreezingEnergy = Kokkos::max(0.0_Real, -Potential);
 
       HTend = 0.0_Real;
       TTend = 0.0_Real;
       STend = 0.0_Real;
 
-      Real newFrzThickness =
-          freezingEnergy /
+      Real NewFrzThickness =
+          FreezingEnergy /
           (LatFrazil * RhoSw); // frazil (ice) mass in pseudo-thickness terms
 
-      newFrzThickness = Kokkos::min(newFrzThickness, H * layerMassFracMax);
-      Real newFrzEnergy =
-          newFrzThickness *
+      NewFrzThickness = Kokkos::min(NewFrzThickness, H * LayerMassFracMax);
+      Real NewFrzEnergy =
+          NewFrzThickness *
           (-LatFrazil + Cp0Sw * Tfrz); // (<0; enthalpy of frazil, i.e. phase
                                        // change and enthalpy of melted equ)
 
       // MANUAL TOGGLE: uncomment line below to use porosity
       // const Real FrazilIceSalinity = FrazilPorosity * SA;
 
-      const Real frazilSalinity = Kokkos::min(FrazilIceSalinity, SA);
-      const Real newSaltContent =
-          newFrzThickness * frazilSalinity; // in m.(g/kg)
+      const Real FrazilSalinity = Kokkos::min(FrazilIceSalinity, SA);
+      const Real NewSaltContent =
+          NewFrzThickness * FrazilSalinity; // in m.(g/kg)
 
       // HTend does not include the salt mass contribution to align with mpas-o.
-      HTend = -newFrzThickness;
+      HTend = -NewFrzThickness;
       // TTend includes the enthalpy associated with the mass flux to be
       // conservative with the melt impl. (this differs from old mpas-o)
       TTend =
-          -(newFrzEnergy) / (Cp0Sw); // (E< 0 so TTend>0) // scaled to h.CT tend
-      STend = -newSaltContent;
+          -(NewFrzEnergy) / (Cp0Sw); // (E< 0 so TTend>0) // scaled to h.CT tend
+      STend = -NewSaltContent;
 
-      SumIceThickness += newFrzThickness;
-      SumSalt += newSaltContent;
-      SumEnergy += newFrzEnergy;
+      SumIceThickness += NewFrzThickness;
+      SumSalt += NewSaltContent;
+      SumEnergy += NewFrzEnergy;
    }
 };
 
@@ -87,7 +87,7 @@ class FixedPropertyFrazilMelt {
  public:
    FixedPropertyFrazilMelt();
 
-   Real layerMassFracMax;   ///< layer mass fraction limit (set in config)
+   Real LayerMassFracMax;   ///< layer mass fraction limit (set in config)
    Real LatFrazil = LatIce; // Global constant
 
    KOKKOS_FUNCTION void operator()(const Real SA, const Real CT, const Real PDb,
@@ -104,33 +104,33 @@ class FixedPropertyFrazilMelt {
          STend = 0.0_Real;
          return;
       }
-      const Real potential       = H * Cp0Sw * RhoSw * (CT - Tfrz);
-      const Real availableEnergy = Kokkos::max(0.0_Real, potential);
+      const Real Potential       = H * Cp0Sw * RhoSw * (CT - Tfrz);
+      const Real AvailableEnergy = Kokkos::max(0.0_Real, Potential);
 
       HTend = 0.0_Real;
       TTend = 0.0_Real;
       STend = 0.0_Real;
 
-      Real meltThickness =
-          availableEnergy /
+      Real MeltThickness =
+          AvailableEnergy /
           (LatFrazil * RhoSw); // mass in pseudo-thickness units
-      meltThickness = Kokkos::min(meltThickness, SumIceThickness);
-      meltThickness =
-          Kokkos::min(meltThickness,
-                      H * layerMassFracMax); // also 0.1h lim on added mass
-      const Real frazilFractionMelted =
-          meltThickness / SumIceThickness; // mass fraction melted
+      MeltThickness = Kokkos::min(MeltThickness, SumIceThickness);
+      MeltThickness =
+          Kokkos::min(MeltThickness,
+                      H * LayerMassFracMax); // also 0.1h lim on added mass
+      const Real FrazilFractionMelted =
+          MeltThickness / SumIceThickness; // mass fraction melted
 
-      HTend = frazilFractionMelted * (SumIceThickness); // (>0 so HTend>0)
-      TTend = frazilFractionMelted * SumEnergy /
+      HTend = FrazilFractionMelted * (SumIceThickness); // (>0 so HTend>0)
+      TTend = FrazilFractionMelted * SumEnergy /
               Cp0Sw; // (SumE <0 thus TTend < 0 when melting for phase change)
-      STend = +frazilFractionMelted * SumSalt; // (STend > 0 when melting)
+      STend = +FrazilFractionMelted * SumSalt; // (STend > 0 when melting)
 
-      const Real frazilFractionLeft = 1.0_Real - frazilFractionMelted;
-      SumIceThickness               = frazilFractionLeft * SumIceThickness;
-      SumSalt                       = frazilFractionLeft * SumSalt;
+      const Real FrazilFractionLeft = 1.0_Real - FrazilFractionMelted;
+      SumIceThickness               = FrazilFractionLeft * SumIceThickness;
+      SumSalt                       = FrazilFractionLeft * SumSalt;
       SumEnergy =
-          frazilFractionLeft * SumEnergy; // conservative by construction
+          FrazilFractionLeft * SumEnergy; // conservative by construction
    }
 };
 
@@ -140,17 +140,17 @@ class FrazilMelt {
    FrazilMelt();
 
    // layer mass fraction limit parameter (set in config)
-   Real layerMassFracMax;
+   Real LayerMassFracMax;
 
    //   The functor for FrazilMelt takes as inputs:
-   //   the local ocean layer state (SA, CT, P, h),
+   //   the local ocean layer state (SA, CT, P, H),
    //   the accumulated frazil solid and liquid mass, energy, and salt
    //   and outputs the frazil tendencies (HTend, TTend, STend) and updated
    //   accumulators.
    //   Host-only: relies on GSW TEOS-10 routines that are not device-callable.
    //   This is a temporary implementation until a device-callable solution is
    //   available.
-   void operator()(const Real SA, const Real CT, const Real P, const Real h,
+   void operator()(const Real SA, const Real CT, const Real P, const Real H,
                    Real &AccMIce, Real &AccMLiq, Real &AccMSalt, Real &AccELiq,
                    Real &AccEIce, Real &HTend, Real &TTend, Real &STend,
                    const Real Tfrz) const {
@@ -162,9 +162,9 @@ class FrazilMelt {
 
       if (AccMIce <= 0.0_Real || AccMLiq <= 0.0_Real ||
           AccEIce >= 0.0_Real) { // below calculations assume sign
-         ABORT_ERROR{"FrazilMelt: Invalid accumulator signs: AccMIce={}, "
+         ABORT_ERROR("FrazilMelt: Invalid accumulator signs: AccMIce={}, "
                      "AccMLiq={}, AccELiq={}, AccEIce={}",
-                     AccMIce, AccMLiq, AccELiq, AccEIce};
+                     AccMIce, AccMLiq, AccELiq, AccEIce);
       }
 
       if (AccMIce <= Eps ||
@@ -175,10 +175,10 @@ class FrazilMelt {
          return;
       }
       // 1. we start by adding the solid ice to the ocean layer (no brine yet)
-      const Real potEnthalpyIce = AccEIce / AccMIce;
-      const Real newLayerMass =
-          h + AccMIce; // AccMIce > Eps and h passed the ocean_validate()
-      const Real newLayerIceFraction = AccMIce / newLayerMass;
+      const Real PotEnthalpyIce = AccEIce / AccMIce;
+      const Real NewLayerMass =
+          H + AccMIce; // AccMIce > Eps and H passed the ocean_validate()
+      const Real NewLayerIceFraction = AccMIce / NewLayerMass;
 
       // 2. we calculate the (mass- and energy-conserving) ocean layer evolution
       // ... how much (pure) ice does this layer melt?
@@ -188,22 +188,22 @@ class FrazilMelt {
       const double SA_d     = static_cast<double>(SA);
       const double CT_d     = static_cast<double>(CT);
       const double P_d      = static_cast<double>(P);
-      const double wIhIn_d  = static_cast<double>(newLayerIceFraction);
-      const double pt0Ice_d = gsw_pt_from_pot_enthalpy_ice_poly(
-          static_cast<double>(potEnthalpyIce));
-      const double tIce_d = gsw_t_from_pt0_ice(pt0Ice_d, P_d);
-      double SAnew_d      = SA_d;
-      double CTnew_d      = CT_d;
-      double wIhOut_d     = wIhIn_d;
+      const double WIhIn_d  = static_cast<double>(NewLayerIceFraction);
+      const double Pt0Ice_d = gsw_pt_from_pot_enthalpy_ice_poly(
+          static_cast<double>(PotEnthalpyIce));
+      const double TIce_d = gsw_t_from_pt0_ice(Pt0Ice_d, P_d);
+      double SANew_d      = SA_d;
+      double CTNew_d      = CT_d;
+      double WIhOut_d     = WIhIn_d;
 
-      gsw_melting_ice_into_seawater(SA_d, CT_d, P_d, wIhIn_d, tIce_d, &SAnew_d,
-                                    &CTnew_d, &wIhOut_d);
+      gsw_melting_ice_into_seawater(SA_d, CT_d, P_d, WIhIn_d, TIce_d, &SANew_d,
+                                    &CTNew_d, &WIhOut_d);
 
       // GSW marks all three of its failure exits with the same sentinel. The
       // ct < ctf exit is reachable in normal operation because the caller
       // gates melt on the polynomial freezing point while GSW uses the exact
       // one; at that point there is no melt energy available anyway.
-      if (wIhOut_d > GSW_ERROR_LIMIT) {
+      if (WIhOut_d > GSW_ERROR_LIMIT) {
          constexpr Real FreezingTol = 1.0e-3_Real;
          if (CT - Tfrz < FreezingTol) {
             HTend = 0.0_Real;
@@ -212,35 +212,35 @@ class FrazilMelt {
             return;
          }
          ABORT_ERROR("FrazilMelt: GSW returned invalid values for "
-                     "SA={}, CT={}, P={}, h={}, Tfrz={}",
-                     SA, CT, P, h, Tfrz);
+                     "SA={}, CT={}, P={}, H={}, Tfrz={}",
+                     SA, CT, P, H, Tfrz);
       }
 
-      const Real wIhOut = static_cast<Real>(
-          wIhOut_d); // by def 0<= wIhOut <= 1 ; above checksfor invalid values
+      const Real WIhOut = static_cast<Real>(
+          WIhOut_d); // by def 0<= WIhOut <= 1 ; above checksfor invalid values
 
       // 3. we calculate the mass fraction of the frazil (pure) ice that was
       // melted - limited by a total mass limit of 0.1h
-      const Real solidMassMelted = Kokkos::max(
+      const Real SolidMassMelted = Kokkos::max(
           0.0_Real,
-          AccMIce - wIhOut * newLayerMass); // original - left-over solid ice,
-      const Real frazilFractionMelted = Kokkos::min(
-          solidMassMelted / AccMIce,
-          h * layerMassFracMax / (AccMIce + AccMLiq)); // added mass < 0.1h
+          AccMIce - WIhOut * NewLayerMass); // original - left-over solid ice,
+      const Real FrazilFractionMelted = Kokkos::min(
+          SolidMassMelted / AccMIce,
+          H * LayerMassFracMax / (AccMIce + AccMLiq)); // added mass < 0.1h
 
       // the frazil fraction based on the solid ice also sets the (proportional)
       // contributions from the frazil brine
-      HTend = +(frazilFractionMelted * (AccMLiq + AccMIce));
-      TTend = +(frazilFractionMelted * (AccELiq + AccEIce)) / Cp0Sw;
-      STend = +(frazilFractionMelted * AccMSalt);
+      HTend = +(FrazilFractionMelted * (AccMLiq + AccMIce));
+      TTend = +(FrazilFractionMelted * (AccELiq + AccEIce)) / Cp0Sw;
+      STend = +(FrazilFractionMelted * AccMSalt);
 
-      const Real frazilFractionLeft = 1.0_Real - frazilFractionMelted;
+      const Real FrazilFractionLeft = 1.0_Real - FrazilFractionMelted;
 
-      AccMIce  = frazilFractionLeft * AccMIce;
-      AccMLiq  = frazilFractionLeft * AccMLiq;
-      AccMSalt = frazilFractionLeft * AccMSalt;
-      AccELiq  = frazilFractionLeft * AccELiq;
-      AccEIce  = frazilFractionLeft * AccEIce;
+      AccMIce  = FrazilFractionLeft * AccMIce;
+      AccMLiq  = FrazilFractionLeft * AccMLiq;
+      AccMSalt = FrazilFractionLeft * AccMSalt;
+      AccELiq  = FrazilFractionLeft * AccELiq;
+      AccEIce  = FrazilFractionLeft * AccEIce;
    }
 };
 
@@ -250,77 +250,77 @@ class FrazilFormation {
    FrazilFormation();
 
    /// Parameters for FrazilFormation (set by yaml file)
-   Real phi;              ///< liquid mass fraction of new frazil (0 < Phi < 1)
-   Real layerMassFracMax; ///< layer mass fraction limit for thickness tendency
+   Real Phi;              ///< liquid mass fraction of new frazil (0 < Phi < 1)
+   Real LayerMassFracMax; ///< layer mass fraction limit for thickness tendency
 
    //   The functor for FrazilFormation takes as inputs:
-   //   the local ocean layer state (SA, CT, P, h),
+   //   the local ocean layer state (SA, CT, P, H),
    //   the accumulated frazil solid and liquid mass, energy, and salt
    //   and outputs the frazil tendencies (HTend, TTend, STend) and updated
    //   accumulators.
    //   Host-only: relies on GSW TEOS-10 routines that are not device-callable.
    //   This is a temporary implementation until a device-callable solution is
    //   available.
-   void operator()(const Real SA, const Real CT, const Real P, const Real h,
+   void operator()(const Real SA, const Real CT, const Real P, const Real H,
                    Real &AccMIce, Real &AccMLiq, Real &AccMSalt, Real &AccELiq,
                    Real &AccEIce, Real &HTend, Real &TTend, Real &STend) const {
 
-      Real CTnew;
-      Real SAnew;
-      Real wIh            = 0.0_Real;
-      Real solidMass      = 0.0_Real;
-      Real liquidMass     = 0.0_Real;
-      Real solidEnthalpy  = 0.0_Real;
-      Real liquidEnthalpy = 0.0_Real;
+      Real CTNew;
+      Real SANew;
+      Real WIh            = 0.0_Real;
+      Real SolidMass      = 0.0_Real;
+      Real LiquidMass     = 0.0_Real;
+      Real SolidEnthalpy  = 0.0_Real;
+      Real LiquidEnthalpy = 0.0_Real;
 
       // type casting for now because gsw expects double
       // and Real can be either float or double depending on build configuration
-      double SAnew_d = 0.0;
-      double CTnew_d = 0.0;
-      double wIh_d   = 0.0;
-      // double PTnew_d = 0.0;
+      double SANew_d = 0.0;
+      double CTNew_d = 0.0;
+      double WIh_d   = 0.0;
+      // double PTNew_d = 0.0;
 
       gsw_frazil_properties_potential_poly(
           static_cast<double>(SA), static_cast<double>(Cp0Sw * CT),
-          static_cast<double>(P), &SAnew_d, &CTnew_d, &wIh_d);
+          static_cast<double>(P), &SANew_d, &CTNew_d, &WIh_d);
 
       // GSW flags out-of-domain input (w_Ih > 0.9) by setting all three outputs
-      // to GSW_INVALID_VALUE; the layerMassFracMax clamp below would otherwise
+      // to GSW_INVALID_VALUE; the LayerMassFracMax clamp below would otherwise
       // hide it.
-      if (wIh_d > GSW_ERROR_LIMIT) {
+      if (WIh_d > GSW_ERROR_LIMIT) {
          ABORT_ERROR("FrazilFormation: GSW returned invalid values for "
-                     "SA={}, CT={}, P={}, h={}",
-                     SA, CT, P, h);
+                     "SA={}, CT={}, P={}, H={}",
+                     SA, CT, P, H);
       }
 
-      double PTnew_d =
-          gsw_pt_from_ct(SAnew_d, CTnew_d); // convert to potential temperature
+      double PTNew_d =
+          gsw_pt_from_ct(SANew_d, CTNew_d); // convert to potential temperature
 
-      SAnew = static_cast<Real>(SAnew_d);
-      CTnew = static_cast<Real>(CTnew_d);
-      wIh   = static_cast<Real>(wIh_d);
+      SANew = static_cast<Real>(SANew_d);
+      CTNew = static_cast<Real>(CTNew_d);
+      WIh   = static_cast<Real>(WIh_d);
 
-      const Real oneMinusPhi = Kokkos::max(1.0e-12_Real, 1.0_Real - phi);
+      const Real OneMinusPhi = Kokkos::max(1.0e-12_Real, 1.0_Real - Phi);
       // anything called mass below is in pseudo-thickness units (m) and needs
       // to be scaled by RhoSw for coupling
-      solidMass      = h * Kokkos::min(wIh, oneMinusPhi * layerMassFracMax);
-      liquidMass     = (phi / oneMinusPhi) * solidMass;
-      solidEnthalpy  = solidMass * gsw_pot_enthalpy_from_pt_ice_poly(PTnew_d);
-      liquidEnthalpy = liquidMass * Cp0Sw * CTnew;
+      SolidMass      = H * Kokkos::min(WIh, OneMinusPhi * LayerMassFracMax);
+      LiquidMass     = (Phi / OneMinusPhi) * SolidMass;
+      SolidEnthalpy  = SolidMass * gsw_pot_enthalpy_from_pt_ice_poly(PTNew_d);
+      LiquidEnthalpy = LiquidMass * Cp0Sw * CTNew;
       // per timestep (not scaled by dt here)
-      HTend = -(solidMass +
-                liquidMass); // because phi is a *mass* fraction, liquidMass
+      HTend = -(SolidMass +
+                LiquidMass); // because Phi is a *mass* fraction, LiquidMass
                              // includes the salt contribution to mass.
-      TTend = -(liquidEnthalpy + solidEnthalpy) / Cp0Sw;
-      STend = -(liquidMass * SAnew);
+      TTend = -(LiquidEnthalpy + SolidEnthalpy) / Cp0Sw;
+      STend = -(LiquidMass * SANew);
 
       // Local unit of mass is pseudo thickness (m)
       // these all need a RhoSw factor before coupling
-      AccMIce += solidMass;           // m
-      AccMLiq += liquidMass;          // m
-      AccMSalt += liquidMass * SAnew; // (m)(g/kg)
-      AccELiq += liquidEnthalpy;      // (m)(J/kg)
-      AccEIce += solidEnthalpy;       // (m)(J/kg)
+      AccMIce += SolidMass;           // m
+      AccMLiq += LiquidMass;          // m
+      AccMSalt += LiquidMass * SANew; // (m)(g/kg)
+      AccELiq += LiquidEnthalpy;      // (m)(J/kg)
+      AccEIce += SolidEnthalpy;       // (m)(J/kg)
    }
 };
 
@@ -369,8 +369,8 @@ class Frazil {
                                        const Array2DReal &LayerH);
    void computeFrazilTeosImpl(const Array2DReal &CT, const Array2DReal &SA,
                               const Array2DReal &P, const Array2DReal &LayerH);
-   bool conservationCheck = false;
-   Real depthLimit        = -1.0_Real;
+   bool ConservationCheck = false;
+   Real DepthLimit        = -1.0_Real;
 
  private:
    static Frazil *DefaultFrazil;
@@ -384,11 +384,11 @@ class Frazil {
    Frazil(Frazil &&)                 = delete;
    Frazil &operator=(Frazil &&)      = delete;
 
-   FrazilType frazilChoice;
-   FixedPropertyFrazilFormation computeFixedPropertyFrazilFormation;
-   FixedPropertyFrazilMelt computeFixedPropertyFrazilMelt;
-   FrazilFormation computeFrazilFormation;
-   FrazilMelt computeFrazilMelt;
+   FrazilType FrazilChoice;
+   FixedPropertyFrazilFormation ComputeFixedPropertyFrazilFormation;
+   FixedPropertyFrazilMelt ComputeFixedPropertyFrazilMelt;
+   FrazilFormation ComputeFrazilFormation;
+   FrazilMelt ComputeFrazilMelt;
    I4 NCellsAll;
    I4 NChunks;
 

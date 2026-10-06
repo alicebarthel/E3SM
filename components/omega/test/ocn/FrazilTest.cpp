@@ -93,8 +93,8 @@ void testFrazilFormationCold() {
    (void)Mesh;
 
    FrazilFormation ComputeFrazilFormation;
-   ComputeFrazilFormation.phi              = 0.75_Real;
-   ComputeFrazilFormation.layerMassFracMax = 0.1_Real;
+   ComputeFrazilFormation.Phi              = 0.75_Real;
+   ComputeFrazilFormation.LayerMassFracMax = 0.1_Real;
 
    Real AccMIce  = 0.0_Real;
    Real AccMLiq  = 0.0_Real;
@@ -173,8 +173,8 @@ void testFrazilFormationWarm() {
    (void)Mesh;
 
    FrazilFormation ComputeFrazilFormation;
-   ComputeFrazilFormation.phi              = 0.75_Real;
-   ComputeFrazilFormation.layerMassFracMax = 0.1_Real;
+   ComputeFrazilFormation.Phi              = 0.75_Real;
+   ComputeFrazilFormation.LayerMassFracMax = 0.1_Real;
 
    Real AccMIce  = 0.0_Real;
    Real AccMLiq  = 0.0_Real;
@@ -243,8 +243,8 @@ void testFrazilFormationMassLimit() {
    const Real RTol             = 1e-10_Real;
 
    FrazilFormation ComputeFrazilFormation;
-   ComputeFrazilFormation.phi              = Phi;
-   ComputeFrazilFormation.layerMassFracMax = LayerMassFracMax;
+   ComputeFrazilFormation.Phi              = Phi;
+   ComputeFrazilFormation.LayerMassFracMax = LayerMassFracMax;
 
    Real AccMIce  = 0.0_Real;
    Real AccMLiq  = 0.0_Real;
@@ -292,7 +292,7 @@ void testFrazilFormationPhi() {
    const Real RTol             = 1e-10_Real;
 
    FrazilFormation ComputeFrazilFormation;
-   ComputeFrazilFormation.layerMassFracMax = LayerMassFracMax;
+   ComputeFrazilFormation.LayerMassFracMax = LayerMassFracMax;
 
    Real AccMIce0  = 0.0_Real;
    Real AccMLiq0  = 0.0_Real;
@@ -303,7 +303,7 @@ void testFrazilFormationPhi() {
    Real TTend0    = 0.0_Real;
    Real STend0    = 0.0_Real;
 
-   ComputeFrazilFormation.phi = Phi0;
+   ComputeFrazilFormation.Phi = Phi0;
    ComputeFrazilFormation(SAIn, CTIn, PIn, h, AccMIce0, AccMLiq0, AccMSalt0,
                           AccELiq0, AccEIce0, HTend0, TTend0, STend0);
 
@@ -316,7 +316,7 @@ void testFrazilFormationPhi() {
    Real TTend1    = 0.0_Real;
    Real STend1    = 0.0_Real;
 
-   ComputeFrazilFormation.phi = Phi1;
+   ComputeFrazilFormation.Phi = Phi1;
    ComputeFrazilFormation(SAIn, CTIn, PIn, h, AccMIce1, AccMLiq1, AccMSalt1,
                           AccELiq1, AccEIce1, HTend1, TTend1, STend1);
 
@@ -360,7 +360,7 @@ void testFixedPropertyFrazilFormationWarm() {
    const Real LayerMassFracMax = 0.10_Real;
 
    FixedPropertyFrazilFormation ComputeFrazilFormation;
-   ComputeFrazilFormation.layerMassFracMax = LayerMassFracMax;
+   ComputeFrazilFormation.LayerMassFracMax = LayerMassFracMax;
 
    Real AccMIce  = 0.0_Real;
    Real AccMLiq  = 0.0_Real;
@@ -437,7 +437,7 @@ void testFixedPropertyFrazilFormationCold() {
    (void)Mesh;
 
    FixedPropertyFrazilFormation ComputeFrazilFormation;
-   ComputeFrazilFormation.layerMassFracMax = LayerMassFracMax;
+   ComputeFrazilFormation.LayerMassFracMax = LayerMassFracMax;
 
    Real AccMIce  = 0.0_Real;
    Real AccMLiq  = 0.0_Real;
@@ -506,7 +506,7 @@ void testFixedPropertyFrazilFormationMassLimit() {
    const Real RTol             = 1e-10_Real;
 
    FixedPropertyFrazilFormation ComputeFrazilFormation;
-   ComputeFrazilFormation.layerMassFracMax = LayerMassFracMax;
+   ComputeFrazilFormation.LayerMassFracMax = LayerMassFracMax;
 
    Real AccMIce  = 0.0_Real;
    Real AccMSalt = 0.0_Real;
@@ -547,7 +547,7 @@ void testFrazilMeltMassLimit() {
    const Real RTol             = 1e-10_Real;
 
    FrazilMelt ComputeFrazilMelt;
-   ComputeFrazilMelt.layerMassFracMax = LayerMassFracMax;
+   ComputeFrazilMelt.LayerMassFracMax = LayerMassFracMax;
 
    const Real AccMIce0  = 0.25_Real;
    const Real AccMLiq0  = 0.75_Real;
@@ -611,7 +611,7 @@ void testFixedPropertyFrazilMeltMassLimit() {
    const Real RTol             = 1e-10_Real;
 
    FixedPropertyFrazilMelt ComputeFrazilMelt;
-   ComputeFrazilMelt.layerMassFracMax = LayerMassFracMax;
+   ComputeFrazilMelt.LayerMassFracMax = LayerMassFracMax;
 
    const Real SumIce0    = 0.5_Real;
    const Real SumSalt0   = 2.0_Real;
@@ -731,11 +731,11 @@ void testComputeFrazilColumn() {
    CTH(ICell, KTopCold2)  = CTCold;
    deepCopy(CT, CTH);
 
-   const bool SavedConservationCheck = TestFrazil->conservationCheck;
-   TestFrazil->conservationCheck     = true;
+   const bool SavedConservationCheck = TestFrazil->ConservationCheck;
+   TestFrazil->ConservationCheck     = true;
 
    TestFrazil->computeFrazil(CT, SA, P, H);
-   TestFrazil->conservationCheck = SavedConservationCheck;
+   TestFrazil->ConservationCheck = SavedConservationCheck;
 
    auto HTendH = createHostMirrorCopy(TestFrazil->FrazilHTend);
    auto TTendH = createHostMirrorCopy(TestFrazil->FrazilTTend);
@@ -860,8 +860,8 @@ void testComputeFrazilDepthLimit() {
    CTH(ICell, KTopCold2)  = CTCold;
    deepCopy(CT, CTH);
 
-   const bool SavedConservationCheck = TestFrazil->conservationCheck;
-   const Real SavedDepthLimit        = TestFrazil->depthLimit;
+   const bool SavedConservationCheck = TestFrazil->ConservationCheck;
+   const Real SavedDepthLimit        = TestFrazil->DepthLimit;
    const Real TestDepthLimit         = 35.0_Real; // this needs to be positive
    // if TestDepthLimit is negative, test will fail:
    // - the code assume depthlimit < 0 mean no limit (i.e. full depth frazil)
@@ -874,11 +874,11 @@ void testComputeFrazilDepthLimit() {
    }
    deepCopy(VCoord->GeomZMid, GeomZMidH);
 
-   TestFrazil->conservationCheck = true;
-   TestFrazil->depthLimit        = TestDepthLimit;
+   TestFrazil->ConservationCheck = true;
+   TestFrazil->DepthLimit        = TestDepthLimit;
    TestFrazil->computeFrazil(CT, SA, P, H);
-   TestFrazil->conservationCheck = SavedConservationCheck;
-   TestFrazil->depthLimit        = SavedDepthLimit;
+   TestFrazil->ConservationCheck = SavedConservationCheck;
+   TestFrazil->DepthLimit        = SavedDepthLimit;
 
    auto HTendH = createHostMirrorCopy(TestFrazil->FrazilHTend);
    auto TTendH = createHostMirrorCopy(TestFrazil->FrazilTTend);
@@ -903,11 +903,11 @@ void testComputeFrazilDepthLimit() {
    }
    if (!FoundExcludedLayer) {
       ABORT_ERROR("FrazilDepthLimitTest: no layers were excluded for ICell={} "
-                  "with depthLimit={}",
+                  "with DepthLimit={}",
                   ICell, TestDepthLimit);
    }
 
-   LOG_INFO("FrazilDepthLimitTest: depthLimit={} exclusion check passed for "
+   LOG_INFO("FrazilDepthLimitTest: DepthLimit={} exclusion check passed for "
             "ICell={}",
             TestDepthLimit, ICell);
 }

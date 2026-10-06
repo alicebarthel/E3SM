@@ -91,8 +91,8 @@ void Frazil::init() {
 }
 
 Frazil::Frazil(const HorzMesh *Mesh, const VertCoord *VCoord)
-    : frazilChoice(FrazilType::TeosFrazil), computeFrazilFormation(),
-      computeFrazilMelt(), NCellsAll(Mesh->NCellsAll),
+    : FrazilChoice(FrazilType::TeosFrazil), ComputeFrazilFormation(),
+      ComputeFrazilMelt(), NCellsAll(Mesh->NCellsAll),
       NChunks((VCoord->NVertLayers + VecLength - 1) / VecLength), MeshPtr(Mesh),
       VCoordPtr(VCoord) {
 
@@ -149,44 +149,44 @@ Frazil *Frazil::create(const std::string &Name) {
    if ((FrazilTypeStr == "FixedProperty") or
        (FrazilTypeStr == "fixedProperty") or (FrazilTypeStr == "fixed") or
        (FrazilTypeStr == "fixedproperty")) {
-      NewFrazil->frazilChoice = FrazilType::FixedPropertyFrazil;
+      NewFrazil->FrazilChoice = FrazilType::FixedPropertyFrazil;
    } else if ((FrazilTypeStr == "teos") or (FrazilTypeStr == "Teos") or
               (FrazilTypeStr == "TEOS") or (FrazilTypeStr == "Teos10") or
               (FrazilTypeStr == "teos10") or (FrazilTypeStr == "TEOS10")) {
-      NewFrazil->frazilChoice = FrazilType::TeosFrazil;
+      NewFrazil->FrazilChoice = FrazilType::TeosFrazil;
    } else {
       ABORT_ERROR("Frazil::create: Unknown FrazilType requested");
    }
 
    Err += FrazilConfig.get("LayerMassFracMax",
-                           NewFrazil->computeFrazilFormation.layerMassFracMax);
+                           NewFrazil->ComputeFrazilFormation.LayerMassFracMax);
    Err += FrazilConfig.get("LayerMassFracMax",
-                           NewFrazil->computeFrazilMelt.layerMassFracMax);
+                           NewFrazil->ComputeFrazilMelt.LayerMassFracMax);
    CHECK_ERROR_ABORT(
        Err, "Frazil::create: LayerMassFracMax not found in Frazil config");
-   if (!(NewFrazil->computeFrazilFormation.layerMassFracMax > 0.0_Real &&
-         NewFrazil->computeFrazilFormation.layerMassFracMax < 1.0_Real)) {
+   if (!(NewFrazil->ComputeFrazilFormation.LayerMassFracMax > 0.0_Real &&
+         NewFrazil->ComputeFrazilFormation.LayerMassFracMax < 1.0_Real)) {
       ABORT_ERROR("Frazil::create: LayerMassFracMax must be between 0 and 1 "
                   "(excluded)");
    }
 
-   NewFrazil->computeFixedPropertyFrazilFormation.layerMassFracMax =
-       NewFrazil->computeFrazilFormation.layerMassFracMax;
-   NewFrazil->computeFixedPropertyFrazilMelt.layerMassFracMax =
-       NewFrazil->computeFrazilFormation.layerMassFracMax;
+   NewFrazil->ComputeFixedPropertyFrazilFormation.LayerMassFracMax =
+       NewFrazil->ComputeFrazilFormation.LayerMassFracMax;
+   NewFrazil->ComputeFixedPropertyFrazilMelt.LayerMassFracMax =
+       NewFrazil->ComputeFrazilFormation.LayerMassFracMax;
 
-   Err += FrazilConfig.get("Phi", NewFrazil->computeFrazilFormation.phi);
+   Err += FrazilConfig.get("Phi", NewFrazil->ComputeFrazilFormation.Phi);
    CHECK_ERROR_ABORT(Err, "Frazil::create: Phi not found in Frazil config");
-   if (!(NewFrazil->computeFrazilFormation.phi >= 0.0_Real &&
-         NewFrazil->computeFrazilFormation.phi < 1.0_Real)) {
+   if (!(NewFrazil->ComputeFrazilFormation.Phi >= 0.0_Real &&
+         NewFrazil->ComputeFrazilFormation.Phi < 1.0_Real)) {
       ABORT_ERROR("Frazil::create: Phi must be between 0 and 1 (1 excluded)");
    }
 
-   Err += FrazilConfig.get("ConservationCheck", NewFrazil->conservationCheck);
+   Err += FrazilConfig.get("ConservationCheck", NewFrazil->ConservationCheck);
    CHECK_ERROR_ABORT(
        Err, "Frazil::create: ConservationCheck not found in Frazil config");
 
-   Err += FrazilConfig.get("DepthLimit", NewFrazil->depthLimit);
+   Err += FrazilConfig.get("DepthLimit", NewFrazil->DepthLimit);
    CHECK_ERROR_ABORT(Err,
                      "Frazil::create: DepthLimit not found in Frazil config");
 
@@ -200,9 +200,9 @@ Frazil *Frazil::create(const std::string &Name) {
 Frazil *Frazil::getDefault() { return DefaultFrazil; }
 
 Frazil *Frazil::get(const std::string &Name) {
-   auto it = AllFrazil.find(Name);
-   if (it != AllFrazil.end()) {
-      return it->second.get();
+   auto Iter = AllFrazil.find(Name);
+   if (Iter != AllFrazil.end()) {
+      return Iter->second.get();
    }
 
    LOG_ERROR("Frazil::get: Attempted to retrieve non-existent Frazil {}", Name);
@@ -380,16 +380,16 @@ void Frazil::computeFrazilFixedPropertyImpl(const Array2DReal &CT,
                                             const Array2DReal &P,
                                             const Array2DReal &LayerH) {
    const EosType LocEosChoice = Eos::getInstance()->EosChoice;
-   const Real LocDepthLimit   = depthLimit;
+   const Real LocDepthLimit   = DepthLimit;
 
    OMEGA_SCOPE(MinLayerCell, VCoordPtr->MinLayerCell);
    OMEGA_SCOPE(MaxLayerCell, VCoordPtr->MaxLayerCell);
    OMEGA_SCOPE(LocGeomZMid, VCoordPtr->GeomZMid);
 
    OMEGA_SCOPE(LocComputeFixedPropertyFrazilFormation,
-               computeFixedPropertyFrazilFormation);
+               ComputeFixedPropertyFrazilFormation);
    OMEGA_SCOPE(LocComputeFixedPropertyFrazilMelt,
-               computeFixedPropertyFrazilMelt);
+               ComputeFixedPropertyFrazilMelt);
    OMEGA_SCOPE(LocFrazilTTend, FrazilTTend);
    OMEGA_SCOPE(LocFrazilSTend, FrazilSTend);
    OMEGA_SCOPE(LocFrazilHTend, FrazilHTend);
@@ -408,16 +408,16 @@ void Frazil::computeFrazilFixedPropertyImpl(const Array2DReal &CT,
           const I4 KMin = MinLayerCell(ICell);
           const I4 KMax = MaxLayerCell(ICell);
 
-          I4 Klim          = KMax;
-          bool HasKlim     = true;
+          I4 KLim          = KMax;
+          bool HasKLim     = true;
           const bool Limit = (LocDepthLimit >= 0.0_Real);
 
           if (Limit) {
-             HasKlim = false;
+             HasKLim = false;
              for (I4 K = KMax; K >= KMin; --K) {
                 if (Kokkos::abs(LocGeomZMid(ICell, K)) <= LocDepthLimit) {
-                   Klim    = K;
-                   HasKlim = true;
+                   KLim    = K;
+                   HasKLim = true;
                    break;
                 }
              }
@@ -425,7 +425,7 @@ void Frazil::computeFrazilFixedPropertyImpl(const Array2DReal &CT,
 
           // Explicit accumulation order: bottom layer to top layer.
           for (I4 K = KMax; K >= KMin; --K) {
-             if (!HasKlim || K > Klim) {
+             if (!HasKLim || K > KLim) {
                 LocFrazilHTend(ICell, K) = 0.0_Real;
                 LocFrazilTTend(ICell, K) = 0.0_Real;
                 LocFrazilSTend(ICell, K) = 0.0_Real;
@@ -490,7 +490,7 @@ void Frazil::computeFrazilTeosImpl(const Array2DReal &CT, const Array2DReal &SA,
                                    const Array2DReal &P,
                                    const Array2DReal &LayerH) {
    const EosType LocEosChoice = Eos::getInstance()->EosChoice;
-   const Real LocDepthLimit   = depthLimit;
+   const Real LocDepthLimit   = DepthLimit;
 
    const auto MinLayerCell = createHostMirrorCopy(VCoordPtr->MinLayerCell);
    const auto MaxLayerCell = createHostMirrorCopy(VCoordPtr->MaxLayerCell);
@@ -512,8 +512,8 @@ void Frazil::computeFrazilTeosImpl(const Array2DReal &CT, const Array2DReal &SA,
 
    // Copies of the functors so the lambda below stays a plain (non-device)
    // lambda instead of a KOKKOS_LAMBDA, keeping this loop host-only.
-   const auto LocComputeFrazilFormation = computeFrazilFormation;
-   const auto LocComputeFrazilMelt      = computeFrazilMelt;
+   const auto LocComputeFrazilFormation = ComputeFrazilFormation;
+   const auto LocComputeFrazilMelt      = ComputeFrazilMelt;
 
    I4 NClamped = 0;
    Kokkos::parallel_reduce(
@@ -522,17 +522,17 @@ void Frazil::computeFrazilTeosImpl(const Array2DReal &CT, const Array2DReal &SA,
           const I4 KMin = MinLayerCell(ICell);
           const I4 KMax = MaxLayerCell(ICell);
 
-          I4 Klim          = KMax;
-          bool HasKlim     = true;
+          I4 KLim          = KMax;
+          bool HasKLim     = true;
           const bool Limit = (LocDepthLimit >= 0.0_Real);
 
           // calculates the depth limit based on geometric height
           if (Limit) {
-             HasKlim = false;
+             HasKLim = false;
              for (I4 K = KMax; K >= KMin; --K) {
                 if (Kokkos::abs(LocGeomZMid(ICell, K)) <= LocDepthLimit) {
-                   Klim    = K;
-                   HasKlim = true;
+                   KLim    = K;
+                   HasKLim = true;
                    break;
                 }
              }
@@ -540,7 +540,7 @@ void Frazil::computeFrazilTeosImpl(const Array2DReal &CT, const Array2DReal &SA,
 
           // Explicit accumulation order: bottom layer to top layer.
           for (I4 K = KMax; K >= KMin; --K) {
-             if (!HasKlim || K > Klim) {
+             if (!HasKLim || K > KLim) {
                 LocFrazilHTend(ICell, K) = 0.0_Real;
                 LocFrazilTTend(ICell, K) = 0.0_Real;
                 LocFrazilSTend(ICell, K) = 0.0_Real;
@@ -613,7 +613,7 @@ void Frazil::computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
                   "computeFrazil");
    }
 
-   switch (frazilChoice) {
+   switch (FrazilChoice) {
    case FrazilType::FixedPropertyFrazil:
       computeFrazilFixedPropertyImpl(CT, SA, P, LayerH);
       break;
@@ -621,11 +621,11 @@ void Frazil::computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
       computeFrazilTeosImpl(CT, SA, P, LayerH);
       break;
    default:
-      ABORT_ERROR("Frazil::computeFrazil: Unknown frazilChoice");
+      ABORT_ERROR("Frazil::computeFrazil: Unknown FrazilChoice");
       break;
    }
 
-   if (conservationCheck) {
+   if (ConservationCheck) {
       checkColumnConservation();
    }
 } // end of computeFrazil
