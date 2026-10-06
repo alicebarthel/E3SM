@@ -84,11 +84,11 @@ void testFrazilFormationCold() {
 
    VCoord->NVertLayers = NVertLayers;
 
-   const Real SAIn = 35.0_Real;
-   const Real CTIn = -2.0_Real;
-   const Real PIn  = 100.0_Real;
-   const Real h    = 10.0_Real;
-   const Real RTol = 1e-10_Real;
+   const Real AbsSalinityIn     = 35.0_Real;
+   const Real ConservTempIn     = -2.0_Real;
+   const Real PressureDbIn      = 100.0_Real;
+   const Real PseudoThicknessIn = 10.0_Real;
+   const Real RTol              = 1e-10_Real;
 
    (void)Mesh;
 
@@ -106,7 +106,8 @@ void testFrazilFormationCold() {
    Real TTend = 0.0_Real;
    Real STend = 0.0_Real;
 
-   ComputeFrazilFormation(SAIn, CTIn, PIn, h, AccMIce, AccMLiq, AccMSalt,
+   ComputeFrazilFormation(AbsSalinityIn, ConservTempIn, PressureDbIn,
+                          PseudoThicknessIn, AccMIce, AccMLiq, AccMSalt,
                           AccELiq, AccEIce, HTend, TTend, STend);
 
    if (AccMIce <= 0.0_Real) {
@@ -164,11 +165,11 @@ void testFrazilFormationWarm() {
 
    VCoord->NVertLayers = NVertLayers;
 
-   const Real SAIn = 35.0_Real;
-   const Real CTIn = 10.0_Real;
-   const Real PIn  = 100.0_Real;
-   const Real h    = 10.0_Real;
-   const Real RTol = 1e-10_Real;
+   const Real AbsSalinityIn     = 35.0_Real;
+   const Real ConservTempIn     = 10.0_Real;
+   const Real PressureDbIn      = 100.0_Real;
+   const Real PseudoThicknessIn = 10.0_Real;
+   const Real RTol              = 1e-10_Real;
 
    (void)Mesh;
 
@@ -186,7 +187,8 @@ void testFrazilFormationWarm() {
    Real TTend = 0.0_Real;
    Real STend = 0.0_Real;
 
-   ComputeFrazilFormation(SAIn, CTIn, PIn, h, AccMIce, AccMLiq, AccMSalt,
+   ComputeFrazilFormation(AbsSalinityIn, ConservTempIn, PressureDbIn,
+                          PseudoThicknessIn, AccMIce, AccMLiq, AccMSalt,
                           AccELiq, AccEIce, HTend, TTend, STend);
 
    if (!isApprox(AccMIce, 0.0_Real, RTol)) {
@@ -234,13 +236,13 @@ void testFrazilFormationWarm() {
 // this test exercises the frazil formation mass limiter in the TEOS path
 void testFrazilFormationMassLimit() {
 
-   const Real SAIn             = 20.0_Real;
-   const Real CTIn             = -5.0_Real;
-   const Real PIn              = 100.0_Real;
-   const Real h                = 1.0_Real;
-   const Real Phi              = 0.75_Real;
-   const Real LayerMassFracMax = 0.10_Real;
-   const Real RTol             = 1e-10_Real;
+   const Real AbsSalinityIn     = 20.0_Real;
+   const Real ConservTempIn     = -5.0_Real;
+   const Real PressureDbIn      = 100.0_Real;
+   const Real PseudoThicknessIn = 1.0_Real;
+   const Real Phi               = 0.75_Real;
+   const Real LayerMassFracMax  = 0.10_Real;
+   const Real RTol              = 1e-10_Real;
 
    FrazilFormation ComputeFrazilFormation;
    ComputeFrazilFormation.Phi              = Phi;
@@ -256,10 +258,12 @@ void testFrazilFormationMassLimit() {
    Real TTend = 0.0_Real;
    Real STend = 0.0_Real;
 
-   ComputeFrazilFormation(SAIn, CTIn, PIn, h, AccMIce, AccMLiq, AccMSalt,
+   ComputeFrazilFormation(AbsSalinityIn, ConservTempIn, PressureDbIn,
+                          PseudoThicknessIn, AccMIce, AccMLiq, AccMSalt,
                           AccELiq, AccEIce, HTend, TTend, STend);
 
-   const Real ExpectedIceMass    = h * (1.0_Real - Phi) * LayerMassFracMax;
+   const Real ExpectedIceMass =
+       PseudoThicknessIn * (1.0_Real - Phi) * LayerMassFracMax;
    const Real ExpectedLiquidMass = Phi / (1.0_Real - Phi) * ExpectedIceMass;
    const Real ExpectedTotalMass  = ExpectedIceMass + ExpectedLiquidMass;
 
@@ -282,14 +286,14 @@ void testFrazilFormationMassLimit() {
 
 // this test exercises the Phi parameter in the TEOS frazil formation path
 void testFrazilFormationPhi() {
-   const Real SAIn             = 35.0_Real;
-   const Real CTIn             = -2.0_Real;
-   const Real PIn              = 100.0_Real;
-   const Real h                = 1.0_Real;
-   const Real LayerMassFracMax = 0.10_Real;
-   const Real Phi0             = 0.75_Real;
-   const Real Phi1             = 0.85_Real;
-   const Real RTol             = 1e-10_Real;
+   const Real AbsSalinityIn     = 35.0_Real;
+   const Real ConservTempIn     = -2.0_Real;
+   const Real PressureDbIn      = 100.0_Real;
+   const Real PseudoThicknessIn = 1.0_Real;
+   const Real LayerMassFracMax  = 0.10_Real;
+   const Real Phi0              = 0.75_Real;
+   const Real Phi1              = 0.85_Real;
+   const Real RTol              = 1e-10_Real;
 
    FrazilFormation ComputeFrazilFormation;
    ComputeFrazilFormation.LayerMassFracMax = LayerMassFracMax;
@@ -304,7 +308,8 @@ void testFrazilFormationPhi() {
    Real STend0    = 0.0_Real;
 
    ComputeFrazilFormation.Phi = Phi0;
-   ComputeFrazilFormation(SAIn, CTIn, PIn, h, AccMIce0, AccMLiq0, AccMSalt0,
+   ComputeFrazilFormation(AbsSalinityIn, ConservTempIn, PressureDbIn,
+                          PseudoThicknessIn, AccMIce0, AccMLiq0, AccMSalt0,
                           AccELiq0, AccEIce0, HTend0, TTend0, STend0);
 
    Real AccMIce1  = 0.0_Real;
@@ -317,7 +322,8 @@ void testFrazilFormationPhi() {
    Real STend1    = 0.0_Real;
 
    ComputeFrazilFormation.Phi = Phi1;
-   ComputeFrazilFormation(SAIn, CTIn, PIn, h, AccMIce1, AccMLiq1, AccMSalt1,
+   ComputeFrazilFormation(AbsSalinityIn, ConservTempIn, PressureDbIn,
+                          PseudoThicknessIn, AccMIce1, AccMLiq1, AccMSalt1,
                           AccELiq1, AccEIce1, HTend1, TTend1, STend1);
 
    if (!isApprox(AccMIce0, AccMIce1, RTol)) {
@@ -352,12 +358,12 @@ void testFrazilFormationPhi() {
 // melt) in a warm case: the frazil FORMATION terms should all be zero
 void testFixedPropertyFrazilFormationWarm() {
 
-   const Real SAIn             = 35.0_Real;
-   const Real CTIn             = 10.0_Real;
-   const Real PIn              = 100.0_Real;
-   const Real h                = 10.0_Real;
-   const Real RTol             = 1e-10_Real;
-   const Real LayerMassFracMax = 0.10_Real;
+   const Real AbsSalinityIn     = 35.0_Real;
+   const Real ConservTempIn     = 10.0_Real;
+   const Real PressureDbIn      = 100.0_Real;
+   const Real PseudoThicknessIn = 10.0_Real;
+   const Real RTol              = 1e-10_Real;
+   const Real LayerMassFracMax  = 0.10_Real;
 
    FixedPropertyFrazilFormation ComputeFrazilFormation;
    ComputeFrazilFormation.LayerMassFracMax = LayerMassFracMax;
@@ -372,10 +378,12 @@ void testFixedPropertyFrazilFormationWarm() {
    Real TTend = 0.0_Real;
    Real STend = 0.0_Real;
 
-   Real CTfrz = gsw_ct_freezing_poly(SAIn, PIn, 0.0_Real);
+   Real CtFreezing =
+       gsw_ct_freezing_poly(AbsSalinityIn, PressureDbIn, 0.0_Real);
 
-   ComputeFrazilFormation(SAIn, CTIn, PIn, h, AccMIce, AccMSalt, AccEIce, HTend,
-                          TTend, STend, CTfrz);
+   ComputeFrazilFormation(AbsSalinityIn, ConservTempIn, PressureDbIn,
+                          PseudoThicknessIn, AccMIce, AccMSalt, AccEIce, HTend,
+                          TTend, STend, CtFreezing);
 
    if (!isApprox(AccMIce, 0.0_Real, RTol)) {
       ABORT_ERROR("FrazilFixedPropertyFormationTest warm: expected zero "
@@ -428,12 +436,12 @@ void testFixedPropertyFrazilFormationCold() {
 
    VCoord->NVertLayers = NVertLayers;
 
-   const Real SAIn             = 35.0_Real;
-   const Real CTIn             = -2.0_Real;
-   const Real PIn              = 100.0_Real;
-   const Real h                = 10.0_Real;
-   const Real RTol             = 1e-10_Real;
-   const Real LayerMassFracMax = 0.10_Real;
+   const Real AbsSalinityIn     = 35.0_Real;
+   const Real ConservTempIn     = -2.0_Real;
+   const Real PressureDbIn      = 100.0_Real;
+   const Real PseudoThicknessIn = 10.0_Real;
+   const Real RTol              = 1e-10_Real;
+   const Real LayerMassFracMax  = 0.10_Real;
    (void)Mesh;
 
    FixedPropertyFrazilFormation ComputeFrazilFormation;
@@ -449,10 +457,12 @@ void testFixedPropertyFrazilFormationCold() {
    Real TTend = 0.0_Real;
    Real STend = 0.0_Real;
 
-   Real CTfrz = gsw_ct_freezing_poly(SAIn, PIn, 0.0_Real);
+   Real CtFreezing =
+       gsw_ct_freezing_poly(AbsSalinityIn, PressureDbIn, 0.0_Real);
 
-   ComputeFrazilFormation(SAIn, CTIn, PIn, h, AccMIce, AccMSalt, AccEIce, HTend,
-                          TTend, STend, CTfrz);
+   ComputeFrazilFormation(AbsSalinityIn, ConservTempIn, PressureDbIn,
+                          PseudoThicknessIn, AccMIce, AccMSalt, AccEIce, HTend,
+                          TTend, STend, CtFreezing);
 
    if (AccMIce <= 0.0_Real) {
       ABORT_ERROR(
@@ -498,12 +508,12 @@ void testFixedPropertyFrazilFormationCold() {
 // this test exercises the frazil formation mass limiter in the fixed-property
 // path
 void testFixedPropertyFrazilFormationMassLimit() {
-   const Real SAIn             = 20.0_Real;
-   const Real CTIn             = -12.0_Real;
-   const Real PIn              = 100.0_Real;
-   const Real h                = 1.0_Real;
-   const Real LayerMassFracMax = 0.10_Real;
-   const Real RTol             = 1e-10_Real;
+   const Real AbsSalinityIn     = 20.0_Real;
+   const Real ConservTempIn     = -12.0_Real;
+   const Real PressureDbIn      = 100.0_Real;
+   const Real PseudoThicknessIn = 1.0_Real;
+   const Real LayerMassFracMax  = 0.10_Real;
+   const Real RTol              = 1e-10_Real;
 
    FixedPropertyFrazilFormation ComputeFrazilFormation;
    ComputeFrazilFormation.LayerMassFracMax = LayerMassFracMax;
@@ -516,12 +526,14 @@ void testFixedPropertyFrazilFormationMassLimit() {
    Real TTend = 0.0_Real;
    Real STend = 0.0_Real;
 
-   Real CTfrz = gsw_ct_freezing_poly(SAIn, PIn, 0.0_Real);
+   Real CtFreezing =
+       gsw_ct_freezing_poly(AbsSalinityIn, PressureDbIn, 0.0_Real);
 
-   ComputeFrazilFormation(SAIn, CTIn, PIn, h, AccMIce, AccMSalt, AccEIce, HTend,
-                          TTend, STend, CTfrz);
+   ComputeFrazilFormation(AbsSalinityIn, ConservTempIn, PressureDbIn,
+                          PseudoThicknessIn, AccMIce, AccMSalt, AccEIce, HTend,
+                          TTend, STend, CtFreezing);
 
-   const Real ExpectedIceThickness = h * LayerMassFracMax;
+   const Real ExpectedIceThickness = PseudoThicknessIn * LayerMassFracMax;
 
    if (!isApprox(AccMIce, ExpectedIceThickness, RTol)) {
       ABORT_ERROR("FrazilFixedPropertyFormationMassLimit: expected AccMIce={}, "
@@ -539,12 +551,12 @@ void testFixedPropertyFrazilFormationMassLimit() {
 
 // this test exercises the frazil melt mass limiter in the TEOS path
 void testFrazilMeltMassLimit() {
-   const Real SAIn             = 32.0_Real;
-   const Real CTIn             = 35.0_Real;
-   const Real PIn              = 100.0_Real;
-   const Real h                = 1.0_Real;
-   const Real LayerMassFracMax = 0.10_Real;
-   const Real RTol             = 1e-10_Real;
+   const Real AbsSalinityIn     = 32.0_Real;
+   const Real ConservTempIn     = 35.0_Real;
+   const Real PressureDbIn      = 100.0_Real;
+   const Real PseudoThicknessIn = 1.0_Real;
+   const Real LayerMassFracMax  = 0.10_Real;
+   const Real RTol              = 1e-10_Real;
 
    FrazilMelt ComputeFrazilMelt;
    ComputeFrazilMelt.LayerMassFracMax = LayerMassFracMax;
@@ -563,12 +575,15 @@ void testFrazilMeltMassLimit() {
    Real HTend    = 0.0_Real;
    Real TTend    = 0.0_Real;
    Real STend    = 0.0_Real;
-   Real CTfrz    = gsw_ct_freezing_poly(SAIn, PIn, 0.0_Real);
+   Real CtFreezing =
+       gsw_ct_freezing_poly(AbsSalinityIn, PressureDbIn, 0.0_Real);
 
-   ComputeFrazilMelt(SAIn, CTIn, PIn, h, AccMIce, AccMLiq, AccMSalt, AccELiq,
-                     AccEIce, HTend, TTend, STend, CTfrz);
+   ComputeFrazilMelt(AbsSalinityIn, ConservTempIn, PressureDbIn,
+                     PseudoThicknessIn, AccMIce, AccMLiq, AccMSalt, AccELiq,
+                     AccEIce, HTend, TTend, STend, CtFreezing);
 
-   const Real ExpectedFraction = h * LayerMassFracMax / (AccMIce0 + AccMLiq0);
+   const Real ExpectedFraction =
+       PseudoThicknessIn * LayerMassFracMax / (AccMIce0 + AccMLiq0);
    if (ExpectedFraction < 0.0_Real || ExpectedFraction > 1.0_Real) {
       ABORT_ERROR("FrazilMeltMassLimit: expected fraction {} is outside "
                   "[0, 1]",
@@ -603,12 +618,12 @@ void testFrazilMeltMassLimit() {
 
 // this test exercises the frazil melt mass limiter in the fixed-property path
 void testFixedPropertyFrazilMeltMassLimit() {
-   const Real SAIn             = 32.0_Real;
-   const Real CTIn             = 35.0_Real;
-   const Real PIn              = 100.0_Real;
-   const Real h                = 1.0_Real;
-   const Real LayerMassFracMax = 0.10_Real;
-   const Real RTol             = 1e-10_Real;
+   const Real AbsSalinityIn     = 32.0_Real;
+   const Real ConservTempIn     = 35.0_Real;
+   const Real PressureDbIn      = 100.0_Real;
+   const Real PseudoThicknessIn = 1.0_Real;
+   const Real LayerMassFracMax  = 0.10_Real;
+   const Real RTol              = 1e-10_Real;
 
    FixedPropertyFrazilMelt ComputeFrazilMelt;
    ComputeFrazilMelt.LayerMassFracMax = LayerMassFracMax;
@@ -623,12 +638,14 @@ void testFixedPropertyFrazilMeltMassLimit() {
    Real HTend     = 0.0_Real;
    Real TTend     = 0.0_Real;
    Real STend     = 0.0_Real;
-   Real CTfrz     = gsw_ct_freezing_poly(SAIn, PIn, 0.0_Real);
+   Real CtFreezing =
+       gsw_ct_freezing_poly(AbsSalinityIn, PressureDbIn, 0.0_Real);
 
-   ComputeFrazilMelt(SAIn, CTIn, PIn, h, SumIce, SumSalt, SumEnergy, HTend,
-                     TTend, STend, CTfrz);
+   ComputeFrazilMelt(AbsSalinityIn, ConservTempIn, PressureDbIn,
+                     PseudoThicknessIn, SumIce, SumSalt, SumEnergy, HTend,
+                     TTend, STend, CtFreezing);
 
-   const Real ExpectedFraction = h * LayerMassFracMax / SumIce0;
+   const Real ExpectedFraction = PseudoThicknessIn * LayerMassFracMax / SumIce0;
    if (ExpectedFraction < 0.0_Real || ExpectedFraction > 1.0_Real) {
       ABORT_ERROR("FrazilFixedPropertyMeltMassLimit: expected fraction {} is "
                   "outside [0, 1]",
@@ -671,23 +688,24 @@ void testComputeFrazilColumn() {
       ABORT_ERROR("FrazilTestColumn: default frazil object is null");
    }
 
-   const Real RTol    = 1e-10_Real;
-   const Real SACold  = 35.0_Real;
-   const Real PRef    = 100.0_Real;
-   const Real HRef    = 10.0_Real;
-   const Real CTCold  = -2.0_Real;
-   const Real CTWarm  = 0.0_Real;
-   const Real CTWarm2 = -1.9_Real;
+   const Real RTol               = 1e-10_Real;
+   const Real AbsSalinityCold    = 35.0_Real;
+   const Real PressureRef        = 100000.0_Real; // computeFrazil() expects Pa
+   const Real PseudoThicknessRef = 10.0_Real;
+   const Real ConservTempCold    = -2.0_Real;
+   const Real ConservTempWarm    = 0.0_Real;
+   const Real ConservTempWarm2   = -1.9_Real;
 
-   Array2DReal SA("SA", Mesh->NCellsSize, NVertLayers);
-   Array2DReal CT("CT", Mesh->NCellsSize, NVertLayers);
-   Array2DReal P("P", Mesh->NCellsSize, NVertLayers);
-   Array2DReal H("H", Mesh->NCellsSize, NVertLayers);
+   Array2DReal AbsSalinity("AbsSalinity", Mesh->NCellsSize, NVertLayers);
+   Array2DReal ConservTemp("ConservTemp", Mesh->NCellsSize, NVertLayers);
+   Array2DReal Pressure("Pressure", Mesh->NCellsSize, NVertLayers);
+   Array2DReal PseudoThickness("PseudoThickness", Mesh->NCellsSize,
+                               NVertLayers);
 
-   deepCopy(SA, SACold);
-   deepCopy(CT, CTWarm);
-   deepCopy(P, PRef);
-   deepCopy(H, HRef);
+   deepCopy(AbsSalinity, AbsSalinityCold);
+   deepCopy(ConservTemp, ConservTempWarm);
+   deepCopy(Pressure, PressureRef);
+   deepCopy(PseudoThickness, PseudoThicknessRef);
 
    deepCopy(TestFrazil->AccMIce, 0.0_Real);
    deepCopy(TestFrazil->AccMLiq, 0.0_Real);
@@ -718,23 +736,24 @@ void testComputeFrazilColumn() {
    const I4 KWarm2    = KMin + 1;
    const I4 KTopCold2 = KMin;
 
-   auto CTH               = createHostMirrorCopy(CT);
-   CTH(ICell, KBottom0)   = CTCold;
-   CTH(ICell, KBottom1)   = CTCold;
-   CTH(ICell, KWarm)      = CTWarm;
-   CTH(ICell, KTopCold)   = CTCold;
-   CTH(ICell, KCold2 + 2) = CTCold;
-   CTH(ICell, KCold2 + 1) = CTCold - .5_Real;
-   CTH(ICell, KCold2)     = CTCold;
-   CTH(ICell, KCold3)     = CTCold;
-   CTH(ICell, KWarm2)     = CTWarm2;
-   CTH(ICell, KTopCold2)  = CTCold;
-   deepCopy(CT, CTH);
+   auto ConservTempH               = createHostMirrorCopy(ConservTemp);
+   ConservTempH(ICell, KBottom0)   = ConservTempCold;
+   ConservTempH(ICell, KBottom1)   = ConservTempCold;
+   ConservTempH(ICell, KWarm)      = ConservTempWarm;
+   ConservTempH(ICell, KTopCold)   = ConservTempCold;
+   ConservTempH(ICell, KCold2 + 2) = ConservTempCold;
+   ConservTempH(ICell, KCold2 + 1) = ConservTempCold - .5_Real;
+   ConservTempH(ICell, KCold2)     = ConservTempCold;
+   ConservTempH(ICell, KCold3)     = ConservTempCold;
+   ConservTempH(ICell, KWarm2)     = ConservTempWarm2;
+   ConservTempH(ICell, KTopCold2)  = ConservTempCold;
+   deepCopy(ConservTemp, ConservTempH);
 
    const bool SavedConservationCheck = TestFrazil->ConservationCheck;
    TestFrazil->ConservationCheck     = true;
 
-   TestFrazil->computeFrazil(CT, SA, P, H);
+   TestFrazil->computeFrazil(ConservTemp, AbsSalinity, Pressure,
+                             PseudoThickness);
    TestFrazil->ConservationCheck = SavedConservationCheck;
 
    auto HTendH = createHostMirrorCopy(TestFrazil->FrazilHTend);
@@ -800,23 +819,24 @@ void testComputeFrazilDepthLimit() {
       ABORT_ERROR("FrazilTestColumn: default frazil object is null");
    }
 
-   const Real RTol    = 1e-12_Real;
-   const Real SACold  = 35.0_Real;
-   const Real PRef    = 100.0_Real;
-   const Real HRef    = 10.0_Real;
-   const Real CTCold  = -2.0_Real;
-   const Real CTWarm  = 0.0_Real;
-   const Real CTWarm2 = -1.9_Real;
+   const Real RTol               = 1e-12_Real;
+   const Real AbsSalinityCold    = 35.0_Real;
+   const Real PressureRef        = 100000.0_Real; // computeFrazil() expects Pa
+   const Real PseudoThicknessRef = 10.0_Real;
+   const Real ConservTempCold    = -2.0_Real;
+   const Real ConservTempWarm    = 0.0_Real;
+   const Real ConservTempWarm2   = -1.9_Real;
 
-   Array2DReal SA("SA", Mesh->NCellsSize, NVertLayers);
-   Array2DReal CT("CT", Mesh->NCellsSize, NVertLayers);
-   Array2DReal P("P", Mesh->NCellsSize, NVertLayers);
-   Array2DReal H("H", Mesh->NCellsSize, NVertLayers);
+   Array2DReal AbsSalinity("AbsSalinity", Mesh->NCellsSize, NVertLayers);
+   Array2DReal ConservTemp("ConservTemp", Mesh->NCellsSize, NVertLayers);
+   Array2DReal Pressure("Pressure", Mesh->NCellsSize, NVertLayers);
+   Array2DReal PseudoThickness("PseudoThickness", Mesh->NCellsSize,
+                               NVertLayers);
 
-   deepCopy(SA, SACold);
-   deepCopy(CT, CTWarm);
-   deepCopy(P, PRef);
-   deepCopy(H, HRef);
+   deepCopy(AbsSalinity, AbsSalinityCold);
+   deepCopy(ConservTemp, ConservTempWarm);
+   deepCopy(Pressure, PressureRef);
+   deepCopy(PseudoThickness, PseudoThicknessRef);
 
    deepCopy(TestFrazil->AccMIce, 0.0_Real);
    deepCopy(TestFrazil->AccMLiq, 0.0_Real);
@@ -847,18 +867,18 @@ void testComputeFrazilDepthLimit() {
    const I4 KWarm2    = KMin + 1;
    const I4 KTopCold2 = KMin;
 
-   auto CTH               = createHostMirrorCopy(CT);
-   CTH(ICell, KBottom0)   = CTCold;
-   CTH(ICell, KBottom1)   = CTCold;
-   CTH(ICell, KWarm)      = CTWarm;
-   CTH(ICell, KTopCold)   = CTCold;
-   CTH(ICell, KCold2 + 2) = CTCold;
-   CTH(ICell, KCold2 + 1) = CTCold - .5_Real;
-   CTH(ICell, KCold2)     = CTCold;
-   CTH(ICell, KCold3)     = CTCold;
-   CTH(ICell, KWarm2)     = CTWarm2;
-   CTH(ICell, KTopCold2)  = CTCold;
-   deepCopy(CT, CTH);
+   auto ConservTempH               = createHostMirrorCopy(ConservTemp);
+   ConservTempH(ICell, KBottom0)   = ConservTempCold;
+   ConservTempH(ICell, KBottom1)   = ConservTempCold;
+   ConservTempH(ICell, KWarm)      = ConservTempWarm;
+   ConservTempH(ICell, KTopCold)   = ConservTempCold;
+   ConservTempH(ICell, KCold2 + 2) = ConservTempCold;
+   ConservTempH(ICell, KCold2 + 1) = ConservTempCold - .5_Real;
+   ConservTempH(ICell, KCold2)     = ConservTempCold;
+   ConservTempH(ICell, KCold3)     = ConservTempCold;
+   ConservTempH(ICell, KWarm2)     = ConservTempWarm2;
+   ConservTempH(ICell, KTopCold2)  = ConservTempCold;
+   deepCopy(ConservTemp, ConservTempH);
 
    const bool SavedConservationCheck = TestFrazil->ConservationCheck;
    const Real SavedDepthLimit        = TestFrazil->DepthLimit;
@@ -876,7 +896,8 @@ void testComputeFrazilDepthLimit() {
 
    TestFrazil->ConservationCheck = true;
    TestFrazil->DepthLimit        = TestDepthLimit;
-   TestFrazil->computeFrazil(CT, SA, P, H);
+   TestFrazil->computeFrazil(ConservTemp, AbsSalinity, Pressure,
+                             PseudoThickness);
    TestFrazil->ConservationCheck = SavedConservationCheck;
    TestFrazil->DepthLimit        = SavedDepthLimit;
 

@@ -375,10 +375,9 @@ void Frazil::warnNegativeSalinity(I4 NClamped) {
    }
 }
 
-void Frazil::computeFrazilFixedPropertyImpl(const Array2DReal &CT,
-                                            const Array2DReal &SA,
-                                            const Array2DReal &P,
-                                            const Array2DReal &LayerH) {
+void Frazil::computeFrazilFixedPropertyImpl(
+    const Array2DReal &ConservTemp, const Array2DReal &AbsSalinity,
+    const Array2DReal &Pressure, const Array2DReal &PseudoThickness) {
    const EosType LocEosChoice = Eos::getInstance()->EosChoice;
    const Real LocDepthLimit   = DepthLimit;
 
@@ -434,31 +433,33 @@ void Frazil::computeFrazilFixedPropertyImpl(const Array2DReal &CT,
 
              // sqrt(SA) in the freezing-point polynomial returns NaN for
              // SA < 0, which silently disables frazil since NaN compares false
-             const Real SARaw = SA(ICell, K);
-             if (SARaw < 0.0_Real) {
+             const Real AbsSalinityRaw = AbsSalinity(ICell, K);
+             if (AbsSalinityRaw < 0.0_Real) {
                 ++Accum;
              }
-             const Real SAIn = Kokkos::max(0.0_Real, SARaw);
-             const Real CTIn = CT(ICell, K);
-             const Real PIn  = P(ICell, K);
-             const Real PDb  = PIn * Pa2Db;
-             const Real H    = LayerH(ICell, K);
+             const Real AbsSalinityIn = Kokkos::max(0.0_Real, AbsSalinityRaw);
+             const Real ConservTempIn = ConservTemp(ICell, K);
+             const Real PressureIn    = Pressure(ICell, K);
+             const Real PressureDb    = PressureIn * Pa2Db;
+             const Real PseudoThicknessIn = PseudoThickness(ICell, K);
 
-             const Real Tfrz =
-                 Eos::calcCtFreezing(LocEosChoice, SAIn, PDb, 0.0_Real);
+             const Real CtFreezing = Eos::calcCtFreezing(
+                 LocEosChoice, AbsSalinityIn, PressureDb, 0.0_Real);
 
              Real HTend = 0.0_Real;
              Real TTend = 0.0_Real;
              Real STend = 0.0_Real;
 
-             if (CTIn < Tfrz) {
+             if (ConservTempIn < CtFreezing) {
                 LocComputeFixedPropertyFrazilFormation(
-                    SAIn, CTIn, PDb, H, LocAccMIce(ICell), LocAccMSalt(ICell),
-                    LocAccEIce(ICell), HTend, TTend, STend, Tfrz);
+                    AbsSalinityIn, ConservTempIn, PressureDb, PseudoThicknessIn,
+                    LocAccMIce(ICell), LocAccMSalt(ICell), LocAccEIce(ICell),
+                    HTend, TTend, STend, CtFreezing);
              } else if (LocAccMIce(ICell) > 0.0_Real) {
                 LocComputeFixedPropertyFrazilMelt(
-                    SAIn, CTIn, PDb, H, LocAccMIce(ICell), LocAccMSalt(ICell),
-                    LocAccEIce(ICell), HTend, TTend, STend, Tfrz);
+                    AbsSalinityIn, ConservTempIn, PressureDb, PseudoThicknessIn,
+                    LocAccMIce(ICell), LocAccMSalt(ICell), LocAccEIce(ICell),
+                    HTend, TTend, STend, CtFreezing);
              }
 
              // Per-call increments; FrazilOnCell normalizes these to rates.
@@ -486,9 +487,10 @@ void Frazil::computeFrazilFixedPropertyImpl(const Array2DReal &CT,
 // mirrors all inputs/outputs to the host and runs a plain host loop.
 // This is a temporary implementation until a device-callable solution
 // is available.
-void Frazil::computeFrazilTeosImpl(const Array2DReal &CT, const Array2DReal &SA,
-                                   const Array2DReal &P,
-                                   const Array2DReal &LayerH) {
+void Frazil::computeFrazilTeosImpl(const Array2DReal &ConservTemp,
+                                   const Array2DReal &AbsSalinity,
+                                   const Array2DReal &Pressure,
+                                   const Array2DReal &PseudoThickness) {
    const EosType LocEosChoice = Eos::getInstance()->EosChoice;
    const Real LocDepthLimit   = DepthLimit;
 
@@ -496,10 +498,10 @@ void Frazil::computeFrazilTeosImpl(const Array2DReal &CT, const Array2DReal &SA,
    const auto MaxLayerCell = createHostMirrorCopy(VCoordPtr->MaxLayerCell);
    const auto LocGeomZMid  = createHostMirrorCopy(VCoordPtr->GeomZMid);
 
-   const auto SAH     = createHostMirrorCopy(SA);
-   const auto CTH     = createHostMirrorCopy(CT);
-   const auto PH      = createHostMirrorCopy(P);
-   const auto LayerHH = createHostMirrorCopy(LayerH);
+   const auto AbsSalinityH     = createHostMirrorCopy(AbsSalinity);
+   const auto ConservTempH     = createHostMirrorCopy(ConservTemp);
+   const auto PressureH        = createHostMirrorCopy(Pressure);
+   const auto PseudoThicknessH = createHostMirrorCopy(PseudoThickness);
 
    auto LocFrazilTTend = createHostMirrorCopy(FrazilTTend);
    auto LocFrazilSTend = createHostMirrorCopy(FrazilSTend);
@@ -549,33 +551,34 @@ void Frazil::computeFrazilTeosImpl(const Array2DReal &CT, const Array2DReal &SA,
 
              // sqrt(SA) in the freezing-point polynomial returns NaN for
              // SA < 0, which silently disables frazil since NaN compares false
-             const Real SARaw = SAH(ICell, K);
-             if (SARaw < 0.0_Real) {
+             const Real AbsSalinityRaw = AbsSalinityH(ICell, K);
+             if (AbsSalinityRaw < 0.0_Real) {
                 ++Accum;
              }
-             const Real SAIn = Kokkos::max(0.0_Real, SARaw);
-             const Real CTIn = CTH(ICell, K);
-             const Real PIn  = PH(ICell, K);
-             const Real PDb  = PIn * Pa2Db;
-             const Real H    = LayerHH(ICell, K);
+             const Real AbsSalinityIn = Kokkos::max(0.0_Real, AbsSalinityRaw);
+             const Real ConservTempIn = ConservTempH(ICell, K);
+             const Real PressureIn    = PressureH(ICell, K);
+             const Real PressureDb    = PressureIn * Pa2Db;
+             const Real PseudoThicknessIn = PseudoThicknessH(ICell, K);
 
-             const Real Tfrz =
-                 Eos::calcCtFreezing(LocEosChoice, SAIn, PDb, 0.0_Real);
+             const Real CtFreezing = Eos::calcCtFreezing(
+                 LocEosChoice, AbsSalinityIn, PressureDb, 0.0_Real);
 
              Real HTend = 0.0_Real;
              Real TTend = 0.0_Real;
              Real STend = 0.0_Real;
 
-             if (CTIn < Tfrz) {
-                LocComputeFrazilFormation(SAIn, CTIn, PDb, H, LocAccMIce(ICell),
-                                          LocAccMLiq(ICell), LocAccMSalt(ICell),
-                                          LocAccELiq(ICell), LocAccEIce(ICell),
-                                          HTend, TTend, STend);
+             if (ConservTempIn < CtFreezing) {
+                LocComputeFrazilFormation(
+                    AbsSalinityIn, ConservTempIn, PressureDb, PseudoThicknessIn,
+                    LocAccMIce(ICell), LocAccMLiq(ICell), LocAccMSalt(ICell),
+                    LocAccELiq(ICell), LocAccEIce(ICell), HTend, TTend, STend);
              } else if (LocAccMIce(ICell) > 0.0_Real) {
-                LocComputeFrazilMelt(SAIn, CTIn, PDb, H, LocAccMIce(ICell),
+                LocComputeFrazilMelt(AbsSalinityIn, ConservTempIn, PressureDb,
+                                     PseudoThicknessIn, LocAccMIce(ICell),
                                      LocAccMLiq(ICell), LocAccMSalt(ICell),
                                      LocAccELiq(ICell), LocAccEIce(ICell),
-                                     HTend, TTend, STend, Tfrz);
+                                     HTend, TTend, STend, CtFreezing);
              }
 
              // Per-call increments; FrazilOnCell normalizes these to rates.
@@ -605,8 +608,10 @@ void Frazil::computeFrazilTeosImpl(const Array2DReal &CT, const Array2DReal &SA,
    deepCopy(AccMSalt, LocAccMSalt);
 }
 
-void Frazil::computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
-                           const Array2DReal &P, const Array2DReal &LayerH) {
+void Frazil::computeFrazil(const Array2DReal &ConservTemp,
+                           const Array2DReal &AbsSalinity,
+                           const Array2DReal &Pressure,
+                           const Array2DReal &PseudoThickness) {
    Eos *DefEos = Eos::getInstance();
    if (!DefEos) {
       ABORT_ERROR("Frazil::computeFrazil: Eos must be initialized before "
@@ -615,10 +620,12 @@ void Frazil::computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
 
    switch (FrazilChoice) {
    case FrazilType::FixedPropertyFrazil:
-      computeFrazilFixedPropertyImpl(CT, SA, P, LayerH);
+      computeFrazilFixedPropertyImpl(ConservTemp, AbsSalinity, Pressure,
+                                     PseudoThickness);
       break;
    case FrazilType::TeosFrazil:
-      computeFrazilTeosImpl(CT, SA, P, LayerH);
+      computeFrazilTeosImpl(ConservTemp, AbsSalinity, Pressure,
+                            PseudoThickness);
       break;
    default:
       ABORT_ERROR("Frazil::computeFrazil: Unknown FrazilChoice");

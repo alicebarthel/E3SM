@@ -39,13 +39,16 @@ class FixedPropertyFrazilFormation {
    Real FrazilPorosity =
        1.0_Real; // Internal for now; can move to config later.
 
-   KOKKOS_FUNCTION void operator()(const Real SA, const Real CT, const Real PDb,
-                                   const Real H, Real &SumIceThickness,
-                                   Real &SumSalt, Real &SumEnergy, Real &HTend,
-                                   Real &TTend, Real &STend,
-                                   const Real Tfrz) const {
+   KOKKOS_FUNCTION void operator()(const Real AbsSalinity,
+                                   const Real ConservTemp,
+                                   const Real PressureDb,
+                                   const Real PseudoThickness,
+                                   Real &SumIceThickness, Real &SumSalt,
+                                   Real &SumEnergy, Real &HTend, Real &TTend,
+                                   Real &STend, const Real CtFreezing) const {
 
-      const Real Potential      = H * Cp0Sw * RhoSw * (CT - Tfrz);
+      const Real Potential =
+          PseudoThickness * Cp0Sw * RhoSw * (ConservTemp - CtFreezing);
       const Real FreezingEnergy = Kokkos::max(0.0_Real, -Potential);
 
       HTend = 0.0_Real;
@@ -56,16 +59,18 @@ class FixedPropertyFrazilFormation {
           FreezingEnergy /
           (LatFrazil * RhoSw); // frazil (ice) mass in pseudo-thickness terms
 
-      NewFrzThickness = Kokkos::min(NewFrzThickness, H * LayerMassFracMax);
+      NewFrzThickness =
+          Kokkos::min(NewFrzThickness, PseudoThickness * LayerMassFracMax);
       Real NewFrzEnergy =
           NewFrzThickness *
-          (-LatFrazil + Cp0Sw * Tfrz); // (<0; enthalpy of frazil, i.e. phase
-                                       // change and enthalpy of melted equ)
+          (-LatFrazil +
+           Cp0Sw * CtFreezing); // (<0; enthalpy of frazil, i.e. phase
+                                // change and enthalpy of melted equ)
 
       // MANUAL TOGGLE: uncomment line below to use porosity
-      // const Real FrazilIceSalinity = FrazilPorosity * SA;
+      // const Real FrazilIceSalinity = FrazilPorosity * AbsSalinity;
 
-      const Real FrazilSalinity = Kokkos::min(FrazilIceSalinity, SA);
+      const Real FrazilSalinity = Kokkos::min(FrazilIceSalinity, AbsSalinity);
       const Real NewSaltContent =
           NewFrzThickness * FrazilSalinity; // in m.(g/kg)
 
@@ -90,11 +95,13 @@ class FixedPropertyFrazilMelt {
    Real LayerMassFracMax;   ///< layer mass fraction limit (set in config)
    Real LatFrazil = LatIce; // Global constant
 
-   KOKKOS_FUNCTION void operator()(const Real SA, const Real CT, const Real PDb,
-                                   const Real H, Real &SumIceThickness,
-                                   Real &SumSalt, Real &SumEnergy, Real &HTend,
-                                   Real &TTend, Real &STend,
-                                   const Real Tfrz) const {
+   KOKKOS_FUNCTION void operator()(const Real AbsSalinity,
+                                   const Real ConservTemp,
+                                   const Real PressureDb,
+                                   const Real PseudoThickness,
+                                   Real &SumIceThickness, Real &SumSalt,
+                                   Real &SumEnergy, Real &HTend, Real &TTend,
+                                   Real &STend, const Real CtFreezing) const {
       constexpr Real Eps = 1.0e-12_Real;
 
       if (SumIceThickness <=
@@ -104,7 +111,8 @@ class FixedPropertyFrazilMelt {
          STend = 0.0_Real;
          return;
       }
-      const Real Potential       = H * Cp0Sw * RhoSw * (CT - Tfrz);
+      const Real Potential =
+          PseudoThickness * Cp0Sw * RhoSw * (ConservTemp - CtFreezing);
       const Real AvailableEnergy = Kokkos::max(0.0_Real, Potential);
 
       HTend = 0.0_Real;
@@ -115,9 +123,9 @@ class FixedPropertyFrazilMelt {
           AvailableEnergy /
           (LatFrazil * RhoSw); // mass in pseudo-thickness units
       MeltThickness = Kokkos::min(MeltThickness, SumIceThickness);
-      MeltThickness =
-          Kokkos::min(MeltThickness,
-                      H * LayerMassFracMax); // also 0.1h lim on added mass
+      MeltThickness = Kokkos::min(
+          MeltThickness,
+          PseudoThickness * LayerMassFracMax); // also 0.1h lim on added mass
       const Real FrazilFractionMelted =
           MeltThickness / SumIceThickness; // mass fraction melted
 
@@ -143,17 +151,19 @@ class FrazilMelt {
    Real LayerMassFracMax;
 
    //   The functor for FrazilMelt takes as inputs:
-   //   the local ocean layer state (SA, CT, P, H),
+   //   the local ocean layer state (AbsSalinity, ConservTemp, PressureDb,
+   //   PseudoThickness),
    //   the accumulated frazil solid and liquid mass, energy, and salt
    //   and outputs the frazil tendencies (HTend, TTend, STend) and updated
    //   accumulators.
    //   Host-only: relies on GSW TEOS-10 routines that are not device-callable.
    //   This is a temporary implementation until a device-callable solution is
    //   available.
-   void operator()(const Real SA, const Real CT, const Real P, const Real H,
+   void operator()(const Real AbsSalinity, const Real ConservTemp,
+                   const Real PressureDb, const Real PseudoThickness,
                    Real &AccMIce, Real &AccMLiq, Real &AccMSalt, Real &AccELiq,
                    Real &AccEIce, Real &HTend, Real &TTend, Real &STend,
-                   const Real Tfrz) const {
+                   const Real CtFreezing) const {
 
       constexpr Real Eps = 1.0e-12_Real;
 
@@ -177,7 +187,8 @@ class FrazilMelt {
       // 1. we start by adding the solid ice to the ocean layer (no brine yet)
       const Real PotEnthalpyIce = AccEIce / AccMIce;
       const Real NewLayerMass =
-          H + AccMIce; // AccMIce > Eps and H passed the ocean_validate()
+          PseudoThickness +
+          AccMIce; // AccMIce > Eps and PseudoThickness passed ocean_validate()
       const Real NewLayerIceFraction = AccMIce / NewLayerMass;
 
       // 2. we calculate the (mass- and energy-conserving) ocean layer evolution
@@ -185,9 +196,9 @@ class FrazilMelt {
 
       // typecasting for now but will be simplified once gsw functions are
       // ported
-      const double SA_d     = static_cast<double>(SA);
-      const double CT_d     = static_cast<double>(CT);
-      const double P_d      = static_cast<double>(P);
+      const double SA_d     = static_cast<double>(AbsSalinity);
+      const double CT_d     = static_cast<double>(ConservTemp);
+      const double P_d      = static_cast<double>(PressureDb);
       const double WIhIn_d  = static_cast<double>(NewLayerIceFraction);
       const double Pt0Ice_d = gsw_pt_from_pot_enthalpy_ice_poly(
           static_cast<double>(PotEnthalpyIce));
@@ -205,15 +216,17 @@ class FrazilMelt {
       // one; at that point there is no melt energy available anyway.
       if (WIhOut_d > GSW_ERROR_LIMIT) {
          constexpr Real FreezingTol = 1.0e-3_Real;
-         if (CT - Tfrz < FreezingTol) {
+         if (ConservTemp - CtFreezing < FreezingTol) {
             HTend = 0.0_Real;
             TTend = 0.0_Real;
             STend = 0.0_Real;
             return;
          }
          ABORT_ERROR("FrazilMelt: GSW returned invalid values for "
-                     "SA={}, CT={}, P={}, H={}, Tfrz={}",
-                     SA, CT, P, H, Tfrz);
+                     "AbsSalinity={}, ConservTemp={}, PressureDb={}, "
+                     "PseudoThickness={}, CtFreezing={}",
+                     AbsSalinity, ConservTemp, PressureDb, PseudoThickness,
+                     CtFreezing);
       }
 
       const Real WIhOut = static_cast<Real>(
@@ -224,9 +237,10 @@ class FrazilMelt {
       const Real SolidMassMelted = Kokkos::max(
           0.0_Real,
           AccMIce - WIhOut * NewLayerMass); // original - left-over solid ice,
-      const Real FrazilFractionMelted = Kokkos::min(
-          SolidMassMelted / AccMIce,
-          H * LayerMassFracMax / (AccMIce + AccMLiq)); // added mass < 0.1h
+      const Real FrazilFractionMelted =
+          Kokkos::min(SolidMassMelted / AccMIce,
+                      PseudoThickness * LayerMassFracMax /
+                          (AccMIce + AccMLiq)); // added mass < 0.1h
 
       // the frazil fraction based on the solid ice also sets the (proportional)
       // contributions from the frazil brine
@@ -254,19 +268,21 @@ class FrazilFormation {
    Real LayerMassFracMax; ///< layer mass fraction limit for thickness tendency
 
    //   The functor for FrazilFormation takes as inputs:
-   //   the local ocean layer state (SA, CT, P, H),
+   //   the local ocean layer state (AbsSalinity, ConservTemp, PressureDb,
+   //   PseudoThickness),
    //   the accumulated frazil solid and liquid mass, energy, and salt
    //   and outputs the frazil tendencies (HTend, TTend, STend) and updated
    //   accumulators.
    //   Host-only: relies on GSW TEOS-10 routines that are not device-callable.
    //   This is a temporary implementation until a device-callable solution is
    //   available.
-   void operator()(const Real SA, const Real CT, const Real P, const Real H,
+   void operator()(const Real AbsSalinity, const Real ConservTemp,
+                   const Real PressureDb, const Real PseudoThickness,
                    Real &AccMIce, Real &AccMLiq, Real &AccMSalt, Real &AccELiq,
                    Real &AccEIce, Real &HTend, Real &TTend, Real &STend) const {
 
-      Real CTNew;
-      Real SANew;
+      Real ConservTempNew;
+      Real AbsSalinityNew;
       Real WIh            = 0.0_Real;
       Real SolidMass      = 0.0_Real;
       Real LiquidMass     = 0.0_Real;
@@ -281,46 +297,49 @@ class FrazilFormation {
       // double PTNew_d = 0.0;
 
       gsw_frazil_properties_potential_poly(
-          static_cast<double>(SA), static_cast<double>(Cp0Sw * CT),
-          static_cast<double>(P), &SANew_d, &CTNew_d, &WIh_d);
+          static_cast<double>(AbsSalinity),
+          static_cast<double>(Cp0Sw * ConservTemp),
+          static_cast<double>(PressureDb), &SANew_d, &CTNew_d, &WIh_d);
 
       // GSW flags out-of-domain input (w_Ih > 0.9) by setting all three outputs
       // to GSW_INVALID_VALUE; the LayerMassFracMax clamp below would otherwise
       // hide it.
       if (WIh_d > GSW_ERROR_LIMIT) {
          ABORT_ERROR("FrazilFormation: GSW returned invalid values for "
-                     "SA={}, CT={}, P={}, H={}",
-                     SA, CT, P, H);
+                     "AbsSalinity={}, ConservTemp={}, PressureDb={}, "
+                     "PseudoThickness={}",
+                     AbsSalinity, ConservTemp, PressureDb, PseudoThickness);
       }
 
       double PTNew_d =
           gsw_pt_from_ct(SANew_d, CTNew_d); // convert to potential temperature
 
-      SANew = static_cast<Real>(SANew_d);
-      CTNew = static_cast<Real>(CTNew_d);
-      WIh   = static_cast<Real>(WIh_d);
+      AbsSalinityNew = static_cast<Real>(SANew_d);
+      ConservTempNew = static_cast<Real>(CTNew_d);
+      WIh            = static_cast<Real>(WIh_d);
 
       const Real OneMinusPhi = Kokkos::max(1.0e-12_Real, 1.0_Real - Phi);
       // anything called mass below is in pseudo-thickness units (m) and needs
       // to be scaled by RhoSw for coupling
-      SolidMass      = H * Kokkos::min(WIh, OneMinusPhi * LayerMassFracMax);
+      SolidMass =
+          PseudoThickness * Kokkos::min(WIh, OneMinusPhi * LayerMassFracMax);
       LiquidMass     = (Phi / OneMinusPhi) * SolidMass;
       SolidEnthalpy  = SolidMass * gsw_pot_enthalpy_from_pt_ice_poly(PTNew_d);
-      LiquidEnthalpy = LiquidMass * Cp0Sw * CTNew;
+      LiquidEnthalpy = LiquidMass * Cp0Sw * ConservTempNew;
       // per timestep (not scaled by dt here)
       HTend = -(SolidMass +
                 LiquidMass); // because Phi is a *mass* fraction, LiquidMass
                              // includes the salt contribution to mass.
       TTend = -(LiquidEnthalpy + SolidEnthalpy) / Cp0Sw;
-      STend = -(LiquidMass * SANew);
+      STend = -(LiquidMass * AbsSalinityNew);
 
       // Local unit of mass is pseudo thickness (m)
       // these all need a RhoSw factor before coupling
-      AccMIce += SolidMass;           // m
-      AccMLiq += LiquidMass;          // m
-      AccMSalt += LiquidMass * SANew; // (m)(g/kg)
-      AccELiq += LiquidEnthalpy;      // (m)(J/kg)
-      AccEIce += SolidEnthalpy;       // (m)(J/kg)
+      AccMIce += SolidMass;                    // m
+      AccMLiq += LiquidMass;                   // m
+      AccMSalt += LiquidMass * AbsSalinityNew; // (m)(g/kg)
+      AccELiq += LiquidEnthalpy;               // (m)(J/kg)
+      AccEIce += SolidEnthalpy;                // (m)(J/kg)
    }
 };
 
@@ -357,18 +376,22 @@ class Frazil {
    Array1DReal OcnDtFrazilSalt;
    Array1DReal OcnDtFrazilEnergy;
 
-   void computeFrazil(const Array2DReal &CT, const Array2DReal &SA,
-                      const Array2DReal &P, const Array2DReal &H);
+   void computeFrazil(const Array2DReal &ConservTemp,
+                      const Array2DReal &AbsSalinity,
+                      const Array2DReal &Pressure,
+                      const Array2DReal &PseudoThickness);
    void resetOcnStepRates();
    void accumulateOcnStepRates(Real FinalUpdateWeight, R8 TimeStepSeconds);
    void registerFields();
    void unregisterFields();
-   void computeFrazilFixedPropertyImpl(const Array2DReal &CT,
-                                       const Array2DReal &SA,
-                                       const Array2DReal &P,
-                                       const Array2DReal &LayerH);
-   void computeFrazilTeosImpl(const Array2DReal &CT, const Array2DReal &SA,
-                              const Array2DReal &P, const Array2DReal &LayerH);
+   void computeFrazilFixedPropertyImpl(const Array2DReal &ConservTemp,
+                                       const Array2DReal &AbsSalinity,
+                                       const Array2DReal &Pressure,
+                                       const Array2DReal &PseudoThickness);
+   void computeFrazilTeosImpl(const Array2DReal &ConservTemp,
+                              const Array2DReal &AbsSalinity,
+                              const Array2DReal &Pressure,
+                              const Array2DReal &PseudoThickness);
    bool ConservationCheck = false;
    Real DepthLimit        = -1.0_Real;
 
