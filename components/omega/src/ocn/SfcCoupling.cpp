@@ -2,6 +2,7 @@
 #include "AuxiliaryState.h"
 #include "Eos.h"
 #include "Error.h"
+#include "Frazil.h"
 #include "GlobalConstants.h"
 #include "Halo.h"
 #include "HorzOperators.h"
@@ -284,23 +285,29 @@ void SfcCoupling::exportToCoupler() {
    // Copy the OcnToCpl fields to their host mirrors
    OcnToCpl.copyToHost();
 
-   int TempIdx  = ExportIdxMap.at("So_t");
-   int SalinIdx = ExportIdxMap.at("So_s");
-   int VelUIdx  = ExportIdxMap.at("So_u");
-   int VelVIdx  = ExportIdxMap.at("So_v");
-   int SshIdx   = ExportIdxMap.at("So_ssh");
-   int DhdxIdx  = ExportIdxMap.at("So_dhdx");
-   int DhdyIdx  = ExportIdxMap.at("So_dhdy");
+   int TempIdx         = ExportIdxMap.at("So_t");
+   int SalinIdx        = ExportIdxMap.at("So_s");
+   int VelUIdx         = ExportIdxMap.at("So_u");
+   int VelVIdx         = ExportIdxMap.at("So_v");
+   int SshIdx          = ExportIdxMap.at("So_ssh");
+   int DhdxIdx         = ExportIdxMap.at("So_dhdx");
+   int DhdyIdx         = ExportIdxMap.at("So_dhdy");
+   int FrazilMassIdx   = ExportIdxMap.at("Fioo_frazilm");
+   int FrazilSaltIdx   = ExportIdxMap.at("Fioo_frazils");
+   int FrazilEnergyIdx = ExportIdxMap.at("Fioo_frazilh");
 
    // Copy Kokkos view handles
-   auto OcnToCplView_        = OcnToCplView;
-   auto AvgSfcTemperature_   = OcnToCpl.AvgSfcTemperatureH;
-   auto AvgSfcSalinity_      = OcnToCpl.AvgSfcSalinityH;
-   auto AvgSfcVelocityZonal_ = OcnToCpl.AvgSfcVelocityZonalH;
-   auto AvgSfcVelocityMerid_ = OcnToCpl.AvgSfcVelocityMeridH;
-   auto AvgSfcSshGradZonal_  = OcnToCpl.AvgSfcSshGradZonalH;
-   auto AvgSfcSshGradMerid_  = OcnToCpl.AvgSfcSshGradMeridH;
-   auto InstSshCellH_        = OcnToCpl.InstSshCellH;
+   auto OcnToCplView_         = OcnToCplView;
+   auto AvgSfcTemperature_    = OcnToCpl.AvgSfcTemperatureH;
+   auto AvgSfcSalinity_       = OcnToCpl.AvgSfcSalinityH;
+   auto AvgSfcVelocityZonal_  = OcnToCpl.AvgSfcVelocityZonalH;
+   auto AvgSfcVelocityMerid_  = OcnToCpl.AvgSfcVelocityMeridH;
+   auto AvgSfcSshGradZonal_   = OcnToCpl.AvgSfcSshGradZonalH;
+   auto AvgSfcSshGradMerid_   = OcnToCpl.AvgSfcSshGradMeridH;
+   auto InstSshCellH_         = OcnToCpl.InstSshCellH;
+   auto AvgFrazilMassFluxH_   = OcnToCpl.AvgFrazilMassFluxH;
+   auto AvgFrazilSaltFluxH_   = OcnToCpl.AvgFrazilSaltFluxH;
+   auto AvgFrazilEnergyFluxH_ = OcnToCpl.AvgFrazilEnergyFluxH;
 
    // Initalize all o2x fields to 0.0 for next coupling interval
    deepCopy(OcnToCplView_, 0.0_Real);
@@ -309,13 +316,16 @@ void SfcCoupling::exportToCoupler() {
    auto Policy = Kokkos::RangePolicy<HostExecSpace, Kokkos::IndexType<int>>(
        0, NCellsOwned);
    Kokkos::parallel_for("exportToCoupler", Policy, [=](int Idx) {
-      OcnToCplView_(TempIdx, Idx)  = AvgSfcTemperature_(Idx);
-      OcnToCplView_(SalinIdx, Idx) = AvgSfcSalinity_(Idx);
-      OcnToCplView_(VelUIdx, Idx)  = AvgSfcVelocityZonal_(Idx);
-      OcnToCplView_(VelVIdx, Idx)  = AvgSfcVelocityMerid_(Idx);
-      OcnToCplView_(DhdxIdx, Idx)  = AvgSfcSshGradZonal_(Idx);
-      OcnToCplView_(DhdyIdx, Idx)  = AvgSfcSshGradMerid_(Idx);
-      OcnToCplView_(SshIdx, Idx)   = InstSshCellH_(Idx);
+      OcnToCplView_(TempIdx, Idx)         = AvgSfcTemperature_(Idx);
+      OcnToCplView_(SalinIdx, Idx)        = AvgSfcSalinity_(Idx);
+      OcnToCplView_(VelUIdx, Idx)         = AvgSfcVelocityZonal_(Idx);
+      OcnToCplView_(VelVIdx, Idx)         = AvgSfcVelocityMerid_(Idx);
+      OcnToCplView_(DhdxIdx, Idx)         = AvgSfcSshGradZonal_(Idx);
+      OcnToCplView_(DhdyIdx, Idx)         = AvgSfcSshGradMerid_(Idx);
+      OcnToCplView_(SshIdx, Idx)          = InstSshCellH_(Idx);
+      OcnToCplView_(FrazilMassIdx, Idx)   = AvgFrazilMassFluxH_(Idx);
+      OcnToCplView_(FrazilSaltIdx, Idx)   = AvgFrazilSaltFluxH_(Idx);
+      OcnToCplView_(FrazilEnergyIdx, Idx) = AvgFrazilEnergyFluxH_(Idx);
    });
 
    OcnToCpl.resetFields(); // Reset fields to 0 for the next coupling interval
@@ -388,6 +398,12 @@ void SfcCoupling::updateExportFields(const OceanState *State,
    OcnToCpl.updateFields(State, TracerArray, NAccumSteps, NCellsOwned,
                          NEdgesAll);
 
+   if (Frazil *DefFrazil = Frazil::getDefault()) {
+      OcnToCpl.updateFrazilFields(
+          DefFrazil->FrazilMassFlux, DefFrazil->FrazilSaltFlux,
+          DefFrazil->FrazilEnergyFlux, NAccumSteps, NCellsOwned);
+   }
+
    NAccumSteps++;
 }
 
@@ -412,6 +428,9 @@ CplToOcnFields::CplToOcnFields(const std::string &Suffix, const HorzMesh *Mesh)
 OcnToCplFields::OcnToCplFields(const std::string &Suffix, const HorzMesh *Mesh)
     : AvgSfcTemperature("AvgSfcTemperature" + Suffix, Mesh->NCellsOwned),
       AvgSfcSalinity("AvgSfcSalinity" + Suffix, Mesh->NCellsOwned),
+      AvgFrazilMassFlux("AvgFrazilMassFlux" + Suffix, Mesh->NCellsOwned),
+      AvgFrazilSaltFlux("AvgFrazilSaltFlux" + Suffix, Mesh->NCellsOwned),
+      AvgFrazilEnergyFlux("AvgFrazilEnergyFlux" + Suffix, Mesh->NCellsOwned),
       AvgSfcNormalVelocity("AvgSfcNormalVelocity" + Suffix, Mesh->NEdgesSize),
       AvgSfcVelocityZonalH("AvgSfcVelocityZonal" + Suffix, Mesh->NCellsOwned),
       AvgSfcVelocityMeridH("AvgSfcVelocityMeridional" + Suffix,
@@ -431,8 +450,11 @@ OcnToCplFields::OcnToCplFields(const std::string &Suffix, const HorzMesh *Mesh)
    // OcnToCpl fields need to begin a coupling interval with all zeros.
    resetFields();
 
-   AvgSfcTemperatureH = createHostMirrorCopy(AvgSfcTemperature);
-   AvgSfcSalinityH    = createHostMirrorCopy(AvgSfcSalinity);
+   AvgSfcTemperatureH   = createHostMirrorCopy(AvgSfcTemperature);
+   AvgSfcSalinityH      = createHostMirrorCopy(AvgSfcSalinity);
+   AvgFrazilMassFluxH   = createHostMirrorCopy(AvgFrazilMassFlux);
+   AvgFrazilSaltFluxH   = createHostMirrorCopy(AvgFrazilSaltFlux);
+   AvgFrazilEnergyFluxH = createHostMirrorCopy(AvgFrazilEnergyFlux);
 }
 
 void OcnToCplFields::updateFields(const OceanState *State,
@@ -506,6 +528,30 @@ void OcnToCplFields::updateFields(const OceanState *State,
        });
 }
 
+void OcnToCplFields::updateFrazilFields(const Array1DReal &FrazilMassFlux,
+                                        const Array1DReal &FrazilSaltFlux,
+                                        const Array1DReal &FrazilEnergyFlux,
+                                        const I4 NAccumSteps,
+                                        const I4 NCellsOwned) {
+
+   OMEGA_SCOPE(LocAvgFrazilMassFlux, AvgFrazilMassFlux);
+   OMEGA_SCOPE(LocAvgFrazilSaltFlux, AvgFrazilSaltFlux);
+   OMEGA_SCOPE(LocAvgFrazilEnergyFlux, AvgFrazilEnergyFlux);
+
+   parallelFor(
+       {NCellsOwned}, KOKKOS_LAMBDA(int ICell) {
+          // Frazil mass and salt are positive for production; frazil energy
+          // is positive for formation and does not include melt potential.
+          LocAvgFrazilMassFlux(ICell) = updateAverage(
+              LocAvgFrazilMassFlux(ICell), -FrazilMassFlux(ICell), NAccumSteps);
+          LocAvgFrazilSaltFlux(ICell) = updateAverage(
+              LocAvgFrazilSaltFlux(ICell), -FrazilSaltFlux(ICell), NAccumSteps);
+          LocAvgFrazilEnergyFlux(ICell) =
+              updateAverage(LocAvgFrazilEnergyFlux(ICell),
+                            FrazilEnergyFlux(ICell), NAccumSteps);
+       });
+}
+
 // Conversion from conservative [C] to in-situ [K] temperature is done on
 // the device, as well as conversion from practical to absolute salinity.
 // This allows the expensive unit conversions to be called on device, once
@@ -548,6 +594,9 @@ void OcnToCplFields::copyToHost() {
 
    deepCopy(AvgSfcTemperatureH, InSituTempScratch);
    deepCopy(AvgSfcSalinityH, PracSalinityScratch);
+   deepCopy(AvgFrazilMassFluxH, AvgFrazilMassFlux);
+   deepCopy(AvgFrazilSaltFluxH, AvgFrazilSaltFlux);
+   deepCopy(AvgFrazilEnergyFluxH, AvgFrazilEnergyFlux);
 
    // Retrieve the default horizontal mesh
    HorzMesh *DefHorzMesh = HorzMesh::getDefault();
@@ -590,6 +639,9 @@ void OcnToCplFields::copyToHost() {
 void OcnToCplFields::resetFields() {
    deepCopy(AvgSfcTemperature, 0.0_Real);
    deepCopy(AvgSfcSalinity, 0.0_Real);
+   deepCopy(AvgFrazilMassFlux, 0.0_Real);
+   deepCopy(AvgFrazilSaltFlux, 0.0_Real);
+   deepCopy(AvgFrazilEnergyFlux, 0.0_Real);
    deepCopy(AvgSfcNormalVelocity, 0.0_Real);
    deepCopy(AvgSfcSshGrad, 0.0_Real);
 }
