@@ -1743,6 +1743,33 @@ contains
     attname  = 'Fioi_salt'
     call metadata_set(attname, longname, stdname, units)
 
+   ! Frazil mass flux
+   call seq_flds_add(i2x_fluxes,"Fioi_frazilm")
+   call seq_flds_add(x2o_fluxes,"Fioi_frazilm")
+   longname = 'Frazil mass flux'
+   stdname  = 'frazil_mass_flux_into_sea_water'
+   units    = 'kg m-2 s-1'
+   attname  = 'Fioi_frazilm'
+   call metadata_set(attname, longname, stdname, units)
+
+   ! Frazil salt flux
+   call seq_flds_add(i2x_fluxes,"Fioi_frazils")
+   call seq_flds_add(x2o_fluxes,"Fioi_frazils")
+   longname = 'Frazil salt flux'
+   stdname  = 'frazil_salt_flux_into_sea_water'
+   units    = 'kg m-2 s-1'
+   attname  = 'Fioi_frazils'
+   call metadata_set(attname, longname, stdname, units)
+
+   ! Frazil heat flux
+   call seq_flds_add(i2x_fluxes,"Fioi_frazilh")
+   call seq_flds_add(x2o_fluxes,"Fioi_frazilh")
+   longname = 'Frazil heat flux'
+   stdname  = 'frazil_heat_flux_into_sea_water'
+   units    = 'W m-2'
+   attname  = 'Fioi_frazilh'
+   call metadata_set(attname, longname, stdname, units)
+
     ! Black Carbon hydrophilic deposition
     call seq_flds_add(i2x_fluxes,"Fioi_bcphi" )
     call seq_flds_add(x2o_fluxes,"Fioi_bcphi"   )
