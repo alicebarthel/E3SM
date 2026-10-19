@@ -334,6 +334,54 @@ void Tendencies::readConfig(Config *OmegaConfig ///< [in] Omega config
        Err,
        "Tendencies: SfcTracerForcingTendencyEnable not found in TendConfig");
 
+   Config PenSwConfig("PenetratingShortwaveTendency");
+   Err += TendConfig.get(PenSwConfig);
+   CHECK_ERROR_ABORT(Err, "Tendencies: PenetratingShortwaveTendency group not "
+                          "found in TendConfig");
+
+   Err += PenSwConfig.get("Enable", this->PenetratingShortwave.Enabled);
+   CHECK_ERROR_ABORT(
+       Err, "Tendencies: PenetratingShortwaveTendency Enable not found in "
+            "PenetratingShortwaveTendency config");
+   Err += PenSwConfig.get("NearIrFraction",
+                          this->PenetratingShortwave.NearIrFraction);
+   CHECK_ERROR_ABORT(Err, "Tendencies: NearIrFraction not found in "
+                          "PenetratingShortwaveTendency config");
+   Err +=
+       PenSwConfig.get("NearIrCoeff", this->PenetratingShortwave.NearIrCoeff);
+   CHECK_ERROR_ABORT(Err, "Tendencies: NearIrCoeff not found in "
+                          "PenetratingShortwaveTendency config");
+   Err +=
+       PenSwConfig.get("RedFraction", this->PenetratingShortwave.RedFraction);
+   CHECK_ERROR_ABORT(Err, "Tendencies: RedFraction not found in "
+                          "PenetratingShortwaveTendency config");
+   Err +=
+       PenSwConfig.get("BlueFraction", this->PenetratingShortwave.BlueFraction);
+   CHECK_ERROR_ABORT(Err, "Tendencies: BlueFraction not found in "
+                          "PenetratingShortwaveTendency config");
+
+   const Real TotalFraction = this->PenetratingShortwave.NearIrFraction +
+                              this->PenetratingShortwave.RedFraction +
+                              this->PenetratingShortwave.BlueFraction;
+   if (Kokkos::abs(TotalFraction - 1.0_Real) > 1.0e-5_Real) {
+      ABORT_ERROR(
+          "Tendencies: The sum of NearIrFraction ({}), RedFraction ({}), "
+          "and BlueFraction ({}) must equal 1 (got {})",
+          this->PenetratingShortwave.NearIrFraction,
+          this->PenetratingShortwave.RedFraction,
+          this->PenetratingShortwave.BlueFraction, TotalFraction);
+   }
+
+   if (this->PenetratingShortwave.Enabled && !this->SfcTracerForcing.Enabled) {
+      ABORT_ERROR(
+          "Tendencies: PenetratingShortwaveTendency is enabled, but "
+          "SfcTracerForcingTendencyEnable is false. Penetrating shortwave "
+          "requires surface tracer forcing to be enabled.");
+   }
+
+   this->SfcTracerForcing.IncludeShortWaveHeatFlux =
+       !this->PenetratingShortwave.Enabled;
+
    if (this->TracerDiffusion.Enabled) {
       Err += TendConfig.get("EddyDiff2", this->TracerDiffusion.EddyDiff2);
       CHECK_ERROR_ABORT(Err, "Tendencies: EddyDiff2 not found in TendConfig");
@@ -353,6 +401,10 @@ void Tendencies::readConfig(Config *OmegaConfig ///< [in] Omega config
    Err += TendConfig.get("PressureGradTendencyEnable", this->PGrad->Enabled);
    CHECK_ERROR_ABORT(
        Err, "Tendencies: PressureGradTendencyEnable not found in TendConfig");
+
+   Err += TendConfig.get("FrazilTendencyEnable", this->FrazilTerm.Enabled);
+   CHECK_ERROR_ABORT(
+       Err, "Tendencies: FrazilTendencyEnable not found in TendConfig");
 
    Err += TendConfig.get("SurfaceTracerRestoringEnable",
                          this->SurfaceTracerRestoring.Enabled);
@@ -580,9 +632,11 @@ Tendencies::Tendencies(const std::string &Name_, ///< [in] Name for tendencies
       ExplicitBottomDrag(Mesh, VCoord), SfcThicknessForcing(Mesh, VCoord),
       SfcTracerForcing(Mesh, VCoord, Tracers::IndxTemp, Tracers::IndxSalt,
                        EqState),
-      TracerDiffusion(Mesh, VCoord), KPPNonLocalTracerFlux(Mesh, VCoord),
-      TracerHyperDiff(Mesh, VCoord), TracerHorzAdv(Mesh, VCoord, VAdv_),
-      SurfaceTracerRestoring(Mesh), CustomThicknessTend(InCustomThicknessTend),
+      PenetratingShortwave(Mesh, VCoord, Tracers::IndxTemp),
+      TracerHorzAdv(Mesh, VCoord, VAdv_), TracerDiffusion(Mesh, VCoord),
+      KPPNonLocalTracerFlux(Mesh, VCoord), TracerHyperDiff(Mesh, VCoord),
+      SurfaceTracerRestoring(Mesh), FrazilTerm(Mesh, VCoord),
+      CustomThicknessTend(InCustomThicknessTend),
       CustomVelocityTend(InCustomVelocityTend), EqState(EqState), PGrad(PGrad),
       VMix(VMix) {
 
@@ -1009,7 +1063,8 @@ void Tendencies::computeTracerTendenciesOnly(
     const Array3DReal &TracerArray, ///< [in] Tracer array
     int ThickTimeLevel,             ///< [in] Time level
     int VelTimeLevel,               ///< [in] Time level
-    TimeInstant Time                ///< [in] Time
+    TimeInstant Time,               ///< [in] Time
+    Real FinalUpdateWeight          ///< [in] final update weight
 ) {
    OMEGA_SCOPE(LocTracerArray, TracerArray);
    OMEGA_SCOPE(LocTracerTend, TracerTend);
@@ -1256,7 +1311,7 @@ void Tendencies::computeTracerTendenciesOnly(
           ForcingState->TracerForcing.SurfaceTracerFluxCell;
 
       parallelFor(
-          {Mesh->NCellsAll}, KOKKOS_LAMBDA(int ICell) {
+          {Mesh->NCellsOwned}, KOKKOS_LAMBDA(int ICell) {
              LocSfcTracerForcing(
                  LocTracerTend, SurfaceTracerFlux, ICell, TracerArray,
                  LatentHeatFluxEvap, SensibleHeatFlux, LongWaveHeatFluxUp,
@@ -1265,6 +1320,16 @@ void Tendencies::computeTracerTendenciesOnly(
                  EvaporationFlux, SeaIceSaltFlux);
           });
       Pacer::stop("Tend:sfcTracerForcing", 2);
+   }
+
+   // compute frazil tendency
+   if (FrazilTerm.Enabled) {
+      Pacer::start("Tend:frazil", 2);
+      const auto &PressureMid     = VCoord->PressureMid;
+      Array2DReal PseudoThickness = State->getPseudoThickness(ThickTimeLevel);
+      FrazilTerm(PseudoThicknessTend, TracerTend, TracerArray, PressureMid,
+                 PseudoThickness, TimeStep, FinalUpdateWeight);
+      Pacer::stop("Tend:frazil", 2);
    }
 
    // Compute KPP non-local tracer tendency
@@ -1325,6 +1390,28 @@ void Tendencies::computeTracerTendenciesOnly(
 
          Pacer::stop("Tend:KPPNonLocalTracerFlux", 2);
       }
+   }
+   OMEGA_SCOPE(LocPenetratingShortwave, PenetratingShortwave);
+   if (LocPenetratingShortwave.Enabled) {
+      Pacer::start("Tend:penetratingShortwave", 2);
+      const auto *ForcingState = Forcing::getDefault();
+      const auto &ShortWaveHeatFlux =
+          ForcingState->TracerForcing.ShortWaveHeatFluxCell;
+      const auto &GeomZInterface = VCoord->GeomZInterface;
+      const auto &ExtinctionCoeffRed =
+          ForcingState->ShortwavePenForcing.ExtinctionCoeffRedCell;
+      const auto &ExtinctionCoeffBlue =
+          ForcingState->ShortwavePenForcing.ExtinctionCoeffBlueCell;
+
+      parallelForOuter(
+          LaunchConfig({Mesh->NCellsOwned},
+                       TeamScratch<Real>(VCoord->NVertLayers + 1)),
+          KOKKOS_LAMBDA(int ICell, const TeamMember &Team) {
+             LocPenetratingShortwave(Team, LocTracerTend, ICell, GeomZInterface,
+                                     ShortWaveHeatFlux, ExtinctionCoeffRed,
+                                     ExtinctionCoeffBlue);
+          });
+      Pacer::stop("Tend:penetratingShortwave", 2);
    }
 
    Pacer::stop("Tend:computeTracerTendenciesOnly", 1);
@@ -1388,8 +1475,9 @@ void Tendencies::computeTracerTendencies(
     int ThickTimeLevel,             ///< [in] Time level
     int VelTimeLevel,               ///< [in] Time level
     TimeInstant Time,               ///< [in] Time
-    TimeInterval ProjDt ///< [in] Time interval for projection over the
-                        ///< current time stepper stage
+    TimeInterval ProjDt,   ///< [in] Time interval for projection over the
+                           ///< current time stepper stage
+    Real FinalUpdateWeight ///< [in] final update weight
 ) {
 
    Pacer::start("Tend:computeTracerTendencies", 1);
@@ -1398,7 +1486,7 @@ void Tendencies::computeTracerTendencies(
                               ProjDt);
 
    computeTracerTendenciesOnly(State, AuxState, TracerArray, ThickTimeLevel,
-                               VelTimeLevel, Time);
+                               VelTimeLevel, Time, FinalUpdateWeight);
 
    Pacer::stop("Tend:computeTracerTendencies", 1);
 }
@@ -1413,8 +1501,9 @@ void Tendencies::computeAllTendencies(
     int VelTimeLevel,               ///< [in] Time level
     int TracerTimeLevel,            ///< [in] Time level
     TimeInstant Time,               ///< [in] Time
-    TimeInterval ProjDt ///< [in] Time interval for projection over the
-                        ///< current time stepper stage
+    TimeInterval ProjDt,   ///< [in] Time interval for projection over the
+                           ///< current time stepper stage
+    Real FinalUpdateWeight ///< [in] final update weight
 ) {
    AuxState->computeAll(State, TracerArray, ThickTimeLevel, VelTimeLevel,
                         ProjDt);
@@ -1424,7 +1513,7 @@ void Tendencies::computeAllTendencies(
    computeVelocityTendenciesOnly(State, AuxState, TracerArray, ThickTimeLevel,
                                  VelTimeLevel, TracerTimeLevel, Time);
    computeTracerTendenciesOnly(State, AuxState, TracerArray, ThickTimeLevel,
-                               VelTimeLevel, Time);
+                               VelTimeLevel, Time, FinalUpdateWeight);
 } // end all tendency compute
 
 } // end namespace OMEGA
