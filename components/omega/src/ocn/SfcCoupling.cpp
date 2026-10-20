@@ -548,8 +548,12 @@ void OcnToCplFields::updateFrazilFields(const Array1DReal &FrazilMassFlux,
 
    parallelFor(
        {NCellsOwned}, KOKKOS_LAMBDA(int ICell) {
-          // Frazil mass and salt are positive for production; frazil energy
-          // is positive for formation and does not include melt potential.
+          // Frazil energy is positive for formation and does not include
+          // melt potential. It aligns with CPL convention and is left as is.
+          // Frazil mass and salt are expected positive for production;
+          // this is a temporary breach of the CPL convention by switching
+          // their sign here. TO-DO: update to align with CPL convention once
+          // the sea ice and coupler budgets have been updated.
           LocAvgFrazilMassFlux(ICell) = updateAverage(
               LocAvgFrazilMassFlux(ICell), -FrazilMassFlux(ICell), NAccumSteps);
           LocAvgFrazilSaltFlux(ICell) = updateAverage(
