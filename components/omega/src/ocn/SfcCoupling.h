@@ -105,6 +105,7 @@ class OcnToCplFields {
    /// instantaneous field, so no device mirror is needed
    HostArray1DReal InstSshCellH;
 
+   ///< Faoo_h2otemp [W m^-2], extra heat in ocn due to water mass fluxes
    HostArray1DReal AvgExtraEnergyH;
 
    // Accumulate one ocean timestep's contribution to the running averages
@@ -127,7 +128,7 @@ class OcnToCplFields {
    // the rest of the code.
    Array1DReal AvgSfcTemperature; // [C], conservative temperature
    Array1DReal AvgSfcSalinity;    // [g kg^-1], absolute salinity
-   Array1DReal AvgExtraEnergy;
+   Array1DReal AvgExtraEnergy;    // [W m-2], energy for atm "energy fixer"
 
    Array1DReal AvgSfcNormalVelocity; // [m s^-1], velocity normal to edge
    Array1DReal AvgSfcSshGrad;        // [m m^-1], ssh gradient normal to edge
