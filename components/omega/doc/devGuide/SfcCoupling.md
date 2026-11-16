@@ -86,18 +86,18 @@ ocean time step from `updateExportFields()`) and read via `copyToHost()`.
 
 ## Frazil Sign Conventions
 
-Frazil exports follow the existing MPAS-O / E3SM convention:
+Frazil exports follow the CPL convention:
 
 | Coupler field | Units | Positive direction | Description |
 | --- | --- | --- | --- |
-| `Fioo_frazilm` | $\mathrm{kg\ m^{-2}\ s^{-1}}$ | Out of ocean | Frazil mass flux |
-| `Fioo_frazils` | $\mathrm{kg\ m^{-2}\ s^{-1}}$ | Out of ocean | Frazil salt flux |
+| `Fioo_frazilm` | $\mathrm{kg\ m^{-2}\ s^{-1}}$ | Into ocean | Frazil mass flux |
+| `Fioo_frazils` | $\mathrm{kg\ m^{-2}\ s^{-1}}$ | Into ocean | Frazil salt flux |
 | `Fioo_frazilh` | $\mathrm{W\ m^{-2}}$ | Into ocean | Heat flux from frazil formation |
 
-These mass and salt flux signs are an exception to the standard coupler
-convention used by other components. Omega adopts this inverse convention
-to interface with existing E3SM coupling plumbing. Standardizing this across
-E3SM is tracked in [E3SM-Project/E3SM#8928](https://github.com/E3SM-Project/E3SM/issues/8928).
+`Fioo_frazilm` and `Fioo_frazils` use the signed coupler convention: frazil
+formation transfers mass and salt out of the ocean, so these fluxes are
+negative during formation. MPAS-SeaIce converts them at import to its
+positive-into-sea-ice convention.
 
 Because newly formed frazil has negative enthalpy, extracting frazil increases
 ocean heat energy. `Fioo_frazilh` is exported as this positive-into-ocean heat

@@ -1608,19 +1608,19 @@ contains
     attname  = 'Fioo_q'
     call metadata_set(attname, longname, stdname, units)
 
-    ! Ocean frazil production
+    ! Ocean frazil mass flux, positive into the ocean
     call seq_flds_add(o2x_fluxes,"Fioo_frazilm")
     call seq_flds_add(x2i_fluxes,"Fioo_frazilm")
-    longname = 'Ocean frazil production'
+    longname = 'Ocean frazil mass flux, positive into ocean'
     stdname  = 'ocean_frazil_ice_production'
     units    = 'kg m-2 s-1'
     attname  = 'Fioo_frazilm'
     call metadata_set(attname, longname, stdname, units)
 
-    ! Ocean frazil salt flux
+    ! Ocean frazil salt flux, positive into the ocean
     call seq_flds_add(o2x_fluxes,"Fioo_frazils")
     call seq_flds_add(x2i_fluxes,"Fioo_frazils")
-    longname = 'Ocean frazil salt flux'
+    longname = 'Ocean frazil salt flux, positive into ocean'
     stdname  = 'ocean_frazil_salt_flux'
     units    = 'kg m-2 s-1'
     attname  = 'Fioo_frazils'

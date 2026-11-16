@@ -1469,9 +1469,9 @@ contains
           ca_i =  area_data(n) * ifrac_data(n)
           ca_c =  area_data(n)
           nf = f_area;  budg_dataL(nf,ic,ip) = budg_dataL(nf,ic,ip) + ca_o
-          nf = f_wfrz;  budg_dataL(nf,ic,ip) = budg_dataL(nf,ic,ip) - (ca_o+ca_i)*max(0.0_r8,fld_frazilm(n))
+          nf = f_wfrz;  budg_dataL(nf,ic,ip) = budg_dataL(nf,ic,ip) - (ca_o+ca_i)*max(0.0_r8,-fld_frazilm(n))
           nf = f_hfrz;  budg_dataL(nf,ic,ip) = budg_dataL(nf,ic,ip) + (ca_o+ca_i)*max(0.0_r8,fld_frazilh(n))
-          nf = f_sfrazo; budg_dataL(nf,ic,ip) = budg_dataL(nf,ic,ip) - (ca_o+ca_i)*max(0.0_r8,fld_frazils(n))
+          nf = f_sfrazo; budg_dataL(nf,ic,ip) = budg_dataL(nf,ic,ip) - (ca_o+ca_i)*max(0.0_r8,-fld_frazils(n))
           nf = f_hh2ot; budg_dataL(nf,ic,ip) = budg_dataL(nf,ic,ip) + (ca_o+ca_i)*fld_h2otemp(n)
           if (flds_polar) then
              nf = f_wpolar; budg_dataL(nf,ic,ip) = budg_dataL(nf,ic,ip) - ca_c*fld_frazil_li(n)
@@ -1857,11 +1857,11 @@ contains
           nf = f_wsnow; budg_dataL(nf,ic,ip) = budg_dataL(nf,ic,ip) + ca_i*fld_snow(n)
           nf = f_wioff; budg_dataL(nf,ic,ip) = budg_dataL(nf,ic,ip) + ca_i*fld_rofi(n)
           nf = f_wfrz ; budg_dataL(nf,ic,ip) = budg_dataL(nf,ic,ip) + &
-               (ca_o+ca_i)*max(0.0_r8,fld_frazilm(n))
+               (ca_o+ca_i)*max(0.0_r8,-fld_frazilm(n))
           nf = f_hfrz;  budg_dataL(nf,ic,ip) = budg_dataL(nf,ic,ip) - &
                (ca_o+ca_i)*max(0.0_r8,fld_frazilh(n))
           nf = f_sfrazo; budg_dataL(nf,ic,ip) = budg_dataL(nf,ic,ip) + &
-               (ca_o+ca_i)*max(0.0_r8,fld_frazils(n))
+               (ca_o+ca_i)*max(0.0_r8,-fld_frazils(n))
           if ( flds_wiso_ice_x2i ) then
              nf = f_wrain_16O;
              budg_dataL(nf,ic,ip) = budg_dataL(nf,ic,ip) + ca_i*fld_rain_16O(n)

@@ -110,9 +110,9 @@ class OcnToCplFields {
    HostArray1DReal AvgExtraEnergyH;
    ///< Fioo_q [W m^-2], ocean melt and freeze potential
    HostArray1DReal MeltPotentialFluxH;
-   ///< Fioo_frazilm [kg m^-2 s^-1], ocean frazil mass production
+   ///< Fioo_frazilm [kg m^-2 s^-1], frazil mass flux, positive into ocean
    HostArray1DReal AvgFrazilMassFluxH;
-   ///< Fioo_frazils [kg m^-2 s^-1], ocean frazil salt production
+   ///< Fioo_frazils [kg m^-2 s^-1], frazil salt flux, positive into ocean
    HostArray1DReal AvgFrazilSaltFluxH;
    ///< Fioo_frazilh [W m^-2], ocean frazil heat production
    HostArray1DReal AvgFrazilEnergyFluxH;

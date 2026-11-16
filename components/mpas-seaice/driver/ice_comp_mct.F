@@ -2400,10 +2400,12 @@ contains
               freezingMeltingPotential(i) = x2i_i(index_x2i_Fioo_frazilh, n)
            end if
 
-           frazilMassFlux(i)           = x2i_i(index_x2i_Fioo_frazilm, n)
+           ! Coupler mass and salt fluxes are positive into the ocean; convert
+           ! here to the SeaIce core's positive-into-ice convention.
+           frazilMassFlux(i)           = - x2i_i(index_x2i_Fioo_frazilm, n)
 
            if (trim(config_frazil_coupling_type) == "omega-fluxes") then
-              frazilSaltFlux(i)           = x2i_i(index_x2i_Fioo_frazils, n)
+              frazilSaltFlux(i)           = - x2i_i(index_x2i_Fioo_frazils, n)
               frazilHeatFlux(i)           = x2i_i(index_x2i_Fioo_frazilh, n)
               frazilMassAdjust(i)         = 0.0_RKIND
 

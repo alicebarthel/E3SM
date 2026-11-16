@@ -3425,8 +3425,8 @@ contains
                 o2x_o(index_o2x_Fioo_q, n)  = seaIceEnergy(i) / ocn_cpl_dt
              endif
 
-             o2x_o(index_o2x_Fioo_frazilm, n) = accumulatedFrazilIceMass(i) / ocn_cpl_dt
-             o2x_o(index_o2x_Fioo_frazils, n) = accumulatedFrazilIceSalinity(i) / ocn_cpl_dt
+             o2x_o(index_o2x_Fioo_frazilm, n) = - accumulatedFrazilIceMass(i) / ocn_cpl_dt
+             o2x_o(index_o2x_Fioo_frazils, n) = - accumulatedFrazilIceSalinity(i) / ocn_cpl_dt
 
           else
 
@@ -3434,7 +3434,7 @@ contains
              o2x_o(index_o2x_Fioo_frazils, n) = 0.0_RKIND
              if (trim(config_land_ice_flux_mode) == 'standalone' .or. trim(config_land_ice_flux_mode) == 'data') then
                 o2x_o(index_o2x_Foxo_q_li, n) = accumulatedFrazilIceEnergy(i) / ocn_cpl_dt
-                o2x_o(index_o2x_Foxo_frazil_li, n) = accumulatedFrazilIceMass(i) / ocn_cpl_dt
+                o2x_o(index_o2x_Foxo_frazil_li, n) = - accumulatedFrazilIceMass(i) / ocn_cpl_dt
              endif
 
           end if
